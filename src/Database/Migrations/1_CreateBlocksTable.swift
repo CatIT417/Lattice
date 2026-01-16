@@ -1,0 +1,40 @@
+import SQLiteData
+
+final class CreateBlocksTable: Migration {
+	static func run(_ db: Database) throws {
+		// All blocks (pages are blocks with a title)
+		try db.create(table: "blocks") { table in
+			table.id() // Internal entity ID (like Roam's e-id)
+
+			table.column("string", .text) // Block text content (NULL for pages)
+			table.column("title", .text) // Page title (NULL for regular blocks)
+
+			// Hierarchy
+			table.column("parentId", .integer).references("blocks", column: "id", onDelete: .cascade)
+			table.column("pageId", .integer).indexed().references("blocks", column: "id", onDelete: .cascade) // Root page for this block
+			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings
+
+			// Display options
+			table.column("heading", .integer) // 1, 2, or 3 (NULL = normal)
+			table.column("viewType", .text).notNull().defaults(to: "bullet") // bullet', 'document', 'numbered'
+			table.column("textAlign", .text).notNull().defaults(to: "left") // 'left', 'center', 'right', 'justify'
+			table.column("isOpen", .boolean).notNull().defaults(to: false) // Collapsed state
+
+			// Flexible properties (images, embeds, sliders, etc.)
+			table.column("props", .jsonText) // JSON blob for extensible data
+
+			// Timestamps
+			table.column("createdAt", .integer).notNull().defaults(sql: "current_timestamp") // Unix timestamp
+			table.column("updatedAt", .integer).notNull().defaults(sql: "current_timestamp").indexed() // Unix timestamp
+
+			// Constraints
+			table.constraint(#sql("CHECK (title IS NOT NULL OR parentId IS NOT NULL)")) // Pages have title, blocks have parent
+			table.constraint(#sql("CHECK ((title IS NOT NULL) != (string IS NOT NULL))")) // XOR: either page OR block
+		}
+
+		// Indexes for common queries
+
+		try db.create(indexOn: "blocks", columns: ["parentId", "order"])
+		try db.create(indexOn: "blocks", columns: ["title"], condition: "title IS NOT NULL")
+	}
+}

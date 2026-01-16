@@ -6,14 +6,26 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A42F1A060C00687E49 /* TinyStorage */; };
+		C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A72F1A061900687E49 /* NavigationKit */; };
+		C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AA2F1A062900687E49 /* ObfuscateMacro */; };
+		C025F1AE2F1A064400687E49 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */; };
+		C025F1B12F1A065D00687E49 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B02F1A065D00687E49 /* Nuke */; };
+		C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B22F1A065D00687E49 /* NukeUI */; };
+		C025F1B62F1A066F00687E49 /* ButtonKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B52F1A066F00687E49 /* ButtonKit */; };
+		C025F1B92F1A067F00687E49 /* Atlantis in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B82F1A067F00687E49 /* Atlantis */; };
+		C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C025F20B2F1AA3D100687E49 /* SQLiteData */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		C02BFFA42F1A04EE00169A69 /* Lattice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lattice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C02BFFA62F1A04EE00169A69 /* Lattice */ = {
+		C02BFFA62F1A04EE00169A69 /* src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Lattice;
+			path = src;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +35,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */,
+				C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */,
+				C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */,
+				C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */,
+				C025F1B12F1A065D00687E49 /* Nuke in Frameworks */,
+				C025F1B62F1A066F00687E49 /* ButtonKit in Frameworks */,
+				C025F1AE2F1A064400687E49 /* SwiftUIIntrospect in Frameworks */,
+				C025F1B92F1A067F00687E49 /* Atlantis in Frameworks */,
+				C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,7 +53,7 @@
 		C02BFF9B2F1A04EE00169A69 = {
 			isa = PBXGroup;
 			children = (
-				C02BFFA62F1A04EE00169A69 /* Lattice */,
+				C02BFFA62F1A04EE00169A69 /* src */,
 				C02BFFA52F1A04EE00169A69 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,10 +82,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				C02BFFA62F1A04EE00169A69 /* Lattice */,
+				C02BFFA62F1A04EE00169A69 /* src */,
 			);
 			name = Lattice;
 			packageProductDependencies = (
+				C025F1A42F1A060C00687E49 /* TinyStorage */,
+				C025F1A72F1A061900687E49 /* NavigationKit */,
+				C025F1AA2F1A062900687E49 /* ObfuscateMacro */,
+				C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */,
+				C025F1B02F1A065D00687E49 /* Nuke */,
+				C025F1B22F1A065D00687E49 /* NukeUI */,
+				C025F1B52F1A066F00687E49 /* ButtonKit */,
+				C025F1B82F1A067F00687E49 /* Atlantis */,
+				C025F20B2F1AA3D100687E49 /* SQLiteData */,
 			);
 			productName = Lattice;
 			productReference = C02BFFA42F1A04EE00169A69 /* Lattice.app */;
@@ -94,6 +124,16 @@
 			);
 			mainGroup = C02BFF9B2F1A04EE00169A69;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */,
+				C025F1A62F1A061900687E49 /* XCRemoteSwiftPackageReference "NavigationKit" */,
+				C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */,
+				C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */,
+				C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */,
+				C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */,
+				C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */,
+				C025F20A2F1AA3D100687E49 /* XCLocalSwiftPackageReference "../../Temp/sqlite-data" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C02BFFA52F1A04EE00169A69 /* Products */;
 			projectDirPath = "";
@@ -264,10 +304,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.miguel.Lattice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -276,12 +316,12 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.2;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -308,10 +348,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = build.miguel.Lattice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -320,12 +360,12 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.2;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -351,6 +391,119 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C025F20A2F1AA3D100687E49 /* XCLocalSwiftPackageReference "../../Temp/sqlite-data" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../Temp/sqlite-data";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/christianselig/TinyStorage.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.2;
+			};
+		};
+		C025F1A62F1A061900687E49 /* XCRemoteSwiftPackageReference "NavigationKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/m1guelpf/NavigationKit.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/p-x9/ObfuscateMacro.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.13.0;
+			};
+		};
+		C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/siteline/swiftui-introspect.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 26.0.0;
+			};
+		};
+		C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
+		C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Dean151/ButtonKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.6.1;
+			};
+		};
+		C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ProxymanApp/atlantis.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.31.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C025F1A42F1A060C00687E49 /* TinyStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */;
+			productName = TinyStorage;
+		};
+		C025F1A72F1A061900687E49 /* NavigationKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A62F1A061900687E49 /* XCRemoteSwiftPackageReference "NavigationKit" */;
+			productName = NavigationKit;
+		};
+		C025F1AA2F1A062900687E49 /* ObfuscateMacro */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */;
+			productName = ObfuscateMacro;
+		};
+		C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */;
+			productName = SwiftUIIntrospect;
+		};
+		C025F1B02F1A065D00687E49 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		C025F1B22F1A065D00687E49 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		C025F1B52F1A066F00687E49 /* ButtonKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */;
+			productName = ButtonKit;
+		};
+		C025F1B82F1A067F00687E49 /* Atlantis */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */;
+			productName = Atlantis;
+		};
+		C025F20B2F1AA3D100687E49 /* SQLiteData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SQLiteData;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C02BFF9C2F1A04EE00169A69 /* Project object */;
 }
