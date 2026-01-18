@@ -2,7 +2,7 @@ import SQLiteData
 import Foundation
 
 @Table
-struct Page: Identifiable, Equatable, Hashable, Sendable {
+struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// Internal entity ID (like Roam's e-id)
 	var id: UUID
 
@@ -17,24 +17,22 @@ struct Page: Identifiable, Equatable, Hashable, Sendable {
 
 	@Column(as: Date.UnixTimeRepresentation.self)
 	var updatedAt: Date
-}
 
-extension Page {
-	@Selection
-	struct WithContent {
-		let page: Page
-		@Column(as: [Paragraph].JSONRepresentation.self)
-		let content: [Paragraph]
+	init(id: UUID = UUID(), title: String, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
+		self.id = id
+		self.title = title
+		self.props = props
+		self.createdAt = createdAt
+		self.updatedAt = updatedAt
 	}
 
-	static func withContent(id: ID) -> some Statement<WithContent> {
-		Page
-			.find(id)
-			.group(by: \.id)
-			.join(Ancestor.all) { $0.id.eq($1.ancestorId) }
-			.join(Paragraph.all) { $1.blockId.eq($2.id) }
-			.select { page, _, paragraph in
-				WithContent.Columns(page: page, content: paragraph.jsonGroupArray())
-			}
+	init?(block: Block) {
+		guard let title = block.title else { return nil }
+
+		id = block.id
+		self.title = title
+		props = block.props
+		createdAt = block.createdAt
+		updatedAt = block.updatedAt
 	}
 }

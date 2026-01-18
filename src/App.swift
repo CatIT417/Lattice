@@ -13,7 +13,9 @@ struct LatticeApp: App {
 
 	var body: some Scene {
 		WindowGroup {
-			ContentView()
+			NavigationContainer(parentRouter: Router(level: 0)) {
+				ContentView()
+			}
 		}
 	}
 }

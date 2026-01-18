@@ -1,7 +1,7 @@
 import SQLiteData
 
 final class CreateBlocksTable: Migration {
-	static func run(_ db: Database) throws {
+	static func up(_ db: Database) throws {
 		// All blocks (pages are blocks with a title)
 		try db.create(table: "blocks") { table in
 			table.id() // Internal entity ID (like Roam's e-id)
@@ -36,5 +36,9 @@ final class CreateBlocksTable: Migration {
 
 		try db.create(indexOn: "blocks", columns: ["parentId", "order"])
 		try db.create(indexOn: "blocks", columns: ["title"], condition: "title IS NOT NULL")
+	}
+
+	static func down(_ db: Database) throws {
+		try db.drop(table: "blocks")
 	}
 }

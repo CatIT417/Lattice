@@ -2,15 +2,15 @@ import SwiftUI
 import SQLiteData
 
 struct ContentView: View {
-	var body: some View {
-		VStack {
-			Image(systemName: "globe")
-				.imageScale(.large)
-				.foregroundStyle(.tint)
+	@FetchAll(Page.all) var pages
 
-			Text("Hello, world!")
+	var body: some View {
+		List(pages) { page in
+			NavigationButton(push: .page(id: page.id)) {
+				Text(page.title)
+			}
 		}
-		.padding()
+		.navigationTitle("Pages")
 	}
 }
 
@@ -22,4 +22,5 @@ struct ContentView: View {
 	}
 
 	ContentView()
+		.preview()
 }

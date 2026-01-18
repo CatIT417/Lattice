@@ -3,7 +3,8 @@ import Foundation
 import SQLiteData
 
 nonisolated protocol Migration: Sendable {
-	static func run(_ db: Database) throws
+	static func up(_ db: Database) throws
+	static func down(_ db: Database) throws
 }
 
 nonisolated protocol Seeder: Sendable {
@@ -39,11 +40,19 @@ protocol Trigger: Sendable {
 extension DatabaseMigrator {
 	mutating func registerMigration<T: Migration>(_ migration: T.Type) {
 		registerMigration(String(describing: migration)) { db in
-			try migration.run(db)
+			try migration.up(db)
 		}
 	}
 
-	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter) throws {
+	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter, clean: Bool = false) throws {
+		if clean {
+			try database.write { db in
+				for migration in migrations {
+					try migration.down(db)
+				}
+			}
+		}
+
 		registerMigrations(migrations)
 		try migrate(database)
 	}
@@ -77,14 +86,6 @@ extension GRDB.TableDefinition {
 }
 
 extension DatabaseWriter {
-	func setupViews(_ views: [DatabaseView.Type]) throws {
-		try write { database in
-			for view in views {
-				try view.create(in: database)
-			}
-		}
-	}
-
 	func setupTriggers(_ triggers: [Trigger.Type]) throws {
 		try write { database in
 			for trigger in triggers {
@@ -96,6 +97,14 @@ extension DatabaseWriter {
 	func seed<T: Seeder>(_: T.Type) throws {
 		try write { database in
 			try database.seed(T.seed)
+		}
+	}
+}
+
+extension Database {
+	func setupViews(_ views: [DatabaseView.Type]) throws {
+		for view in views {
+			try view.create(in: self)
 		}
 	}
 }

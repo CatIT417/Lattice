@@ -4,7 +4,7 @@ import Foundation
 final class SyncAncestorsTable: Trigger {
 	static func install(in database: Database) throws {
 		// When inserting a new block
-		try Block.createTemporaryTrigger("create_ancestors_on_block_insert", after: .insert(forEachRow: { new in
+		try Block.createTemporaryTrigger(after: .insert(forEachRow: { new in
 			Self.insertParent(blockId: new.id, parentId: new.parentId.unsafelyUnwrapped)
 			Self.propagateParentAncestors(blockId: new.id, parentId: new.parentId)
 		}, when: {

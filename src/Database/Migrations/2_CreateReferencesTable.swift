@@ -1,7 +1,7 @@
 import SQLiteData
 
 final class CreateReferencesTable: Migration {
-	static func run(_ db: Database) throws {
+	static func up(_ db: Database) throws {
 		// Links between blocks (the [[wiki links]] and ((block refs)))
 		try db.create(table: "blockReferences") { table in
 			table.id()
@@ -13,5 +13,9 @@ final class CreateReferencesTable: Migration {
 			// Uniqueness constraint (disabled for sync engine)
 			// table.uniqueKey(["sourceBlockId", "targetBlockId", "kind"])
 		}
+	}
+
+	static func down(_ db: Database) throws {
+		try db.drop(table: "blockReferences")
 	}
 }

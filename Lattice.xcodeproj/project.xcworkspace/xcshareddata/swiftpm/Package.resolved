@@ -1,5 +1,5 @@
 {
-  "originHash" : "75d2209e17cf7962ea465fbac9fa503c80e56f88b492fa455cdb5fa2c9fb5980",
+  "originHash" : "d4e1a01f4f78b7daee8375bccae1ae33a3bf8c989b5c8dabea7d6f619234b0a5",
   "pins" : [
     {
       "identity" : "atlantis",
@@ -43,7 +43,7 @@
       "location" : "https://github.com/m1guelpf/NavigationKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "9734df6b9b1c7f28527c003f7186aada0d248400"
+        "revision" : "58018076b80575396879b8d5bd4432335c91c700"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/p-x9/ObfuscateMacro.git",
       "state" : {
-        "revision" : "116c9747ed2dd50d6b058a49bbb79e96b5e2e1a2",
-        "version" : "0.13.0"
+        "revision" : "933cf203cfea5fb79b11363d2928bfa54284478e",
+        "version" : "0.14.0"
       }
     },
     {
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-structured-queries",
       "state" : {
-        "revision" : "862802b5a66aec04219b7c2a10e06a5681da86ee",
-        "version" : "0.27.0"
+        "branch" : "main",
+        "revision" : "2fdf3acd9a633fb0c4015a606ba380a0a7fa9aae"
       }
     },
     {

@@ -2,7 +2,7 @@ import SQLiteData
 import Foundation
 
 @Table
-struct Block: Identifiable, Equatable, Hashable, Sendable {
+struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	enum ViewType: String, Equatable, Hashable, Codable, Sendable, QueryBindable {
 		case bullet, document, numbered
 	}
@@ -13,6 +13,11 @@ struct Block: Identifiable, Equatable, Hashable, Sendable {
 
 	enum TextAlignment: String, Equatable, Hashable, Codable, Sendable, QueryBindable {
 		case left, center, right, justify
+	}
+
+	enum Kind: Equatable, Hashable, Sendable {
+		case page(Page)
+		case paragraph(Paragraph)
 	}
 
 	/// Internal entity ID (like Roam's e-id)
@@ -31,26 +36,33 @@ struct Block: Identifiable, Equatable, Hashable, Sendable {
 	var pageId: Block.ID?
 
 	/// Position among siblings
-	var order: Int
+	var order: Int = 0
 
 	/// 1, 2, or 3 (NULL = normal)
-	var heading: HeadingLevel?
+	var heading: HeadingLevel? = nil
 
 	/// 'bullet', 'document', 'numbered'
-	var viewType: ViewType
+	var viewType: ViewType = .bullet
 
 	/// 'left', 'center', 'right', 'justify'
-	var textAlign: TextAlignment
+	var textAlign: TextAlignment = .left
 
 	/// Collapsed state
-	var isOpen: Bool
+	var isOpen: Bool = true
 
 	/// JSON blob for extensible data
-	var props: String?
+	var props: String? = nil
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var createdAt: Date
+	var createdAt: Date = .now
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var updatedAt: Date
+	var updatedAt: Date = .now
+
+	var kind: Kind {
+		if let page = Page(block: self) { return .page(page) }
+		if let paragraph = Paragraph(block: self) { return .paragraph(paragraph) }
+
+		fatalError("Invalid Block: \(self)")
+	}
 }

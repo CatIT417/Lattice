@@ -2,7 +2,7 @@ import SQLiteData
 import Foundation
 
 @Table
-struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable {
+struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChildren {
 	/// Internal entity ID (like Roam's e-id)
 	var id: UUID
 
@@ -38,4 +38,38 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable {
 
 	@Column(as: Date.UnixTimeRepresentation.self)
 	var updatedAt: Date
+
+	init(id: UUID = UUID(), string: String, parentId: Block.ID, pageId: Page.ID, order: Int, heading: Block.HeadingLevel? = nil, viewType: Block.ViewType = .bullet, textAlign: Block.TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
+		self.id = id
+		self.props = props
+		self.order = order
+		self.string = string
+		self.isOpen = isOpen
+		self.pageId = pageId
+		self.heading = heading
+		self.viewType = viewType
+		self.parentId = parentId
+		self.textAlign = textAlign
+		self.createdAt = createdAt
+		self.updatedAt = updatedAt
+	}
+
+	init?(block: Block) {
+		guard let string = block.string, let parentId = block.parentId, let pageId = block.pageId else {
+			return nil
+		}
+
+		id = block.id
+		props = block.props
+		order = block.order
+		self.string = string
+		self.pageId = pageId
+		isOpen = block.isOpen
+		heading = block.heading
+		self.parentId = parentId
+		viewType = block.viewType
+		textAlign = block.textAlign
+		createdAt = block.createdAt
+		updatedAt = block.updatedAt
+	}
 }
