@@ -9,6 +9,20 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 		case pageLink = "page_link"
 		case blockRef = "block_ref"
 		case blockEmbed = "block_embed"
+
+		var isPage: Bool {
+			switch self {
+				case .pageLink, .tag: true
+				case .blockRef, .blockEmbed: false
+			}
+		}
+
+		var isBlock: Bool {
+			switch self {
+				case .pageLink, .tag: false
+				case .blockRef, .blockEmbed: true
+			}
+		}
 	}
 
 	var id: UUID

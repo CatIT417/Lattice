@@ -3,11 +3,7 @@ import SwiftUI
 struct RenderText: View {
 	var text: String
 
-	var body: some View {
-		Text(attributedText)
-	}
-
-	private var attributedText: AttributedString {
+	var attributedText: AttributedString {
 		let refs = text.extractRefs().sorted { $0.range.lowerBound < $1.range.lowerBound }
 
 		guard !refs.isEmpty else {
@@ -33,6 +29,13 @@ struct RenderText: View {
 		if currentIndex < text.endIndex { result += AttributedString(text[currentIndex...]) }
 
 		return result
+	}
+
+	var body: some View {
+		Text(attributedText)
+			.lineLimit(1...)
+			.fixedSize(horizontal: false, vertical: true)
+			.multilineTextAlignment(.leading)
 	}
 }
 

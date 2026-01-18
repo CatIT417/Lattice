@@ -39,6 +39,7 @@ func appDatabase() throws -> any DatabaseWriter {
 	], in: database, clean: isDebug)
 
 	try database.setupTriggers([
+		TouchTimestamps.self,
 		SyncAncestorsTable.self,
 		MakePagesViewWritable.self,
 		MakeParagraphsViewWritable.self,
