@@ -46,9 +46,13 @@ extension DatabaseMigrator {
 
 	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter, clean: Bool = false) throws {
 		if clean {
-			try database.write { db in
-				for migration in migrations {
-					try migration.down(db)
+			if let appliedMigrations = try? database.read({ try MigrationRecord.fetchAll($0) }) {
+				try database.write { db in
+					for migration in migrations {
+						if appliedMigrations.contains(where: { $0.identifier == String(describing: migration) }) {
+							try migration.down(db)
+						}
+					}
 				}
 			}
 		}
