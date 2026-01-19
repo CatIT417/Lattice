@@ -12,7 +12,7 @@ struct BlockTree {
 	}
 
 	func children(of parentId: Block.ID) -> [Paragraph] {
-		childrenByParentId[parentId] ?? []
+		childrenByParentId[parentId]?.sorted(using: KeyPathComparator(\.order, order: .forward)) ?? []
 	}
 }
 

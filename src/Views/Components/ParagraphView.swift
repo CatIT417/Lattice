@@ -38,16 +38,18 @@ struct ParagraphView: View {
 		VStack(alignment: .leading, spacing: 4) {
 			HStack(alignment: .firstTextBaseline, spacing: 8) {
 				if paragraph.viewType != .document {
-					bulletView
-						.alignmentGuide(.firstTextBaseline) { _ in
-							bulletAlignment
-						}
+					NavigationButton(push: .paragraph(id: paragraph.id)) {
+						bulletView
+					}
+					.alignmentGuide(.firstTextBaseline) { _ in
+						bulletAlignment
+					}
 				}
 
 				EditableText(
 					text: paragraph.string,
 					onSave: { newText in saveChanges(newText) },
-					onReturn: { createNewBlock() }
+					onReturn: createNewBlock
 				)
 				.font(fontForHeading)
 				.frame(minHeight: fontLineHeight, alignment: .topLeading)

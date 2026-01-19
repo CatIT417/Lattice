@@ -11,9 +11,11 @@ final class CreateParagraphsView: DatabaseView {
 					parentId: $0.parentId.unsafelyUnwrapped,
 					pageId: $0.pageId.unsafelyUnwrapped,
 					order: $0.order,
+					heading: $0.heading,
 					viewType: $0.viewType,
 					textAlign: $0.textAlign,
 					isOpen: $0.isOpen,
+					props: $0.props,
 					createdAt: $0.createdAt,
 					updatedAt: $0.createdAt
 				)

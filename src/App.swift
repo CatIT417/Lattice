@@ -13,10 +13,8 @@ struct LatticeApp: App {
 
 	var body: some Scene {
 		WindowGroup("Lattice") {
-			NavigationContainer(parentRouter: Router(level: 0)) {
-				ContentView()
-			}
-			.handlesExternalEvents(preferring: Set(arrayLiteral: "Lattice"), allowing: Set(arrayLiteral: "*"))
+			RootContainer()
+				.handlesExternalEvents(preferring: Set(arrayLiteral: "Lattice"), allowing: Set(arrayLiteral: "*"))
 		}
 		.handlesExternalEvents(matching: Set(arrayLiteral: "Lattice"))
 	}

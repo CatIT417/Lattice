@@ -73,3 +73,5 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 		updatedAt = block.updatedAt
 	}
 }
+
+enum ParagraphAlias: AliasName {}

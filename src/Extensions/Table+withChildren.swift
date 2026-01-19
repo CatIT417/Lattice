@@ -8,19 +8,19 @@ struct _WithChildren<Model: Table> where Model.QueryOutput == Model {
 	let tree: BlockTree
 
 	// just to make the decoder happy, holds no actual data
-	private let content: [Paragraph] = []
+	private let content: [TableAlias<Paragraph, ParagraphAlias>] = []
 }
 
 extension HasChildren {
 	typealias WithChildren = _WithChildren<Self>
 
-	static func withChildren(id: Self.PrimaryKey) -> some SelectStatement<WithChildren, Self, (Ancestor, Paragraph)> {
+	static func withChildren(id: Self.PrimaryKey) -> Select<WithChildren, Self, (Ancestor?, TableAlias<Paragraph, ParagraphAlias>?)> {
 		find(id)
 			.group(by: \.primaryKey)
-			.join(Ancestor.all) { $0.primaryKey.eq($1.ancestorId) }
-			.join(Paragraph.all) { $1.blockId.eq($2.id) }
+			.leftJoin(Ancestor.all) { $0.primaryKey.eq($1.ancestorId) }
+			.leftJoin(Paragraph.as(ParagraphAlias.self).all) { $1.blockId.eq($2.id) }
 			.select { block, _, paragraph in
-				WithChildren.Columns(block: block, content: paragraph.jsonGroupArray())
+				WithChildren.Columns(block: block, content: paragraph.optionalJSONGroupArray(filter: paragraph.id.isNot(nil)))
 			}
 			.asSelect()
 	}
@@ -45,7 +45,7 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 	}
 
 	static var _columnWidth: Int {
-		Model._columnWidth + [Paragraph].JSONRepresentation._columnWidth
+		Model._columnWidth + [TableAlias<Paragraph, ParagraphAlias>].JSONRepresentation._columnWidth
 	}
 
 	static var tableName: String { "" }
@@ -54,7 +54,7 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 		typealias QueryValue = _WithChildren
 
 		let block = _TableColumn<QueryValue, Model>.for("block", keyPath: \_WithChildren.block)
-		let content = TableColumn<QueryValue, [Paragraph].JSONRepresentation>("content", keyPath: \_WithChildren.content)
+		let content = TableColumn<QueryValue, [TableAlias<Paragraph, ParagraphAlias>].JSONRepresentation>("content", keyPath: \_WithChildren.content)
 
 		static var allColumns: [any TableColumnExpression] {
 			var allColumns: [any TableColumnExpression] = []
@@ -82,7 +82,7 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 
 		let allColumns: [any QueryExpression]
 
-		init(block: some QueryExpression<Model>, content: some QueryExpression<[Paragraph].JSONRepresentation>) {
+		init(block: some QueryExpression<Model>, content: some QueryExpression<[TableAlias<Paragraph, ParagraphAlias>].JSONRepresentation>) {
 			var allColumns: [any QueryExpression] = []
 
 			allColumns.append(contentsOf: block._allColumns)
@@ -90,5 +90,27 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 
 			self.allColumns = allColumns
 		}
+	}
+}
+
+public extension TableDefinition where QueryValue: _OptionalProtocol & Codable {
+	func optionalJSONGroupArray<Wrapped: Codable>(
+		distinct isDistinct: Bool = false,
+		order: (some QueryExpression)? = Bool?.none,
+		filter: some QueryExpression<Bool>
+	) -> some QueryExpression<[Wrapped].JSONRepresentation> where QueryValue == Wrapped? {
+		AggregateFunctionExpression(
+			"json_group_array",
+			distinct: isDistinct,
+			QueryValue.columns.jsonObject(filtering: filter),
+			order: order,
+			filter: filter
+		)
+	}
+}
+
+public extension Optional.TableColumns where QueryValue: Codable {
+	func jsonObject(filtering filter: some QueryExpression<Bool>) -> some QueryExpression<_CodableJSONRepresentation<Wrapped>?> {
+		Case().when(filter, then: Wrapped.columns.jsonObject())
 	}
 }

@@ -1,16 +1,22 @@
 import SwiftUI
 import SQLiteData
 
-struct ContentView: View {
+struct RootContainer: View {
 	@FetchAll(Page.all) var pages
 
-	var body: some View {
+	var content: some View {
 		List(pages) { page in
 			NavigationButton(push: .page(id: page.id)) {
 				Text(page.title)
 			}
 		}
 		.navigationTitle("Pages")
+	}
+
+	var body: some View {
+		NavigationContainer(parentRouter: Router(level: 0)) {
+			content
+		}
 	}
 }
 
@@ -21,6 +27,6 @@ struct ContentView: View {
 		}
 	}
 
-	ContentView()
-		.preview()
+	RootContainer()
+		.preview(wrapInNavigation: false)
 }

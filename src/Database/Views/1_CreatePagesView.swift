@@ -7,6 +7,7 @@ final class CreatePagesView: DatabaseView {
 				Page.Columns(
 					id: $0.id,
 					title: $0.title.unsafelyUnwrapped,
+					props: $0.props,
 					createdAt: $0.createdAt,
 					updatedAt: $0.updatedAt
 				)
