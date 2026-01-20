@@ -30,8 +30,7 @@ struct ParagraphView: View {
 	}
 
 	var bulletAlignment: CGFloat {
-		if !paragraph.string.isEmpty { return fontXHeight }
-		return fontXHeight - (fontXHeight / 2)
+		fontXHeight
 	}
 
 	var body: some View {

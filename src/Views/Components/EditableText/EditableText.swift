@@ -9,25 +9,26 @@ struct EditableText: View {
 	@Environment(\.font) private var font
 	@Environment(\.fontResolutionContext) private var fontContext
 
-	@State private var editableText: String
-
 	init(text: String, onSave: @escaping (String) -> Void, onReturn: @escaping (String?) -> Void) {
 		self.text = text
 		self.onSave = onSave
 		self.onReturn = onReturn
-		_editableText = State(initialValue: text)
+	}
+
+	private var ctFont: CTFont {
+		(font ?? .body).resolve(in: fontContext).ctFont
 	}
 
 	var body: some View {
 		EditableTextView(
-			text: $editableText,
-			ctFont: (font ?? .body).resolve(in: fontContext).ctFont,
+			text: text,
+			ctFont: ctFont,
 			onSave: onSave,
 			onReturn: onReturn,
 			onLinkTap: openLink
 		)
-		.onChange(of: text) { _, newValue in
-			editableText = newValue
+		.alignmentGuide(.firstTextBaseline) { _ in
+			CTFontGetAscent(ctFont)
 		}
 	}
 

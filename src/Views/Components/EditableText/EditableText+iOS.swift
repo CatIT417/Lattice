@@ -2,44 +2,8 @@
 import UIKit
 import SwiftUI
 
-/// Custom UITextView that properly sizes itself for SwiftUI
-final class AutosizingTextView: UITextView {
-	/// The width to use for sizing, set by SwiftUI's sizeThatFits
-	var proposedWidth: CGFloat = 0
-	private var lastLayoutWidth: CGFloat = 0
-
-	/// Stores the last tap location for cursor positioning during mode transitions
-	var lastTapLocation: CGPoint?
-
-	/// Force TextKit 1 for better performance with dynamic sizing
-	init() {
-		super.init(frame: .zero, textContainer: nil)
-	}
-
-	@available(*, unavailable)
-	required init?(coder _: NSCoder) {
-		fatalError("init(coder:) has not been implemented")
-	}
-
-	override var intrinsicContentSize: CGSize {
-		// Use proposed width from SwiftUI, then bounds, then fallback
-		let fixedWidth = proposedWidth > 0 ? proposedWidth : (bounds.width > 0 ? bounds.width : 300)
-		let size = sizeThatFits(CGSize(width: fixedWidth, height: .greatestFiniteMagnitude))
-		return CGSize(width: UIView.noIntrinsicMetric, height: max(size.height, 22))
-	}
-
-	override func layoutSubviews() {
-		super.layoutSubviews()
-		// Only invalidate when width actually changes
-		if bounds.width != lastLayoutWidth {
-			lastLayoutWidth = bounds.width
-			invalidateIntrinsicContentSize()
-		}
-	}
-}
-
 struct EditableTextView: UIViewRepresentable {
-	@Binding var text: String
+	let text: String
 	let ctFont: CTFont
 	let onSave: (String) -> Void
 	let onReturn: (String?) -> Void
@@ -51,25 +15,26 @@ struct EditableTextView: UIViewRepresentable {
 
 	func makeUIView(context: Context) -> AutosizingTextView {
 		let textView = AutosizingTextView()
-		textView.delegate = context.coordinator
-		textView.backgroundColor = .clear
-		textView.textContainerInset = .zero
-		textView.textContainer.lineFragmentPadding = 0
-		textView.isScrollEnabled = false
+		textView.font = uiFont
 		textView.isEditable = true
+		textView.textColor = .label
 		textView.isSelectable = true
 		textView.dataDetectorTypes = []
+		textView.isScrollEnabled = false
+		textView.backgroundColor = .clear
+		textView.textContainerInset = .zero
+		textView.delegate = context.coordinator
+		textView.textContainer.lineFragmentPadding = 0
 		textView.linkTextAttributes = [
 			.foregroundColor: UIColor.tintColor,
 		]
 
-		// Layout priorities for proper SwiftUI integration
-		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 		textView.setContentHuggingPriority(.required, for: .vertical)
-		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
+		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-		// Start in view mode (attributed text)
+		// Start in view mode
 		let result = buildAttributedString(from: text, font: uiFont)
 		textView.attributedText = result.attributedString
 		context.coordinator.indexMapping = result.indexMapping
@@ -78,14 +43,14 @@ struct EditableTextView: UIViewRepresentable {
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
-		// Only update if text changed externally and not editing
-		if !context.coordinator.isEditing, text != context.coordinator.lastKnownText {
-			let result = buildAttributedString(from: text, font: uiFont)
-			textView.attributedText = result.attributedString
-			context.coordinator.indexMapping = result.indexMapping
-			context.coordinator.lastKnownText = text
-			textView.invalidateIntrinsicContentSize()
-		}
+		guard !context.coordinator.isEditing, text != context.coordinator.lastKnownText else { return }
+
+		let result = buildAttributedString(from: text, font: uiFont)
+		context.coordinator.lastKnownText = text
+		textView.attributedText = result.attributedString
+		context.coordinator.indexMapping = result.indexMapping
+
+		textView.invalidateIntrinsicContentSize()
 	}
 
 	func makeCoordinator() -> Coordinator {
@@ -94,12 +59,15 @@ struct EditableTextView: UIViewRepresentable {
 
 	func sizeThatFits(_ proposal: ProposedViewSize, uiView: AutosizingTextView, context _: Context) -> CGSize? {
 		let width = proposal.width ?? 300
+
 		// Store the proposed width so intrinsicContentSize uses the correct value
 		if uiView.proposedWidth != width {
 			uiView.proposedWidth = width
 			uiView.invalidateIntrinsicContentSize()
 		}
+
 		let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+
 		return CGSize(width: width, height: max(size.height, 22))
 	}
 }
@@ -111,7 +79,7 @@ extension EditableTextView {
 		var lastKnownText: String
 		var indexMapping: IndexMapping?
 		var linkWasTapped = false
-		var isSwitchingModes = false
+		var willSwitchToEditing = false
 
 		init(parent: EditableTextView) {
 			self.parent = parent
@@ -121,21 +89,32 @@ extension EditableTextView {
 		// MARK: - Focus/Edit Mode Transitions
 
 		func textViewDidBeginEditing(_ textView: UITextView) {
-			// If a link was tapped, don't enter edit mode
 			if linkWasTapped {
+				print("link tapped")
 				linkWasTapped = false
 				textView.resignFirstResponder()
 				return
 			}
 
-			guard !isEditing else { return }
-			isSwitchingModes = true
+			guard !isEditing else {
+				print("already editing")
+				return
+			}
+
+			willSwitchToEditing = true
+
+			// If the user is tapping to place the cursor, `textViewDidChangeSelection` will transition
+			// to edit mode. We wait a moment to see if that happens and manually transition if not.
+			DispatchQueue.main.async {
+				guard self.willSwitchToEditing else { return }
+				self.transitionToEditMode(textView: textView)
+			}
 		}
 
 		func textViewDidChangeSelection(_ textView: UITextView) {
-			guard isSwitchingModes else { return }
+			guard willSwitchToEditing else { return }
 
-			isSwitchingModes = false
+			willSwitchToEditing = false
 			transitionToEditMode(textView: textView)
 		}
 
@@ -148,13 +127,13 @@ extension EditableTextView {
 			}
 
 			// Switch to raw text
-			let rawText = parent.text
-			textView.text = rawText
-			textView.font = parent.uiFont
-			textView.textColor = .label
+			textView.attributedText = NSAttributedString(string: parent.text, attributes: [
+				.font: parent.uiFont,
+				.foregroundColor: UIColor.label,
+			])
 
 			if let cursorOffset, let mapping = indexMapping {
-				let translatedOffset = min(mapping.rawIndex(fromRendered: cursorOffset), rawText.count)
+				let translatedOffset = min(mapping.rawIndex(fromRendered: cursorOffset), parent.text.count)
 				if let translatedPosition = textView.position(from: textView.beginningOfDocument, offset: translatedOffset) {
 					textView.selectedTextRange = textView.textRange(from: translatedPosition, to: translatedPosition)
 				}
@@ -169,7 +148,6 @@ extension EditableTextView {
 
 			let newText = textView.text ?? ""
 			if newText != parent.text {
-				parent.text = newText
 				parent.onSave(newText)
 			}
 			lastKnownText = newText
@@ -202,7 +180,6 @@ extension EditableTextView {
 		// MARK: - Text Changes
 
 		func textViewDidChange(_ textView: UITextView) {
-			// Invalidate size when text changes during editing
 			textView.invalidateIntrinsicContentSize()
 		}
 
@@ -215,13 +192,45 @@ extension EditableTextView {
 		) -> Bool {
 			guard text == "\n" else { return true }
 
-			// Commit current edit and trigger new block
 			let currentText = textView.text ?? ""
-			parent.text = currentText
 			parent.onSave(currentText)
 			textView.resignFirstResponder()
-			parent.onReturn(nil) // TODO: Split text based on cursor position
+			parent.onReturn(nil)
 			return false
+		}
+	}
+}
+
+final class AutosizingTextView: UITextView {
+	/// Width to use for sizing, set by SwiftUI's sizeThatFits
+	var proposedWidth: CGFloat = 0
+
+	/// The last width used during layout
+	private var lastLayoutWidth: CGFloat = 0
+
+	init() {
+		// Force TextKit 1
+		super.init(frame: .zero, textContainer: nil)
+	}
+
+	@available(*, unavailable)
+	required init?(coder _: NSCoder) {
+		fatalError("init(coder:) has not been implemented")
+	}
+
+	/// Uses proposed width from SwiftUI, then bounds, then fallback
+	override var intrinsicContentSize: CGSize {
+		let fixedWidth = proposedWidth > 0 ? proposedWidth : (bounds.width > 0 ? bounds.width : 300)
+		let size = sizeThatFits(CGSize(width: fixedWidth, height: .greatestFiniteMagnitude))
+		return CGSize(width: UIView.noIntrinsicMetric, height: max(size.height, 22))
+	}
+
+	override func layoutSubviews() {
+		super.layoutSubviews()
+
+		if bounds.width != lastLayoutWidth {
+			lastLayoutWidth = bounds.width
+			invalidateIntrinsicContentSize()
 		}
 	}
 }

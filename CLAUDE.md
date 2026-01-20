@@ -162,6 +162,91 @@ Lattice uses a dual-mode text editor (`EditableText`) that shows rendered links 
 ### Core Components
 
 ```
+EditableText (SwiftUI view wrapper)
+├── EditableTextView (platform-specific)
+│   ├── iOS/visionOS: UIViewRepresentable
+│   │   ├── AutosizingTextView (UITextView subclass)
+│   │   └── Coordinator (UITextViewDelegate)
+│   └── macOS: NSViewRepresentable
+│       └── Coordinator (NSTextViewDelegate)
+└── AttributedStringBuilder (shared, in Support/)
+    ├── IndexMapping (cursor position translation)
+    └── buildAttributedString() (parses refs into styled links)
+```
+
+### Key Files
+
+- **`Views/Components/EditableText/`** - Directory containing the text editor components:
+    - `EditableText.swift` - Main SwiftUI view that wraps platform-specific implementations
+    - `EditableText+iOS.swift` - iOS/visionOS implementation with `AutosizingTextView` and `EditableTextView` (UIViewRepresentable)
+    - `EditableText+macOS.swift` - macOS implementation with `EditableTextView` (NSViewRepresentable)
+- **`Support/AttributedStringBuilder.swift`** - Builds NSAttributedString with clickable links and provides index mapping
+
+### View Mode vs Edit Mode
+
+| Mode | Text Display       | Links                    |
+| ---- | ------------------ | ------------------------ |
+| View | `Hello World!`     | Styled, clickable (blue) |
+| Edit | `Hello [[World]]!` | Raw syntax, plain text   |
+
+### How It Works
+
+1. **View mode**: Text is rendered as NSAttributedString with `.link` attributes
+2. **On tap**: UITextView/NSTextView gains focus, triggering edit mode
+3. **Edit mode transition**:
+    - Capture cursor position in rendered text
+    - Switch to plain text (raw syntax)
+    - Map cursor position using IndexMapping
+4. **On focus loss**: Save changes, switch back to rendered mode
+
+### Index Mapping
+
+When transitioning from view → edit mode, cursor positions must be mapped:
+
+```
+Rendered: "Hello World!"     (cursor at 8 = 'r')
+Raw:      "Hello [[World]]!" (cursor should be at 10 = 'r')
+```
+
+`AttributedStringBuilder` produces both the NSAttributedString and an `IndexMapping` that maps each rendered character position to its raw position.
+
+### Link Tap Handling
+
+Links use deep URLs (`lattice://page/Title`) that NavigationKit handles:
+
+```swift
+// In iOS Coordinator
+func textView(_: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
+    if case let .link(url) = textItem.content {
+        linkWasTapped = true
+        return UIAction { [weak self] _ in
+            self?.parent.onLinkTap(url)
+        }
+    }
+    return defaultAction
+}
+
+// In macOS Coordinator
+func textView(_: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
+    linkWasTapped = true
+    if let url = link as? URL {
+        parent.onLinkTap(url)
+    }
+    return true
+}
+```
+
+The `linkWasTapped` flag prevents the text view from entering edit mode when a link is tapped.
+
+### Platform Differences
+
+| Aspect      | iOS/visionOS                                   | macOS                     |
+| ----------- | ---------------------------------------------- | ------------------------- |
+| Text view   | `UITextView` (wrapped in `AutosizingTextView`) | `NSTextView`              |
+| Focus start | `textViewDidBeginEditing(_:)`                  | `textDidBeginEditing(_:)` |
+| Link click  | `primaryActionFor textItem:`                   | `clickedOnLink:at:`       |
+| Return key  | `shouldChangeTextIn:replacementText:`          | `doCommandBy:`            |
+
 ## Database Initialization Order
 
 1. Configure SQLite (foreign keys, tracing)
