@@ -25,18 +25,30 @@ struct Destination: NavigationDestination {
 		typealias Using = Destination
 
 		case page(title: String)
+		case tag(name: String)
+		case block(id: UUID)
 
 		static var scheme: String { "lattice" }
 
 		var destination: Destination.Kind {
 			switch self {
 				case let .page(title): .push(.pageByTitle(title: title))
+				case let .tag(name): .push(.pageByTitle(title: name)) // Tags navigate to pages with matching title
+				case let .block(id): .push(.block(id: id))
 			}
 		}
 
 		static var routes: Routes {
 			Route("page", String.parameter("title")) { title in
 				.page(title: title)
+			}
+
+			Route("tag", String.parameter("name")) { name in
+				.tag(name: name)
+			}
+
+			Route("block", UUID.parameter("id")) { id in
+				.block(id: id)
 			}
 		}
 	}

@@ -26,7 +26,7 @@ extension View {
 	}
 }
 #else
-func previewData<T>(_: (Database) throws -> T) -> T? {
+func previewData<T>(_: (Database) throws -> T) -> T {
 	fatalError("previewData is only available in DEBUG builds")
 }
 

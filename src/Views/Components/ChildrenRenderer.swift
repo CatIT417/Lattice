@@ -8,7 +8,7 @@ struct ChildrenRenderer: View {
 
 	var body: some View {
 		if let tree, !tree.children(of: parentID).isEmpty {
-			VStack(alignment: .leading, spacing: 4) {
+			LazyVStack(alignment: .leading, spacing: 4) {
 				ForEach(tree.children(of: parentID)) { child in
 					ParagraphView(paragraph: child)
 				}

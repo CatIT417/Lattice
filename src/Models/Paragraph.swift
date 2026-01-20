@@ -4,7 +4,7 @@ import Foundation
 @Table
 struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChildren {
 	/// Internal entity ID (like Roam's e-id)
-	var id: UUID
+	var id: UUID = .init()
 
 	/// Block text content
 	var string: String
@@ -16,28 +16,28 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 	var pageId: Page.ID
 
 	/// Position among siblings
-	var order: Int
+	var order: Int = 0
 
 	/// 1, 2, or 3 (NULL = normal)
-	var heading: Block.HeadingLevel?
+	var heading: Block.HeadingLevel? = nil
 
 	/// 'bullet', 'document', 'numbered'
-	var viewType: Block.ViewType
+	var viewType: Block.ViewType = .bullet
 
 	/// 'left', 'center', 'right', 'justify'
-	var textAlign: Block.TextAlignment
+	var textAlign: Block.TextAlignment = .left
 
 	/// Collapsed state
-	var isOpen: Bool
+	var isOpen: Bool = true
 
 	/// JSON blob for extensible data
-	var props: String?
+	var props: String? = nil
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var createdAt: Date
+	var createdAt: Date = .now
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var updatedAt: Date
+	var updatedAt: Date = .now
 
 	init(id: UUID = UUID(), string: String, parentId: Block.ID, pageId: Page.ID, order: Int, heading: Block.HeadingLevel? = nil, viewType: Block.ViewType = .bullet, textAlign: Block.TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
 		self.id = id

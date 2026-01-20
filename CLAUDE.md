@@ -129,9 +129,11 @@ src/
 │   └── Triggers/                 # SQL trigger definitions
 ├── Models/                       # @Table models (Block, Page, Paragraph, etc.)
 ├── Extensions/                   # Swift extensions
+├── Support/                      # Shared utilities (AttributedStringBuilder, etc.)
 └── Views/
     ├── Pages/                    # Full-screen views (PageScreen, etc.)
     └── Components/               # Reusable UI components
+        └── EditableText/         # Text editor (platform-specific files)
 ```
 
 ## Navigation
@@ -153,6 +155,13 @@ NavigationButton(push: .page(id: pageId)) { Text(page.title) }
 router.navigate(push: .page(id: pageId))
 ```
 
+## Text Editing Architecture
+
+Lattice uses a dual-mode text editor (`EditableText`) that shows rendered links in view mode and raw syntax in edit mode.
+
+### Core Components
+
+```
 ## Database Initialization Order
 
 1. Configure SQLite (foreign keys, tracing)

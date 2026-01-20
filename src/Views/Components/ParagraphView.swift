@@ -80,7 +80,9 @@ struct ParagraphView: View {
 		}
 	}
 
-	private func createNewBlock() {
+	private func createNewBlock(withText text: String? = nil) {
+		print("Creating new block")
+
 		withErrorReporting {
 			try database.write { db in
 				try Paragraph
@@ -90,7 +92,7 @@ struct ParagraphView: View {
 
 				try Paragraph.insert {
 					Paragraph(
-						string: "",
+						string: text ?? "",
 						parentId: paragraph.parentId,
 						pageId: paragraph.pageId,
 						order: paragraph.order + 1,
