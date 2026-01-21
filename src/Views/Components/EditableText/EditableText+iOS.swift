@@ -10,7 +10,7 @@ struct EditableTextView: UIViewRepresentable {
 	let onReturn: (String?) -> Void
 	let onLinkTap: (URL) -> Void
 
-	@Environment(\.focusCoordinator) var focusCoordinator
+	@Environment(\.blockCoordinator) var blockCoordinator
 
 	private var uiFont: UIFont {
 		ctFont as UIFont
@@ -37,27 +37,25 @@ struct EditableTextView: UIViewRepresentable {
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-		// Start in view mode
-		let result = buildAttributedString(from: text, font: uiFont)
-		textView.attributedText = result.attributedString
-		context.coordinator.indexMapping = result.indexMapping
+		context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 
 		return textView
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
-		if let coordinator = focusCoordinator, let blockId, coordinator.focusedBlockId == blockId, !textView.isFirstResponder {
+		if let blockCoordinator, blockCoordinator.isActive(blockId: blockId), !textView.isFirstResponder {
 			textView.becomeFirstResponder()
-			coordinator.clearFocus()
+
+			if let cursorPos = blockCoordinator.cursorPosition, let position = textView.position(from: textView.beginningOfDocument, offset: cursorPos) {
+				textView.selectedTextRange = textView.textRange(from: position, to: position)
+			}
+
+			blockCoordinator.clear(for: blockId)
 		}
 
-		if !context.coordinator.isEditing, text != context.coordinator.lastKnownText {
-			let result = buildAttributedString(from: text, font: uiFont)
+		if !context.coordinator.isEditing, context.coordinator.lastKnownText != text {
 			context.coordinator.lastKnownText = text
-			textView.attributedText = result.attributedString
-			context.coordinator.indexMapping = result.indexMapping
-
-			textView.invalidateIntrinsicContentSize()
+			context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 		}
 	}
 
@@ -81,7 +79,7 @@ struct EditableTextView: UIViewRepresentable {
 }
 
 extension EditableTextView {
-	@MainActor class Coordinator: NSObject, UITextViewDelegate {
+	@MainActor class Coordinator: NSObject {
 		var parent: EditableTextView
 		var isEditing = false
 		var lastKnownText: String
@@ -94,31 +92,17 @@ extension EditableTextView {
 			lastKnownText = parent.text
 		}
 
-		// MARK: - Focus/Edit Mode Transitions
-
-		func textViewDidBeginEditing(_ textView: UITextView) {
-			if linkWasTapped {
-				linkWasTapped = false
-				textView.resignFirstResponder()
-				return
+		func setText(_ mode: BlockCoordinator.RenderMode, text: String, textView: UITextView) {
+			switch mode {
+				case .raw:
+					textView.attributedText = NSAttributedString(string: text, attributes: [.font: parent.uiFont, .foregroundColor: UIColor.label])
+				case .rendered:
+					let result = buildAttributedString(from: text, font: parent.uiFont)
+					indexMapping = result.indexMapping
+					textView.attributedText = result.attributedString
 			}
 
-			guard !isEditing else { return }
-
-			willSwitchToEditing = true
-
-			// If the user is tapping to place the cursor, `textViewDidChangeSelection` will transition
-			// to edit mode. We wait a moment to see if that happens and manually transition if not.
-			DispatchQueue.main.async {
-				guard self.willSwitchToEditing else { return }
-				self.transitionToEditMode(textView: textView)
-			}
-		}
-
-		func textViewDidChangeSelection(_ textView: UITextView) {
-			guard willSwitchToEditing else { return }
-
-			transitionToEditMode(textView: textView)
+			textView.invalidateIntrinsicContentSize()
 		}
 
 		private func transitionToEditMode(textView: UITextView) {
@@ -130,11 +114,7 @@ extension EditableTextView {
 				cursorOffset = textView.offset(from: textView.beginningOfDocument, to: selectedRange.start)
 			}
 
-			// Switch to raw text
-			textView.attributedText = NSAttributedString(string: parent.text, attributes: [
-				.font: parent.uiFont,
-				.foregroundColor: UIColor.label,
-			])
+			setText(.raw, text: lastKnownText, textView: textView)
 
 			if let cursorOffset, let mapping = indexMapping {
 				let translatedOffset = min(mapping.rawIndex(fromRendered: cursorOffset), parent.text.count)
@@ -142,66 +122,90 @@ extension EditableTextView {
 					textView.selectedTextRange = textView.textRange(from: translatedPosition, to: translatedPosition)
 				}
 			}
+		}
+	}
+}
 
-			textView.invalidateIntrinsicContentSize()
+extension EditableTextView.Coordinator: UITextViewDelegate {
+	// MARK: - Focus/Edit Mode Transitions
+
+	func textViewDidBeginEditing(_ textView: UITextView) {
+		if linkWasTapped {
+			linkWasTapped = false
+			textView.resignFirstResponder()
+			return
 		}
 
-		func textViewDidEndEditing(_ textView: UITextView) {
-			guard isEditing else { return }
-			isEditing = false
+		guard !isEditing else { return }
 
-			let newText = textView.text ?? ""
-			if newText != parent.text {
-				parent.onSave(newText)
+		willSwitchToEditing = true
+
+		// If the user is tapping to place the cursor, `textViewDidChangeSelection` will transition
+		// to edit mode. We wait a moment to see if that happens and manually transition if not.
+		DispatchQueue.main.async {
+			guard self.willSwitchToEditing else { return }
+			self.transitionToEditMode(textView: textView)
+		}
+	}
+
+	func textViewDidChangeSelection(_ textView: UITextView) {
+		guard willSwitchToEditing else { return }
+
+		transitionToEditMode(textView: textView)
+	}
+
+	func textViewDidEndEditing(_ textView: UITextView) {
+		guard isEditing else { return }
+		isEditing = false
+
+		let newText = textView.attributedText.string
+		if newText != parent.text {
+			parent.onSave(newText)
+		}
+		lastKnownText = newText
+
+		setText(.rendered, text: newText, textView: textView)
+	}
+
+	// MARK: - Link Handling
+
+	func textView(
+		_: UITextView,
+		primaryActionFor textItem: UITextItem,
+		defaultAction: UIAction
+	) -> UIAction? {
+		if case let .link(url) = textItem.content {
+			linkWasTapped = true
+			return UIAction { [weak self] _ in
+				self?.parent.onLinkTap(url)
 			}
-			lastKnownText = newText
-
-			// Switch back to rendered mode
-			let result = buildAttributedString(from: newText, font: parent.uiFont)
-			textView.attributedText = result.attributedString
-			indexMapping = result.indexMapping
-
-			textView.invalidateIntrinsicContentSize()
 		}
 
-		// MARK: - Link Handling
+		return defaultAction
+	}
 
-		func textView(
-			_: UITextView,
-			primaryActionFor textItem: UITextItem,
-			defaultAction: UIAction
-		) -> UIAction? {
-			if case let .link(url) = textItem.content {
-				linkWasTapped = true
-				return UIAction { [weak self] _ in
-					self?.parent.onLinkTap(url)
-				}
-			}
+	// MARK: - Text Changes
 
-			return defaultAction
-		}
+	func textViewDidChange(_ textView: UITextView) {
+		textView.invalidateIntrinsicContentSize()
+	}
 
-		// MARK: - Text Changes
+	// MARK: - Return Key Handling
 
-		func textViewDidChange(_ textView: UITextView) {
-			textView.invalidateIntrinsicContentSize()
-		}
+	func textView(
+		_ textView: UITextView,
+		shouldChangeTextIn range: NSRange,
+		replacementText text: String
+	) -> Bool {
+		guard text == "\n" else { return true }
 
-		// MARK: - Return Key Handling
+		let currentText = textView.attributedText.string
+		let newText = String(currentText.prefix(range.location))
 
-		func textView(
-			_ textView: UITextView,
-			shouldChangeTextIn _: NSRange,
-			replacementText text: String
-		) -> Bool {
-			guard text == "\n" else { return true }
+		setText(.rendered, text: newText, textView: textView)
+		parent.onReturn(String(currentText.dropFirst(range.location)))
 
-			let currentText = textView.text ?? ""
-			parent.onSave(currentText)
-			parent.onReturn(nil)
-
-			return false
-		}
+		return false
 	}
 }
 

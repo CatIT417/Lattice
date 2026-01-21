@@ -26,6 +26,17 @@ struct AttributedStringResult {
 	let attributedString: NSAttributedString
 }
 
+func removeReferences(from text: String) -> String {
+	var result = text
+	let refs = text.extractRefs().sorted { $0.range.lowerBound > $1.range.lowerBound }
+
+	for ref in refs {
+		result.replaceSubrange(ref.range, with: ref.target)
+	}
+
+	return result
+}
+
 /// Build an NSAttributedString from text with refs
 func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body)) -> AttributedStringResult {
 	let baseAttributes: [NSAttributedString.Key: Any] = [
@@ -41,7 +52,6 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 	let result = NSMutableAttributedString()
 	var currentIndex = text.startIndex
 	var renderedToRaw: [Int] = []
-
 
 	for ref in refs {
 		// Add plain text before this ref
@@ -64,7 +74,6 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 
 		// Map each character in the rendered link text to raw text positions
 		let rawRefStart = text.distance(from: text.startIndex, to: ref.range.lowerBound)
-		let rawRefLength = text.distance(from: ref.range.lowerBound, to: ref.range.upperBound)
 		let targetLength = ref.target.count
 
 		// For the link text, map to positions within the raw ref syntax

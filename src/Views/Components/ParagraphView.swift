@@ -6,7 +6,7 @@ struct ParagraphView: View {
 	var paragraph: Paragraph
 
 	@Dependency(\.defaultDatabase) var database
-	@Environment(\.focusCoordinator) var focusCoordinator
+	@Environment(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 
 	var fontForHeading: Font {
@@ -35,7 +35,7 @@ struct ParagraphView: View {
 				EditableText(
 					blockId: paragraph.id,
 					text: paragraph.string,
-					onSave: { newText in saveChanges(newText) },
+					onSave: saveChanges,
 					onReturn: createNewBlock
 				)
 				.font(fontForHeading)
@@ -79,7 +79,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		focusCoordinator?.requestFocus(for: newBlockId)
+		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
 	}
 
 	@ViewBuilder private var bulletView: some View {

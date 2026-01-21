@@ -2,7 +2,7 @@ import SwiftUI
 import SQLiteData
 
 struct ParagraphScreen: View {
-	@State private var focusCoordinator = FocusCoordinator()
+	@State private var blockCoordinator = BlockCoordinator()
 	@FetchOne var paragraphWithContent: Paragraph.WithChildren!
 
 	var paragraph: Paragraph {
@@ -19,13 +19,14 @@ struct ParagraphScreen: View {
 				BreadcrumbsView(blockId: paragraph.id)
 
 				ParagraphView(paragraph: paragraph)
-
-				ChildrenRenderer(parentID: paragraph.id)
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
-		.environment(\.focusCoordinator, focusCoordinator)
+		.toolbar(removing: .title)
+		.navigationTitle(removeReferences(from: paragraph.string))
+		.navigationBarTitleDisplayMode(.inline)
+		.environment(\.blockCoordinator, blockCoordinator)
 		.environment(\.blockTree, paragraphWithContent.tree)
 	}
 }

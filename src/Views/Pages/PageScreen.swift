@@ -3,7 +3,7 @@ import SQLiteData
 
 struct PageScreen: View {
 	@FetchOne var pageWithContent: Page.WithChildren!
-	@State private var focusCoordinator = FocusCoordinator()
+	@State private var blockCoordinator = BlockCoordinator()
 
 	var page: Page {
 		pageWithContent.block
@@ -23,7 +23,7 @@ struct PageScreen: View {
 		}
 		.navigationTitle(page.title)
 		.environment(\.blockTree, pageWithContent.tree)
-		.environment(\.focusCoordinator, focusCoordinator)
+		.environment(\.blockCoordinator, blockCoordinator)
 	}
 }
 

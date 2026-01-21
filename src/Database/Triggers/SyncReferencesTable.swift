@@ -52,8 +52,6 @@ func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasEx
 				let references = try new.extractRefs().map { try $0.resolved(using: db) }
 				guard !references.isEmpty else { return }
 
-				print(references)
-
 				if hasExistingReferencesInDatabase {
 					try Reference.where { $0.sourceBlockId == blockID }.delete().execute(db)
 				}
