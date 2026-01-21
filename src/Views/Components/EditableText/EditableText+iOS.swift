@@ -8,6 +8,7 @@ struct EditableTextView: UIViewRepresentable {
 	let ctFont: CTFont
 	let onSave: (String) -> Void
 	let onReturn: (String?) -> Void
+	let tryDeleteBlock: ((String) -> Bool)?
 	let onLinkTap: (URL) -> Void
 
 	@Environment(\.blockCoordinator) var blockCoordinator
@@ -43,19 +44,27 @@ struct EditableTextView: UIViewRepresentable {
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
-		if let blockCoordinator, let cursorPos = blockCoordinator.cursorPositionFor(blockId: blockId), !textView.isFirstResponder {
-			textView.becomeFirstResponder()
-
-			if let position = textView.position(from: textView.beginningOfDocument, offset: cursorPos) {
-				textView.selectedTextRange = textView.textRange(from: position, to: position)
+		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
+			// Becoming the first responder synchronously triggers an AttributeGraph cycle
+			// when calling BlockCoordinator.request in ParagraphView.moveCursorTo.
+			DispatchQueue.main.async {
+				textView.becomeFirstResponder()
 			}
 
-			blockCoordinator.clear(for: blockId)
+			if let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId) {
+				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+			}
+
+			blockCoordinator.clearFocus(for: blockId)
 		}
 
-		if !context.coordinator.isEditing, context.coordinator.lastKnownText != text {
+		if context.coordinator.lastKnownText != text, let expectsNewText = blockCoordinator?.expectsNewText(for: blockId), expectsNewText || !context.coordinator.isEditing {
 			context.coordinator.lastKnownText = text
 			context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
+			if let cursorPosition = blockCoordinator?.cursorPositionFor(blockId: blockId) {
+				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+			}
+			blockCoordinator?.textReceived(for: blockId)
 		}
 	}
 
@@ -105,6 +114,12 @@ extension EditableTextView {
 			textView.invalidateIntrinsicContentSize()
 		}
 
+		func moveCursorTo(offset: Int, textView: UITextView) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: offset) {
+				textView.selectedTextRange = textView.textRange(from: position, to: position)
+			}
+		}
+
 		private func transitionToEditMode(textView: UITextView) {
 			isEditing = true
 			willSwitchToEditing = false
@@ -117,11 +132,23 @@ extension EditableTextView {
 			setText(.raw, text: lastKnownText, textView: textView)
 
 			if let cursorOffset, let mapping = indexMapping {
-				let translatedOffset = min(mapping.rawIndex(fromRendered: cursorOffset), parent.text.count)
-				if let translatedPosition = textView.position(from: textView.beginningOfDocument, offset: translatedOffset) {
-					textView.selectedTextRange = textView.textRange(from: translatedPosition, to: translatedPosition)
-				}
+				moveCursorTo(offset: min(mapping.rawIndex(fromRendered: cursorOffset), parent.text.count), textView: textView)
 			}
+		}
+
+		private func deletionRequested(textView: UITextView) {
+			let currentText = textView.attributedText.string
+			if let tryDelete = parent.tryDeleteBlock, tryDelete(currentText) {
+				textView.resignFirstResponder()
+			}
+		}
+
+		private func newBlockRequested(textView: UITextView, range: NSRange) {
+			let currentText = textView.attributedText.string
+			let newText = String(currentText.prefix(range.location))
+
+			setText(.rendered, text: newText, textView: textView)
+			parent.onReturn(String(currentText.dropFirst(range.location)))
 		}
 	}
 }
@@ -190,22 +217,24 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 		textView.invalidateIntrinsicContentSize()
 	}
 
-	// MARK: - Return Key Handling
+	// MARK: - Special Key Handling
 
 	func textView(
 		_ textView: UITextView,
 		shouldChangeTextIn range: NSRange,
 		replacementText text: String
 	) -> Bool {
-		guard text == "\n" else { return true }
+		if text.isEmpty, range.location == 0, range.length == 0 {
+			deletionRequested(textView: textView)
+			return false
+		}
 
-		let currentText = textView.attributedText.string
-		let newText = String(currentText.prefix(range.location))
+		if text == "\n" {
+			newBlockRequested(textView: textView, range: range)
+			return false
+		}
 
-		setText(.rendered, text: newText, textView: textView)
-		parent.onReturn(String(currentText.dropFirst(range.location)))
-
-		return false
+		return true
 	}
 }
 

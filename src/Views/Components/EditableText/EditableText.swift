@@ -6,6 +6,7 @@ struct EditableText: View {
 	var text: String
 	var onSave: (String) -> Void
 	var onReturn: (String?) -> Void
+	var tryDeleteBlock: ((String) -> Bool)? = nil
 
 	@Environment(\.font) private var font
 	@Environment(\.fontResolutionContext) private var fontContext
@@ -21,6 +22,7 @@ struct EditableText: View {
 			ctFont: ctFont,
 			onSave: onSave,
 			onReturn: onReturn,
+			tryDeleteBlock: tryDeleteBlock,
 			onLinkTap: openLink
 		)
 		.alignmentGuide(.firstTextBaseline) { _ in

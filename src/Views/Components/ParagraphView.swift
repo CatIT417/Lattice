@@ -5,6 +5,7 @@ import Dependencies
 struct ParagraphView: View {
 	var paragraph: Paragraph
 
+	@Environment(\.blockTree) var blockTree
 	@Dependency(\.defaultDatabase) var database
 	@Environment(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
@@ -36,7 +37,8 @@ struct ParagraphView: View {
 					blockId: paragraph.id,
 					text: paragraph.string,
 					onSave: saveChanges,
-					onReturn: createNewBlock
+					onReturn: createNewBlock,
+					tryDeleteBlock: mergeIntoPrevious(appendingContent:)
 				)
 				.font(fontForHeading)
 				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
@@ -80,6 +82,39 @@ struct ParagraphView: View {
 		}
 
 		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
+	}
+
+	private func mergeIntoPrevious(appendingContent content: String) -> Bool {
+		guard let previousParagraphID = blockTree?.previousBlock(for: paragraph), let previousParagraph = withErrorReporting(catching: {
+			try database.read { db in
+				try Paragraph.find(previousParagraphID).fetchOne(db)
+			}
+		}) else { return false }
+
+		withErrorReporting {
+			try database.write { db in
+				try Paragraph.find(previousParagraphID)
+					.update { $0.string += content }
+					.execute(db)
+
+				try Paragraph.find(paragraph.id).delete().execute(db)
+
+				// Reindex subsequent siblings (TODO: move to trigger)
+				try Paragraph
+					.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
+					.update { $0.order -= 1 }
+					.execute(db)
+			}
+		}
+
+		blockCoordinator?.request(
+			for: previousParagraphID,
+			at: previousParagraph.string.count,
+			expectsNewText: true,
+			startingInMode: .raw
+		)
+
+		return true
 	}
 
 	@ViewBuilder private var bulletView: some View {
