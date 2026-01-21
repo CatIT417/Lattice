@@ -1,6 +1,6 @@
 # Lattice
 
-A Roam Research-style outliner app for iOS built with SwiftUI and SQLite.
+A Roam Research-style outliner app for iOS and macOS built with SwiftUI and SQLite.
 
 ## Project Vision
 
@@ -46,8 +46,11 @@ blocks (table)
 - `order: Int` - Position among siblings
 - `heading: HeadingLevel?` - H1, H2, H3
 - `viewType: ViewType` - bullet, document, numbered
+- `textAlign: TextAlignment` - left, center, right, justify
 - `isOpen: Bool` - Collapsed state
 - `props: String?` - JSON blob for extensibility
+- `createdAt: Date` - Unix timestamp of creation
+- `updatedAt: Date` - Unix timestamp of last modification
 
 **blockReferences** - Links between blocks
 
@@ -69,8 +72,10 @@ blocks (table)
 
 ### Triggers
 
+- **TouchTimestamps** - Auto-updates `updatedAt` on block modifications
 - **SyncAncestorsTable** - Automatically maintains ancestor table on block insert/update
 - **MakePagesViewWritable** / **MakeParagraphsViewWritable** - INSTEAD OF triggers that redirect INSERT/UPDATE/DELETE on views to the blocks table
+- **SyncReferencesTable** - Extracts references from block text and syncs to blockReferences table; auto-creates pages for newly mentioned `[[Page Links]]`; also updates blocks when a referenced page's title changes (uses `@DatabaseFunction` for async processing)
 
 ## Key Patterns
 
@@ -110,11 +115,26 @@ Page.withChildren(id: pageId) // Returns `Page.WithChildren` (see `Table+withChi
 
 ### Reference Extraction
 
-`String.extractRefs()` parses inline syntax:
+`String.extractRefs()` parses inline syntax and returns `TextRef` structs:
 
-- `[[Page Links]]` → `.pageLink`
-- `((9-char-id))` → `.blockRef`
 - `#tag` or `#[[tag]]` → `.tag`
+- `[[Page Links]]` → `.pageLink`
+- `((valid-uuid))` → `.blockRef`
+
+Each `TextRef` includes a `.url` property for deep linking and a `.resolved()` method for converting to block IDs.
+
+### BlockCoordinator (Focus Management)
+
+`BlockCoordinator` lets you queue focus changes for a block's `EditableText`:
+
+```swift
+@Environment(\.blockCoordinator) var coordinator
+
+// Push-only (not reactive)
+coordinator.isActive(blockId:)  // Currently focused block ID
+coordinator.cursorPositionFor(blockId:)
+coordinator.modeFor(blockId:)   // .raw (editing) or .rendered (viewing)
+```
 
 ## File Structure
 
@@ -128,8 +148,9 @@ src/
 │   ├── Views/                    # SQL view definitions
 │   └── Triggers/                 # SQL trigger definitions
 ├── Models/                       # @Table models (Block, Page, Paragraph, etc.)
+├── ViewModels/                   # View models and coordinators
 ├── Extensions/                   # Swift extensions
-├── Support/                      # Shared utilities (AttributedStringBuilder, etc.)
+├── Support/                      # Shared utilities (AttributedStringBuilder, BlockTree, etc.)
 └── Views/
     ├── Pages/                    # Full-screen views (PageScreen, etc.)
     └── Components/               # Reusable UI components
@@ -145,6 +166,7 @@ enum Destination.Pages {
     case page(id: UUID)
     case paragraph(id: UUID)
     case block(id: UUID)  // Routes to page or paragraph based on block.kind, avoid if type is known
+    case pageByTitle(title: String)  // Auto-creates page if it doesn't exist
 }
 
 // Usage
@@ -153,6 +175,18 @@ NavigationButton(push: .page(id: pageId)) { Text(page.title) }
 // or programmatically
 @Environment(Router.self) var router
 router.navigate(push: .page(id: pageId))
+```
+
+### Deeplinks
+
+The app handles deep URLs for navigation from link taps:
+
+```swift
+enum Destination.Deeplinks {
+    case block(id: UUID)      // lattice://block/{id}
+    case tag(name: String)    // lattice://tag/{name}
+    case page(title: String)  // lattice://page/{title}
+}
 ```
 
 ## Text Editing Architecture

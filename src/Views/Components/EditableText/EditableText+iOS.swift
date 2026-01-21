@@ -43,10 +43,10 @@ struct EditableTextView: UIViewRepresentable {
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
-		if let blockCoordinator, blockCoordinator.isActive(blockId: blockId), !textView.isFirstResponder {
+		if let blockCoordinator, let cursorPos = blockCoordinator.cursorPositionFor(blockId: blockId), !textView.isFirstResponder {
 			textView.becomeFirstResponder()
 
-			if let cursorPos = blockCoordinator.cursorPosition, let position = textView.position(from: textView.beginningOfDocument, offset: cursorPos) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: cursorPos) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
 			}
 
