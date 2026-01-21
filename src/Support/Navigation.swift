@@ -5,18 +5,16 @@ import Foundation
 struct Destination: NavigationDestination {
 	enum Pages: PageRepresentable {
 		case page(id: UUID)
-		case pageByTitle(title: String)
-		case paragraph(id: UUID)
-
-		@available(*, deprecated, message: "Use .page or .paragraph instead.")
 		case block(id: UUID)
+		case paragraph(id: UUID)
+		case pageByTitle(title: String)
 
 		var view: some View {
 			switch self {
 				case let .page(id): PageScreen(pageId: id)
-				case let .pageByTitle(title): EmptyView() // PageScreen.ByTitle(title: title)
 				case let .block(id): BlockScreen(blockID: id)
 				case let .paragraph(id): ParagraphScreen(paragraphId: id)
+				case let .pageByTitle(title): PageScreen.ByTitle(title: title)
 			}
 		}
 	}
@@ -24,17 +22,17 @@ struct Destination: NavigationDestination {
 	enum Deeplinks: DeeplinkRepresentable {
 		typealias Using = Destination
 
-		case page(title: String)
-		case tag(name: String)
 		case block(id: UUID)
+		case tag(name: String)
+		case page(title: String)
 
 		static var scheme: String { "lattice" }
 
 		var destination: Destination.Kind {
 			switch self {
-				case let .page(title): .push(.pageByTitle(title: title))
-				case let .tag(name): .push(.pageByTitle(title: name)) // Tags navigate to pages with matching title
 				case let .block(id): .push(.block(id: id))
+				case let .tag(name): .push(.pageByTitle(title: name))
+				case let .page(title): .push(.pageByTitle(title: title))
 			}
 		}
 

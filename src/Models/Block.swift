@@ -66,3 +66,13 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		fatalError("Invalid Block: \(self)")
 	}
 }
+
+extension Block.TableColumns {
+	var isPage: some QueryExpression<Bool> {
+		title.isNot(nil)
+	}
+
+	var isParagraph: some QueryExpression<Bool> {
+		string.isNot(nil)
+	}
+}

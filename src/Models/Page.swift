@@ -13,10 +13,10 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var props: String?
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var createdAt: Date
+	var createdAt: Date = .now
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var updatedAt: Date
+	var updatedAt: Date = .now
 
 	init(id: UUID = UUID(), title: String, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
 		self.id = id
@@ -34,5 +34,13 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		props = block.props
 		createdAt = block.createdAt
 		updatedAt = block.updatedAt
+	}
+}
+
+extension Page {
+	static func findOrCreate(title: String, in db: Database) throws -> Page {
+		try #sql("INSERT INTO \(Block.self) (title) SELECT \(bind: title) WHERE NOT EXISTS (SELECT 1 FROM \(Block.self) WHERE \(Block.title) = \(bind: title));").execute(db)
+
+		return try Page.where { $0.title == title }.fetchOne(db)!
 	}
 }

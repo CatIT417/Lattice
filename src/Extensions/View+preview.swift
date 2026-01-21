@@ -2,14 +2,12 @@ import SwiftUI
 import SQLiteData
 
 #if DEBUG
-func previewData<T>(_ block: (Database) throws -> T) -> T {
-	return withErrorReporting {
-		try prepareDependencies {
-			try $0.bootstrapDatabase()
+func previewData<T>(_ block: ((Database) throws -> T) = { _ in }) -> T {
+	try! prepareDependencies {
+		try $0.bootstrapDatabase()
 
-			return try $0.defaultDatabase.read(block)
-		}
-	}!
+		return try $0.defaultDatabase.read(block)
+	}
 }
 
 fileprivate struct WrappedInNavigationModifier: ViewModifier {
@@ -26,7 +24,7 @@ extension View {
 	}
 }
 #else
-func previewData<T>(_: (Database) throws -> T) -> T {
+func previewData<T>(_: (Database) throws -> T = { _ in }) -> T {
 	fatalError("previewData is only available in DEBUG builds")
 }
 

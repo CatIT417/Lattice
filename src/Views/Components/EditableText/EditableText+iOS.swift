@@ -3,11 +3,14 @@ import UIKit
 import SwiftUI
 
 struct EditableTextView: UIViewRepresentable {
+	let blockId: Block.ID?
 	let text: String
 	let ctFont: CTFont
 	let onSave: (String) -> Void
 	let onReturn: (String?) -> Void
 	let onLinkTap: (URL) -> Void
+
+	@Environment(\.focusCoordinator) var focusCoordinator
 
 	private var uiFont: UIFont {
 		ctFont as UIFont
@@ -43,14 +46,19 @@ struct EditableTextView: UIViewRepresentable {
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
-		guard !context.coordinator.isEditing, text != context.coordinator.lastKnownText else { return }
+		if let coordinator = focusCoordinator, let blockId, coordinator.focusedBlockId == blockId, !textView.isFirstResponder {
+			textView.becomeFirstResponder()
+			coordinator.clearFocus()
+		}
 
-		let result = buildAttributedString(from: text, font: uiFont)
-		context.coordinator.lastKnownText = text
-		textView.attributedText = result.attributedString
-		context.coordinator.indexMapping = result.indexMapping
+		if !context.coordinator.isEditing, text != context.coordinator.lastKnownText {
+			let result = buildAttributedString(from: text, font: uiFont)
+			context.coordinator.lastKnownText = text
+			textView.attributedText = result.attributedString
+			context.coordinator.indexMapping = result.indexMapping
 
-		textView.invalidateIntrinsicContentSize()
+			textView.invalidateIntrinsicContentSize()
+		}
 	}
 
 	func makeCoordinator() -> Coordinator {
@@ -90,16 +98,12 @@ extension EditableTextView {
 
 		func textViewDidBeginEditing(_ textView: UITextView) {
 			if linkWasTapped {
-				print("link tapped")
 				linkWasTapped = false
 				textView.resignFirstResponder()
 				return
 			}
 
-			guard !isEditing else {
-				print("already editing")
-				return
-			}
+			guard !isEditing else { return }
 
 			willSwitchToEditing = true
 
@@ -114,12 +118,12 @@ extension EditableTextView {
 		func textViewDidChangeSelection(_ textView: UITextView) {
 			guard willSwitchToEditing else { return }
 
-			willSwitchToEditing = false
 			transitionToEditMode(textView: textView)
 		}
 
 		private func transitionToEditMode(textView: UITextView) {
 			isEditing = true
+			willSwitchToEditing = false
 
 			var cursorOffset: Int?
 			if let selectedRange = textView.selectedTextRange {
@@ -194,8 +198,8 @@ extension EditableTextView {
 
 			let currentText = textView.text ?? ""
 			parent.onSave(currentText)
-			textView.resignFirstResponder()
 			parent.onReturn(nil)
+
 			return false
 		}
 	}

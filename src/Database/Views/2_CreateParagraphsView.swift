@@ -4,7 +4,7 @@ import Foundation
 final class CreateParagraphsView: DatabaseView {
 	static func create(in db: Database) throws {
 		try Paragraph.createTemporaryView(
-			as: Block.where { $0.string.isNot(nil) }.select {
+			as: Block.where { $0.isParagraph }.select {
 				Paragraph.Columns(
 					id: $0.id,
 					string: $0.string.unsafelyUnwrapped,

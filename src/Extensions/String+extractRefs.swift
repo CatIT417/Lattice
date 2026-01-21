@@ -1,4 +1,5 @@
 import Foundation
+import SQLiteData
 
 fileprivate let pagePattern = /\[\[([^\]]+)\]\]/
 fileprivate let tagPattern = /#(?:\[\[([^\]]+)\]\]|(\w+))/
@@ -8,6 +9,12 @@ struct TextRef {
 	let target: String
 	let kind: Reference.Kind
 	let range: Range<String.Index>
+
+	fileprivate init(target: String, kind: Reference.Kind, range: Range<String.Index>) {
+		self.kind = kind
+		self.range = range
+		self.target = target
+	}
 
 	var url: URL {
 		switch kind {
@@ -28,7 +35,7 @@ extension String {
 		}
 
 		// ((block refs))
-		for match in matches(of: blockPattern) {
+		for match in matches(of: blockPattern) where UUID(uuidString: String(match.1)) != nil {
 			refs.append(TextRef(target: String(match.1), kind: .blockRef, range: match.range))
 		}
 
@@ -38,5 +45,26 @@ extension String {
 		}
 
 		return refs
+	}
+}
+
+extension TextRef {
+	struct Resolved {
+		var targetID: UUID
+		var kind: Reference.Kind
+	}
+
+	enum ResolvingError: Error {
+		case unexpectedKind(Reference.Kind)
+	}
+
+	func resolved(using db: Database) throws -> Resolved {
+		guard kind.isPage else {
+			if !kind.isBlock { throw ResolvingError.unexpectedKind(kind) }
+			return Resolved(targetID: UUID(uuidString: target)!, kind: kind)
+		}
+
+		let page = try Page.findOrCreate(title: target, in: db)
+		return Resolved(targetID: page.id, kind: kind)
 	}
 }

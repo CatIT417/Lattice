@@ -36,7 +36,7 @@ func appDatabase() throws -> any DatabaseWriter {
 		CreateBlocksTable.self,
 		CreateReferencesTable.self,
 		CreateAncestorsTable.self,
-	], in: database, clean: isDebug)
+	], in: database, clean: context == .live && isDebug)
 
 	try database.setupTriggers([
 		MakePagesViewWritable.self,
@@ -44,7 +44,7 @@ func appDatabase() throws -> any DatabaseWriter {
 
 		TouchTimestamps.self,
 		SyncAncestorsTable.self,
-		AddFirstBlockToPages.self,
+		SyncReferencesTable.self,
 	])
 
 	#if DEBUG

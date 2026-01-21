@@ -8,7 +8,7 @@ extension DependencyValues {
 		#if !DEBUG
 		@Dependency(\.context) var context
 		if context == .live {
-			defaultSyncEngine = try SyncEngine(for: defaultDatabase, tables: Block.self, Reference.self)
+			defaultSyncEngine = try SyncEngine(for: defaultDatabase, tables: Block.self)
 		}
 		#endif
 	}

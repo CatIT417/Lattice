@@ -35,6 +35,13 @@ protocol DatabaseView: Sendable {
 
 protocol Trigger: Sendable {
 	static func install(in database: Database) throws
+	static var uses: [any ScalarDatabaseFunction] { get }
+}
+
+extension Trigger {
+	static var uses: [any ScalarDatabaseFunction] {
+		[]
+	}
 }
 
 extension DatabaseMigrator {
@@ -58,6 +65,7 @@ extension DatabaseMigrator {
 		}
 
 		registerMigrations(migrations)
+
 		try migrate(database)
 	}
 
@@ -93,14 +101,30 @@ extension DatabaseWriter {
 	func setupTriggers(_ triggers: [Trigger.Type]) throws {
 		try write { database in
 			for trigger in triggers {
+				for function in trigger.uses {
+					database.add(function: function)
+				}
+
 				try trigger.install(in: database)
 			}
 		}
 	}
 
 	func seed<T: Seeder>(_: T.Type) throws {
-		try write { database in
-			try database.seed(T.seed)
+		@Dependency(\.context) var context
+
+		if context == .live {
+			DispatchQueue.main.async {
+				withErrorReporting {
+					try self.write { database in
+						try database.seed(T.seed)
+					}
+				}
+			}
+		} else {
+			try write { database in
+				try database.seed(T.seed)
+			}
 		}
 	}
 }

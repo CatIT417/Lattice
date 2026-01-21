@@ -6,6 +6,7 @@ struct ParagraphView: View {
 	var paragraph: Paragraph
 
 	@Dependency(\.defaultDatabase) var database
+	@Environment(\.focusCoordinator) var focusCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 
 	var fontForHeading: Font {
@@ -17,23 +18,9 @@ struct ParagraphView: View {
 		}
 	}
 
-	var fontXHeight: CGFloat {
-		let font = fontForHeading.resolve(in: fontContext).ctFont
-
-		return CTFontGetXHeight(font)
-	}
-
-	var fontLineHeight: CGFloat {
-		let font = fontForHeading.resolve(in: fontContext).ctFont
-
-		return CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)
-	}
-
-	var bulletAlignment: CGFloat {
-		fontXHeight
-	}
-
 	var body: some View {
+		let font = fontForHeading.resolve(in: fontContext).ctFont
+
 		VStack(alignment: .leading, spacing: 4) {
 			HStack(alignment: .firstTextBaseline, spacing: 8) {
 				if paragraph.viewType != .document {
@@ -41,17 +28,18 @@ struct ParagraphView: View {
 						bulletView
 					}
 					.alignmentGuide(.firstTextBaseline) { _ in
-						bulletAlignment
+						CTFontGetXHeight(font)
 					}
 				}
 
 				EditableText(
+					blockId: paragraph.id,
 					text: paragraph.string,
 					onSave: { newText in saveChanges(newText) },
 					onReturn: createNewBlock
 				)
 				.font(fontForHeading)
-				.frame(minHeight: fontLineHeight, alignment: .topLeading)
+				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
 			}
 
 			ChildrenRenderer(parentID: paragraph.id)
@@ -64,23 +52,12 @@ struct ParagraphView: View {
 				try Paragraph.find(paragraph.id)
 					.update { $0.string = newText }
 					.execute(db)
-
-				for ref in newText.extractRefs() where ref.kind.isPage {
-					let exists = try Page.where { $0.title == ref.target }.fetchOne(db) != nil
-					if !exists {
-						try Page.insert {
-							Page(title: ref.target)
-						}.execute(db)
-					}
-				}
-
-				// TODO: Sync blockReferences table when text changes
 			}
 		}
 	}
 
 	private func createNewBlock(withText text: String? = nil) {
-		print("Creating new block")
+		let newBlockId = UUID()
 
 		withErrorReporting {
 			try database.write { db in
@@ -91,6 +68,7 @@ struct ParagraphView: View {
 
 				try Paragraph.insert {
 					Paragraph(
+						id: newBlockId,
 						string: text ?? "",
 						parentId: paragraph.parentId,
 						pageId: paragraph.pageId,
@@ -100,6 +78,8 @@ struct ParagraphView: View {
 				}.execute(db)
 			}
 		}
+
+		focusCoordinator?.requestFocus(for: newBlockId)
 	}
 
 	@ViewBuilder private var bulletView: some View {

@@ -2,18 +2,13 @@ import SwiftUI
 import Dependencies
 
 struct EditableText: View {
-	let text: String
-	let onSave: (String) -> Void
-	let onReturn: (String?) -> Void
+	var blockId: Block.ID? = nil
+	var text: String
+	var onSave: (String) -> Void
+	var onReturn: (String?) -> Void
 
 	@Environment(\.font) private var font
 	@Environment(\.fontResolutionContext) private var fontContext
-
-	init(text: String, onSave: @escaping (String) -> Void, onReturn: @escaping (String?) -> Void) {
-		self.text = text
-		self.onSave = onSave
-		self.onReturn = onReturn
-	}
 
 	private var ctFont: CTFont {
 		(font ?? .body).resolve(in: fontContext).ctFont
@@ -21,6 +16,7 @@ struct EditableText: View {
 
 	var body: some View {
 		EditableTextView(
+			blockId: blockId,
 			text: text,
 			ctFont: ctFont,
 			onSave: onSave,

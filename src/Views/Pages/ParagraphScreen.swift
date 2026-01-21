@@ -2,6 +2,7 @@ import SwiftUI
 import SQLiteData
 
 struct ParagraphScreen: View {
+	@State private var focusCoordinator = FocusCoordinator()
 	@FetchOne var paragraphWithContent: Paragraph.WithChildren!
 
 	var paragraph: Paragraph {
@@ -24,6 +25,7 @@ struct ParagraphScreen: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
+		.environment(\.focusCoordinator, focusCoordinator)
 		.environment(\.blockTree, paragraphWithContent.tree)
 	}
 }

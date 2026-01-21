@@ -31,5 +31,5 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 	var kind: Kind
 
 	@Column(as: Date.UnixTimeRepresentation.self)
-	var createdAt: Date
+	var createdAt: Date = .now
 }
