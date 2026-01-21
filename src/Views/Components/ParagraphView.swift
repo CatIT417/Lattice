@@ -61,20 +61,30 @@ struct ParagraphView: View {
 	private func createNewBlock(withText text: String? = nil) {
 		let newBlockId = UUID()
 
+		let isRootParagraph = blockTree?.isRoot(paragraph) ?? false
+
 		withErrorReporting {
 			try database.write { db in
-				try Paragraph
-					.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
-					.update { $0.order += 1 }
-					.execute(db)
+				// TODO: Move order adjustments to trigger
+				if isRootParagraph {
+					try Paragraph
+						.where { $0.parentId == paragraph.id }
+						.update { $0.order += 1 }
+						.execute(db)
+				} else {
+					try Paragraph
+						.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
+						.update { $0.order += 1 }
+						.execute(db)
+				}
 
 				try Paragraph.insert {
 					Paragraph(
 						id: newBlockId,
 						string: text ?? "",
-						parentId: paragraph.parentId,
+						parentId: isRootParagraph ? paragraph.id : paragraph.parentId,
 						pageId: paragraph.pageId,
-						order: paragraph.order + 1,
+						order: isRootParagraph ? 0 : paragraph.order + 1,
 						viewType: paragraph.viewType
 					)
 				}.execute(db)
