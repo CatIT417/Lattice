@@ -37,6 +37,12 @@ struct EditableTextView: UIViewRepresentable {
 		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+//		textView.withKeyboardActions(items: [
+//			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { _ in
+//				//
+//			}),
+//			UIBarButtonItem(systemItem: .flexibleSpace),
+//		])
 
 		context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 
