@@ -15,9 +15,8 @@ struct BlockTree {
 		childrenByParentId[parentId]?.sorted(using: KeyPathComparator(\.order, order: .forward)) ?? []
 	}
 
-	func isRoot(_ paragraph: Paragraph) -> Bool {
-		guard let parentTree = childrenByParentId[paragraph.parentId] else { return true }
-		return !parentTree.contains(where: { $0.id == paragraph.id })
+	func isRoot(_ id: Block.ID) -> Bool {
+		!childrenByParentId.values.contains { $0.contains { $0.id == id } }
 	}
 
 	func hasChildren(_ parentId: Block.ID) -> Bool {
@@ -37,5 +36,5 @@ struct BlockTree {
 }
 
 extension EnvironmentValues {
-	@Entry var blockTree: BlockTree?
+	@Entry var blockTree: BlockTree = .init(paragraphs: [])
 }

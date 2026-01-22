@@ -7,7 +7,7 @@ struct ChildrenRenderer: View {
 	@Environment(\.blockTree) var tree
 
 	var body: some View {
-		if let tree, !tree.children(of: parentID).isEmpty {
+		if !tree.children(of: parentID).isEmpty {
 			LazyVStack(alignment: .leading, spacing: 4) {
 				ForEach(tree.children(of: parentID)) { child in
 					ParagraphView(paragraph: child)

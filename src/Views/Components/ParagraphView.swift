@@ -61,7 +61,14 @@ struct ParagraphView: View {
 	private func createNewBlock(withText text: String? = nil) {
 		let newBlockId = UUID()
 
-		let isRootParagraph = blockTree?.isRoot(paragraph) ?? false
+		let isRootParagraph = blockTree.isRoot(paragraph.id)
+
+		// IF we press return on an empty block with no children,
+		// AND the parent is not at the top level in the current page,
+		// THEN we move it up a level instead of creating a new block.
+		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) {
+			return outdentBlock()
+		}
 
 		withErrorReporting {
 			try database.write { db in
@@ -94,8 +101,46 @@ struct ParagraphView: View {
 		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
 	}
 
+	private func outdentBlock() {
+		withErrorReporting {
+			try database.write { db in
+				// Get parent's parentId and order
+				guard let parentBlock = try Paragraph.find(paragraph.parentId).fetchOne(db) else {
+					return
+				}
+
+				let newParentId = parentBlock.parentId
+				let insertAfterOrder = parentBlock.order
+
+				// TODO: Move order adjustments to trigger
+				// First we move up siblings that were after the block's previous position
+				try Paragraph
+					.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
+					.update { $0.order -= 1 }
+					.execute(db)
+
+				// Then we make space in the new parent for the block
+				try Paragraph
+					.where { $0.parentId == newParentId && $0.order > insertAfterOrder }
+					.update { $0.order += 1 }
+					.execute(db)
+
+				// Finally we move the block
+				try Paragraph.find(paragraph.id)
+					.update {
+						$0.parentId = newParentId
+						$0.order = insertAfterOrder + 1
+					}
+					.execute(db)
+			}
+		}
+
+		// Keep focus on same block
+		blockCoordinator?.request(for: paragraph.id, at: 0, startingInMode: .raw)
+	}
+
 	private func mergeIntoPrevious(appendingContent content: String) -> Bool {
-		guard let previousParagraphID = blockTree?.previousBlock(for: paragraph), let previousParagraph = withErrorReporting(catching: {
+		guard let previousParagraphID = blockTree.previousBlock(for: paragraph), let previousParagraph = withErrorReporting(catching: {
 			try database.read { db in
 				try Paragraph.find(previousParagraphID).fetchOne(db)
 			}

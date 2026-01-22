@@ -39,6 +39,10 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 	@Column(as: Date.UnixTimeRepresentation.self)
 	var updatedAt: Date = .now
 
+	var parentIsPage: Bool {
+		parentId == pageId
+	}
+
 	init(id: UUID = UUID(), string: String, parentId: Block.ID, pageId: Page.ID, order: Int, heading: Block.HeadingLevel? = nil, viewType: Block.ViewType = .bullet, textAlign: Block.TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
 		self.id = id
 		self.props = props
