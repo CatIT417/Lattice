@@ -23,14 +23,14 @@ final class SyncReferencesTable: Trigger {
 				forBlockID: block.id,
 				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId == block.id }.exists()
 			))
-		}, when: { _, block in
-			block.string.isNot(nil)
+		}, when: { old, new in
+			new.string.isNot(nil) && old.string != new.string
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.title, forEachRow: { old, new in
 			Values($updatePageTitleInReferences(old: old.title.unsafelyUnwrapped, new: new.title.unsafelyUnwrapped, forPageID: new.id))
-		}, when: { _, block in
-			block.title.isNot(nil) && Reference.where { $0.targetBlockId == block.id }.exists()
+		}, when: { old, new in
+			new.title.isNot(nil) && old.title != new.title && Reference.where { $0.targetBlockId == new.id }.exists()
 		})).execute(db)
 	}
 }

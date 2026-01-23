@@ -50,6 +50,8 @@ struct EditableTextView: UIViewRepresentable {
 	}
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
+		context.coordinator.parent = self
+
 		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
 			// Becoming the first responder synchronously triggers an AttributeGraph cycle
 			// when calling BlockCoordinator.request in ParagraphView.moveCursorTo.

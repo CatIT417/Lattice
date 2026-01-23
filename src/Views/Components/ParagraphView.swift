@@ -37,7 +37,7 @@ struct ParagraphView: View {
 					blockId: paragraph.id,
 					text: paragraph.string,
 					onSave: saveChanges,
-					onReturn: createNewBlock,
+					onReturn: createNewBlock(withText:),
 					tryDeleteBlock: mergeIntoPrevious(appendingContent:)
 				)
 				.font(fontForHeading)
@@ -45,6 +45,9 @@ struct ParagraphView: View {
 			}
 
 			ChildrenRenderer(parentID: paragraph.id)
+		}
+		.onChange(of: paragraph.order) {
+			print("Paragraph '\(paragraph.string)' order changed to \(paragraph.order)")
 		}
 	}
 
@@ -72,19 +75,6 @@ struct ParagraphView: View {
 
 		withErrorReporting {
 			try database.write { db in
-				// TODO: Move order adjustments to trigger
-				if isRootParagraph {
-					try Paragraph
-						.where { $0.parentId == paragraph.id }
-						.update { $0.order += 1 }
-						.execute(db)
-				} else {
-					try Paragraph
-						.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
-						.update { $0.order += 1 }
-						.execute(db)
-				}
-
 				try Paragraph.insert {
 					Paragraph(
 						id: newBlockId,
@@ -104,32 +94,14 @@ struct ParagraphView: View {
 	private func outdentBlock() {
 		withErrorReporting {
 			try database.write { db in
-				// Get parent's parentId and order
 				guard let parentBlock = try Paragraph.find(paragraph.parentId).fetchOne(db) else {
 					return
 				}
 
-				let newParentId = parentBlock.parentId
-				let insertAfterOrder = parentBlock.order
-
-				// TODO: Move order adjustments to trigger
-				// First we move up siblings that were after the block's previous position
-				try Paragraph
-					.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
-					.update { $0.order -= 1 }
-					.execute(db)
-
-				// Then we make space in the new parent for the block
-				try Paragraph
-					.where { $0.parentId == newParentId && $0.order > insertAfterOrder }
-					.update { $0.order += 1 }
-					.execute(db)
-
-				// Finally we move the block
 				try Paragraph.find(paragraph.id)
 					.update {
-						$0.parentId = newParentId
-						$0.order = insertAfterOrder + 1
+						$0.parentId = parentBlock.parentId
+						$0.order = parentBlock.order + 1
 					}
 					.execute(db)
 			}
@@ -153,12 +125,6 @@ struct ParagraphView: View {
 					.execute(db)
 
 				try Paragraph.find(paragraph.id).delete().execute(db)
-
-				// Reindex subsequent siblings (TODO: move to trigger)
-				try Paragraph
-					.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
-					.update { $0.order -= 1 }
-					.execute(db)
 			}
 		}
 

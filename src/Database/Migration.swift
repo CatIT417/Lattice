@@ -3,8 +3,16 @@ import Foundation
 import SQLiteData
 
 nonisolated protocol Migration: Sendable {
+	static var isTemporary: Bool { get }
+
 	static func up(_ db: Database) throws
 	static func down(_ db: Database) throws
+}
+
+extension Migration {
+	static var isTemporary: Bool {
+		false
+	}
 }
 
 nonisolated protocol Seeder: Sendable {
@@ -45,12 +53,6 @@ extension Trigger {
 }
 
 extension DatabaseMigrator {
-	mutating func registerMigration<T: Migration>(_ migration: T.Type) {
-		registerMigration(String(describing: migration)) { db in
-			try migration.up(db)
-		}
-	}
-
 	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter, clean: Bool = false) throws {
 		if clean {
 			if let appliedMigrations = try? database.read({ try MigrationRecord.fetchAll($0) }) {
@@ -64,14 +66,26 @@ extension DatabaseMigrator {
 			}
 		}
 
-		registerMigrations(migrations)
+		registerMigrations(migrations.filter { !$0.isTemporary })
 
 		try migrate(database)
+
+		for migration in migrations.filter({ $0.isTemporary }) {
+			try database.write { db in
+				try migration.up(db)
+			}
+		}
 	}
 
-	mutating func registerMigrations(_ migrations: [Migration.Type]) {
+	private mutating func registerMigrations(_ migrations: [Migration.Type]) {
 		for migration in migrations {
 			registerMigration(migration)
+		}
+	}
+
+	private mutating func registerMigration<T: Migration>(_ migration: T.Type) {
+		registerMigration(String(describing: migration)) { db in
+			try migration.up(db)
 		}
 	}
 }
