@@ -25,10 +25,12 @@ struct ParagraphScreen: View {
 		}
 		.doneButtonOnToolbar()
 		.toolbar(removing: .title)
-		.navigationTitle(removeReferences(from: paragraph.string))
-		.navigationBarTitleDisplayMode(.inline)
 		.environment(\.blockCoordinator, blockCoordinator)
 		.environment(\.blockTree, paragraphWithContent.tree)
+		.navigationTitle(removeReferences(from: paragraph.string))
+		#if os(iOS)
+			.navigationBarTitleDisplayMode(.inline)
+		#endif
 	}
 }
 

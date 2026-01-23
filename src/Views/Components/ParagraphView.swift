@@ -28,6 +28,7 @@ struct ParagraphView: View {
 					NavigationButton(push: .paragraph(id: paragraph.id)) {
 						bulletView
 					}
+					.buttonStyle(.plain)
 					.alignmentGuide(.firstTextBaseline) { _ in
 						CTFontGetXHeight(font)
 					}

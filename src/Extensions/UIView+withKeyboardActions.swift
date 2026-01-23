@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 fileprivate var inputAccessoryViewControllerKey: Void?
@@ -46,3 +47,4 @@ class KeyboardToolbarController: UIInputViewController {
 		])
 	}
 }
+#endif

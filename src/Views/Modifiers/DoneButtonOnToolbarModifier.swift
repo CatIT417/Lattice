@@ -5,16 +5,18 @@ struct DoneButtonOnToolbarModifier: ViewModifier {
 
 	func body(content: Content) -> some View {
 		content
-			.focused($isFocused)
-			.toolbar {
-				if isFocused {
-					ToolbarItem {
-						Button(role: .confirm) {
-							UIApplication.shared.resignFirstResponder()
-						}
+		#if os(iOS)
+		.focused($isFocused)
+		.toolbar {
+			if isFocused {
+				ToolbarItem {
+					Button(role: .confirm) {
+						UIApplication.shared.resignFirstResponder()
 					}
 				}
 			}
+		}
+		#endif
 	}
 }
 

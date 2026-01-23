@@ -289,7 +289,7 @@ The `linkWasTapped` flag prevents the text view from entering edit mode when a l
 4. Install triggers
 5. Seed data (DEBUG only)
 
-## Verifying Changes
+## Verifying Changes on iOS
 
 Use the xcodebuild MCP to build, run, and test the app in the iOS Simulator.
 
@@ -324,3 +324,9 @@ Use XCodeBuildMCP's UI interaction tools (`mcp__xcodebuildmcp__tap`, `mcp__xcode
 5. Take another screenshot to verify the result
 6. Repeat as needed to test different flows
 7. **Always close the simulator when done**: `xcrun simctl shutdown <simulator-id>`
+
+## Verifying Changes in macOS
+
+- Use `mcp__xcodebuildmcp__build_macos(scheme: "Lattice")` to build the macOS target
+
+Sadly, there doesn't seem to currently be a way to give you access to UI automation for macOS apps, so once the app builds, just let the user know (feel free to suggest a testing flow if you have one in mind) and they'll do it for you.
