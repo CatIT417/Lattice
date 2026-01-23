@@ -30,6 +30,7 @@ struct PageScreen: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
+		.doneButtonOnToolbar()
 		.navigationTitle(page.title)
 		.environment(\.blockTree, pageWithContent.tree)
 		.environment(\.blockCoordinator, blockCoordinator)

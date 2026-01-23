@@ -23,6 +23,7 @@ struct ParagraphScreen: View {
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
+		.doneButtonOnToolbar()
 		.toolbar(removing: .title)
 		.navigationTitle(removeReferences(from: paragraph.string))
 		.navigationBarTitleDisplayMode(.inline)
