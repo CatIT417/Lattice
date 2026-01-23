@@ -66,7 +66,7 @@ struct ParagraphView: View {
 		// IF we press return on an empty block with no children,
 		// AND the parent is not at the top level in the current page,
 		// THEN we move it up a level instead of creating a new block.
-		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) {
+		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) {
 			return outdentBlock()
 		}
 
@@ -140,7 +140,7 @@ struct ParagraphView: View {
 	}
 
 	private func mergeIntoPrevious(appendingContent content: String) -> Bool {
-		guard let previousParagraphID = blockTree.previousBlock(for: paragraph), let previousParagraph = withErrorReporting(catching: {
+		guard !blockTree.hasChildren(paragraph.id), let previousParagraphID = blockTree.previousBlockOnScreen(for: paragraph), let previousParagraph = withErrorReporting(catching: {
 			try database.read { db in
 				try Paragraph.find(previousParagraphID).fetchOne(db)
 			}
