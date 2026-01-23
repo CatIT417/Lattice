@@ -46,9 +46,6 @@ struct ParagraphView: View {
 
 			ChildrenRenderer(parentID: paragraph.id)
 		}
-		.onChange(of: paragraph.order) {
-			print("Paragraph '\(paragraph.string)' order changed to \(paragraph.order)")
-		}
 	}
 
 	private func saveChanges(_ newText: String) {
