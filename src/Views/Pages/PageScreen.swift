@@ -5,6 +5,10 @@ struct PageScreen: View {
 	@FetchOne var pageWithContent: Page.WithChildren!
 	@State private var blockCoordinator = BlockCoordinator()
 
+	var hasNoChildren: Bool {
+		pageWithContent.tree.children(of: page.id).isEmpty
+	}
+
 	var page: Page {
 		pageWithContent.block
 	}
@@ -16,6 +20,11 @@ struct PageScreen: View {
 	var body: some View {
 		ScrollView {
 			VStack(alignment: .leading, spacing: 12) {
+				if hasNoChildren {
+					PlaceholderBlock(pageId: page.id)
+						.padding(.leading, 24)
+				}
+
 				ChildrenRenderer(parentID: page.id)
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
