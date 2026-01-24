@@ -3,11 +3,13 @@ import SwiftUI
 @MainActor @Observable
 final class BlockCoordinator {
 	enum RenderMode: Equatable, Hashable { case raw, rendered }
+	enum PendingAction: Equatable, Hashable { case indent, outdent }
 
 	private var focusedBlock: Block.ID?
 
 	private var cursorPosition: Int?
 	private var isExpectingText: Bool = false
+	private var pendingAction: PendingAction?
 	private var renderMode: RenderMode = .rendered
 
 	func request(for blockId: Block.ID, at position: Int? = nil, expectsNewText: Bool = false, startingInMode mode: RenderMode = .rendered) {
@@ -25,6 +27,11 @@ final class BlockCoordinator {
 	func expectsNewText(for blockId: Block.ID?) -> Bool {
 		guard let focusedBlock, focusedBlock == blockId else { return false }
 		return isExpectingText
+	}
+
+	func shouldQueueActions(blockId: Block.ID?) -> Bool {
+		guard let focusedBlock, let blockId else { return false }
+		return focusedBlock != blockId
 	}
 
 	func cursorPositionFor(blockId: Block.ID?) -> Int? {
@@ -52,6 +59,17 @@ final class BlockCoordinator {
 
 		isExpectingText = false
 		clearFocus(for: blockId)
+	}
+
+	func queueAction(_ action: PendingAction) {
+		pendingAction = action
+	}
+
+	func popAction(for blockId: Block.ID?) -> PendingAction? {
+		guard let blockId, focusedBlock == blockId, let action = pendingAction else { return nil }
+
+		pendingAction = nil
+		return action
 	}
 }
 

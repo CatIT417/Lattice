@@ -7,11 +7,13 @@ struct EditableTextView: UIViewRepresentable {
 	let text: String
 	let ctFont: CTFont
 	let onSave: (String) -> Void
-	let onReturn: (String?) -> Void
+	let onReturn: (String?) -> Bool
 	let tryDeleteBlock: ((String) -> Bool)?
 	let onLinkTap: (URL) -> Void
 	let onMoveUp: ((Int) -> Bool)?
 	let onMoveDown: ((Int) -> Bool)?
+	let onIndent: ((Int) -> Bool)?
+	let onOutdent: ((Int) -> Bool)?
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -162,10 +164,12 @@ extension EditableTextView {
 			// and save that to the database, stripping the link formatting.
 			parent.onSave(newText)
 			lastKnownText = newText
-			isEditing = false
 
-			setText(.rendered, text: newText, textView: textView)
-			parent.onReturn(String(currentText.dropFirst(range.location)))
+			// Only switch to rendered mode if focus moved to a new block
+			if parent.onReturn(String(currentText.dropFirst(range.location))) {
+				isEditing = false
+				setText(.rendered, text: newText, textView: textView)
+			}
 		}
 	}
 }

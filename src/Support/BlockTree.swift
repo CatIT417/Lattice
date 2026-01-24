@@ -23,8 +23,12 @@ struct BlockTree {
 		childrenByParentId[parentId]?.isEmpty == false
 	}
 
+	func previousSibling(for paragraph: Paragraph) -> Paragraph? {
+		children(of: paragraph.parentId).filter { $0.order < paragraph.order }.last
+	}
+
 	func previousBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
-		if let previousSibling = children(of: paragraph.parentId).filter({ $0.order < paragraph.order }).last {
+		if let previousSibling = previousSibling(for: paragraph) {
 			return deepestLastChild(of: previousSibling.id) ?? previousSibling.id
 		}
 

@@ -5,10 +5,13 @@ struct EditableText: View {
 	var blockId: Block.ID? = nil
 	var text: String
 	var onSave: (String) -> Void
-	var onReturn: (String?) -> Void
+	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)
+	var onReturn: (String?) -> Bool
 	var tryDeleteBlock: ((String) -> Bool)? = nil
 	var onMoveUp: ((Int) -> Bool)? = nil
 	var onMoveDown: ((Int) -> Bool)? = nil
+	var onIndent: ((Int) -> Bool)? = nil
+	var onOutdent: ((Int) -> Bool)? = nil
 
 	@Environment(\.font) private var font
 	@Environment(Router.self) private var router
@@ -28,7 +31,9 @@ struct EditableText: View {
 			tryDeleteBlock: tryDeleteBlock,
 			onLinkTap: openLink,
 			onMoveUp: onMoveUp,
-			onMoveDown: onMoveDown
+			onMoveDown: onMoveDown,
+			onIndent: onIndent,
+			onOutdent: onOutdent
 		)
 		.alignmentGuide(.firstTextBaseline) { _ in
 			CTFontGetAscent(ctFont)
@@ -50,7 +55,7 @@ struct EditableText: View {
 	EditableText(
 		text: "Hello [[World]]!",
 		onSave: { _ in },
-		onReturn: { _ in }
+		onReturn: { _ in true }
 	)
 	.padding()
 	.preview()
@@ -60,7 +65,7 @@ struct EditableText: View {
 	EditableText(
 		text: "This is a longer piece of text that might wrap to multiple lines when displayed in the editor.",
 		onSave: { _ in },
-		onReturn: { _ in }
+		onReturn: { _ in true }
 	)
 	.padding()
 	.preview()
@@ -70,7 +75,7 @@ struct EditableText: View {
 	EditableText(
 		text: "Check out [[Page One]] and ((abc123456)) and #tag for more info.",
 		onSave: { _ in },
-		onReturn: { _ in }
+		onReturn: { _ in true }
 	)
 	.padding()
 	.preview()

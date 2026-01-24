@@ -44,7 +44,9 @@ struct ParagraphView: View {
 					onReturn: createNewBlock(withText:),
 					tryDeleteBlock: mergeIntoPrevious(appendingContent:),
 					onMoveUp: moveToPreviousBlock(fromCursorPosition:),
-					onMoveDown: moveToNextBlock(fromCursorPosition:)
+					onMoveDown: moveToNextBlock(fromCursorPosition:),
+					onIndent: indentBlock(cursorPosition:),
+					onOutdent: outdentBlock(cursorPosition:)
 				)
 				.font(fontForHeading)
 				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
@@ -64,17 +66,19 @@ struct ParagraphView: View {
 		}
 	}
 
-	private func createNewBlock(withText text: String? = nil) {
-		let newBlockId = UUID()
-
+	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)
+	private func createNewBlock(withText text: String? = nil) -> Bool {
 		let isRootParagraph = blockTree.isRoot(paragraph.id)
 
 		// IF we press return on an empty block with no children,
 		// AND the parent is not at the top level in the current page,
 		// THEN we move it up a level instead of creating a new block.
 		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) {
-			return outdentBlock()
+			_ = outdentBlock()
+			return false
 		}
+
+		let newBlockId = UUID()
 
 		withErrorReporting {
 			try database.write { db in
@@ -92,9 +96,15 @@ struct ParagraphView: View {
 		}
 
 		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
+		return true
 	}
 
-	private func outdentBlock() {
+	@discardableResult
+	private func outdentBlock(cursorPosition: Int? = nil) -> Bool {
+		guard !blockTree.isRoot(paragraph.id), !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) else {
+			return false
+		}
+
 		withErrorReporting {
 			try database.write { db in
 				guard let parentBlock = try Paragraph.find(paragraph.parentId).fetchOne(db) else {
@@ -110,8 +120,38 @@ struct ParagraphView: View {
 			}
 		}
 
-		// Keep focus on same block
-		blockCoordinator?.request(for: paragraph.id, at: 0, startingInMode: .raw)
+		blockCoordinator?.request(for: paragraph.id, at: cursorPosition ?? 0, startingInMode: .raw)
+		return true
+	}
+
+	private func indentBlock(cursorPosition: Int) -> Bool {
+		guard let previousSibling = blockTree.previousSibling(for: paragraph) else {
+			return false
+		}
+
+		let maxOrder = withErrorReporting(catching: {
+			try database.read { db in
+				try Paragraph
+					.where { $0.parentId == previousSibling.id }
+					.order { $0.order.desc() }
+					.fetchOne(db)?
+					.order
+			}
+		}) ?? nil
+
+		withErrorReporting {
+			try database.write { db in
+				try Paragraph.find(paragraph.id)
+					.update {
+						$0.parentId = previousSibling.id
+						$0.order = (maxOrder ?? -1) + 1
+					}
+					.execute(db)
+			}
+		}
+
+		blockCoordinator?.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
+		return true
 	}
 
 	private func mergeIntoPrevious(appendingContent content: String) -> Bool {

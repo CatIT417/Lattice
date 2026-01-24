@@ -17,11 +17,13 @@ struct EditableTextView: NSViewRepresentable {
 	let text: String
 	let ctFont: CTFont
 	let onSave: (String) -> Void
-	let onReturn: (String?) -> Void
+	let onReturn: (String?) -> Bool
 	let tryDeleteBlock: ((String) -> Bool)?
 	let onLinkTap: (URL) -> Void
 	let onMoveUp: ((Int) -> Bool)?
 	let onMoveDown: ((Int) -> Bool)?
+	let onIndent: ((Int) -> Bool)?
+	let onOutdent: ((Int) -> Bool)?
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -74,15 +76,20 @@ struct EditableTextView: NSViewRepresentable {
 		context.coordinator.parent = self
 
 		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
-			DispatchQueue.main.async {
-				textView.window?.makeFirstResponder(textView)
-			}
+			let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId)
 
-			if let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId) {
-				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
-			}
+			// View might not be in window yet (e.g., newly created from PlaceholderBlock).
+			// Only clear focus after successfully becoming first responder.
+			DispatchQueue.main.async { [weak blockCoordinator] in
+				guard let window = textView.window else { return }
+				window.makeFirstResponder(textView)
 
-			blockCoordinator.clearFocus(for: blockId)
+				if let cursorPosition {
+					context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+				}
+
+				blockCoordinator?.clearFocus(for: self.blockId)
+			}
 		}
 
 		if context.coordinator.lastKnownText != text, let expectsNewText = blockCoordinator?.expectsNewText(for: blockId), expectsNewText || !context.coordinator.isEditing {
@@ -169,6 +176,13 @@ extension EditableTextView {
 
 			let mappedOffset = indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset
 			moveCursorTo(offset: min(mappedOffset, parent.text.count), textView: textView)
+
+			if let pendingAction = parent.blockCoordinator?.popAction(for: parent.blockId) {
+				switch pendingAction {
+					case .indent: _ = parent.onIndent?(textView.selectedRange().location)
+					case .outdent: _ = parent.onOutdent?(textView.selectedRange().location)
+				}
+			}
 		}
 
 		fileprivate func deletionRequested(textView: NSTextView) {
@@ -187,10 +201,14 @@ extension EditableTextView {
 			// and save that to the database, stripping the link formatting.
 			parent.onSave(newText)
 			lastKnownText = newText
-			isEditing = false
 
-			setText(.rendered, text: newText, textView: textView)
-			parent.onReturn(String(currentText.dropFirst(range.location)))
+			let createdNewBlock = parent.onReturn(String(currentText.dropFirst(range.location)))
+
+			// Only switch to rendered mode if focus moved to a new block
+			if createdNewBlock {
+				isEditing = false
+				setText(.rendered, text: newText, textView: textView)
+			}
 		}
 	}
 }
@@ -268,6 +286,20 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		}
 
 		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), let onMoveDown = parent.onMoveDown, onMoveDown(textView.selectedRange().location) {
+			return true
+		}
+
+		if selector == #selector(NSResponder.insertTab(_:)) {
+			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.indent) }
+			else { _ = parent.onIndent?(textView.selectedRange().location) }
+
+			return true
+		}
+
+		if selector == #selector(NSResponder.insertBacktab(_:)) {
+			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.outdent) }
+			else { _ = parent.onOutdent?(textView.selectedRange().location) }
+
 			return true
 		}
 
