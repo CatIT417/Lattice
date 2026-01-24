@@ -26,13 +26,8 @@ struct PlaceholderBlock: View {
 			}
 		}
 		.buttonStyle(.plain)
+		.pointerStyle(.link)
 		.foregroundStyle(.primary)
-		#if os(macOS)
-			.onHover { isHovering in
-				if isHovering { NSCursor.iBeam.push() }
-				else { NSCursor.pop() }
-			}
-		#endif
 	}
 
 	private func createFirstBlock() {

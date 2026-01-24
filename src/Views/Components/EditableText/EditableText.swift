@@ -9,6 +9,7 @@ struct EditableText: View {
 	var tryDeleteBlock: ((String) -> Bool)? = nil
 
 	@Environment(\.font) private var font
+	@Environment(Router.self) private var router
 	@Environment(\.fontResolutionContext) private var fontContext
 
 	private var ctFont: CTFont {
@@ -31,9 +32,13 @@ struct EditableText: View {
 	}
 
 	func openLink(_ url: URL) {
-		// Using .openURL from @Environment causes the view to re-render unexpectedly,
-		// so we manually fetch it from EnvironmentValues instead. (rdar://FB13266052)
-		EnvironmentValues().openURL(url)
+		if url.scheme == Destination.Deeplinks.scheme, router.handleURL(url) {
+			// Deeplink handled by app
+		} else {
+			// Using .openURL from @Environment causes the view to re-render unexpectedly,
+			// so we manually fetch it from EnvironmentValues instead. (rdar://FB13266052)
+			EnvironmentValues().openURL(url)
+		}
 	}
 }
 

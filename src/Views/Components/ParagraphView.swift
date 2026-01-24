@@ -29,6 +29,7 @@ struct ParagraphView: View {
 						bulletView
 					}
 					.buttonStyle(.plain)
+					.pointerStyle(.link)
 					.alignmentGuide(.firstTextBaseline) { _ in
 						CTFontGetXHeight(font)
 					}

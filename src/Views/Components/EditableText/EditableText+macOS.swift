@@ -47,6 +47,7 @@ struct EditableTextView: NSViewRepresentable {
 			.foregroundColor: NSColor.labelColor,
 		]
 		textView.linkTextAttributes = [
+			.cursor: NSCursor.pointingHand,
 			.foregroundColor: NSColor.systemBlue,
 		]
 
@@ -67,10 +68,8 @@ struct EditableTextView: NSViewRepresentable {
 
 	func updateNSView(_ textView: NSTextView, context: Context) {
 		context.coordinator.parent = self
-		print("[EditableText] updateNSView isEditing=\(context.coordinator.isEditing) selectedRange=\(textView.selectedRange()) string.count=\(textView.string.count)")
 
 		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
-			print("[EditableText] updateNSView - focusing block, cursorPosition=\(String(describing: blockCoordinator.cursorPositionFor(blockId: blockId)))")
 			DispatchQueue.main.async {
 				textView.window?.makeFirstResponder(textView)
 			}
@@ -82,9 +81,7 @@ struct EditableTextView: NSViewRepresentable {
 			blockCoordinator.clearFocus(for: blockId)
 		}
 
-		print("[EditableText] updateNSView text check: lastKnownText.count=\(context.coordinator.lastKnownText.count) text.count=\(text.count) expectsNewText=\(String(describing: blockCoordinator?.expectsNewText(for: blockId))) isEditing=\(context.coordinator.isEditing)")
 		if context.coordinator.lastKnownText != text, let expectsNewText = blockCoordinator?.expectsNewText(for: blockId), expectsNewText || !context.coordinator.isEditing {
-			print("[EditableText] updateNSView - updating text!")
 			context.coordinator.lastKnownText = text
 			context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 			if let cursorPosition = blockCoordinator?.cursorPositionFor(blockId: blockId) {
@@ -147,19 +144,16 @@ extension EditableTextView {
 		}
 
 		fileprivate func transitionToEditMode(textView: NSTextView) {
-			print("[EditableText] transitionToEditMode START selectedRange=\(textView.selectedRange())")
 			isEditing = true
 
 			let cursorOffset = textView.selectedRange().location
 
 			setText(.raw, text: lastKnownText, textView: textView)
-			print("[EditableText] transitionToEditMode after setText selectedRange=\(textView.selectedRange())")
 
 			// Map cursor from rendered to raw position, or use original offset if no mapping
 			// (plain text without references has 1:1 mapping)
 			let mappedOffset = indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset
 			moveCursorTo(offset: min(mappedOffset, parent.text.count), textView: textView)
-			print("[EditableText] transitionToEditMode after moveCursor selectedRange=\(textView.selectedRange())")
 		}
 
 		fileprivate func deletionRequested(textView: NSTextView) {
@@ -188,15 +182,11 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		if linkWasTapped {
 			linkWasTapped = false
 			textView.window?.makeFirstResponder(nil)
-			return
 		}
+	}
 
-		guard !isEditing else { return }
-
-		// On macOS (unlike iOS), the cursor position is already correct in textDidBeginEditing
-		// because textViewDidChangeSelection fires BEFORE this when the user clicks.
-		// We must transition synchronously here, BEFORE the character is inserted,
-		// otherwise we'll lose the first typed character.
+	func textViewDidChangeSelection(_ notification: Notification) {
+		guard let textView = notification.object as? NSTextView, !isEditing else { return }
 		transitionToEditMode(textView: textView)
 	}
 
@@ -216,19 +206,22 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 	// MARK: - Link Handling
 
-	func textView(_: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
+	func textView(_ textView: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
 		linkWasTapped = true
+
 		if let url = link as? URL {
 			parent.onLinkTap(url)
+			textView.window?.makeFirstResponder(nil)
+			return true
 		}
-		return true
+
+		return false
 	}
 
 	// MARK: - Text Changes
 
 	func textDidChange(_ notification: Notification) {
 		guard let textView = notification.object as? NSTextView else { return }
-		print("[EditableText] textDidChange selectedRange=\(textView.selectedRange()) string.count=\(textView.string.count)")
 		textView.invalidateIntrinsicContentSize()
 	}
 

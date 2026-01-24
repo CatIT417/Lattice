@@ -17,6 +17,7 @@ struct BreadcrumbsView: View {
 							.lineLimit(1)
 							.foregroundStyle(.secondary)
 					}
+					.pointerStyle(.link)
 					.buttonStyle(.plain)
 
 					if ancestor.id != breadcrumbs.last?.id {
