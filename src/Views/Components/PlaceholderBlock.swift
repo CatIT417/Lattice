@@ -23,10 +23,12 @@ struct PlaceholderBlock: View {
 				Text("Tap here to start typing")
 					.font(.body)
 					.foregroundStyle(.secondary)
+				#if os(macOS)
+					.pointerStyle(.horizontalText)
+				#endif
 			}
 		}
 		.buttonStyle(.plain)
-		.pointerStyle(.link)
 		.foregroundStyle(.primary)
 	}
 

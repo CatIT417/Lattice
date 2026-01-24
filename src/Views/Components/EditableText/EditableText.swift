@@ -7,6 +7,8 @@ struct EditableText: View {
 	var onSave: (String) -> Void
 	var onReturn: (String?) -> Void
 	var tryDeleteBlock: ((String) -> Bool)? = nil
+	var onMoveUp: ((Int) -> Bool)? = nil
+	var onMoveDown: ((Int) -> Bool)? = nil
 
 	@Environment(\.font) private var font
 	@Environment(Router.self) private var router
@@ -24,7 +26,9 @@ struct EditableText: View {
 			onSave: onSave,
 			onReturn: onReturn,
 			tryDeleteBlock: tryDeleteBlock,
-			onLinkTap: openLink
+			onLinkTap: openLink,
+			onMoveUp: onMoveUp,
+			onMoveDown: onMoveDown
 		)
 		.alignmentGuide(.firstTextBaseline) { _ in
 			CTFontGetAscent(ctFont)

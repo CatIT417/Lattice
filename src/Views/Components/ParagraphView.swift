@@ -29,10 +29,12 @@ struct ParagraphView: View {
 						bulletView
 					}
 					.buttonStyle(.plain)
-					.pointerStyle(.link)
 					.alignmentGuide(.firstTextBaseline) { _ in
 						CTFontGetXHeight(font)
 					}
+					#if os(macOS)
+					.pointerStyle(.link)
+					#endif
 				}
 
 				EditableText(
@@ -40,7 +42,9 @@ struct ParagraphView: View {
 					text: paragraph.string,
 					onSave: saveChanges,
 					onReturn: createNewBlock(withText:),
-					tryDeleteBlock: mergeIntoPrevious(appendingContent:)
+					tryDeleteBlock: mergeIntoPrevious(appendingContent:),
+					onMoveUp: moveToPreviousBlock(fromCursorPosition:),
+					onMoveDown: moveToNextBlock(fromCursorPosition:)
 				)
 				.font(fontForHeading)
 				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
@@ -134,6 +138,36 @@ struct ParagraphView: View {
 			startingInMode: .raw
 		)
 
+		return true
+	}
+
+	private func moveToPreviousBlock(fromCursorPosition position: Int) -> Bool {
+		guard let previousBlockId = blockTree.previousBlockOnScreen(for: paragraph), let previousParagraph = withErrorReporting(catching: {
+			try database.read { db in
+				try Paragraph.find(previousBlockId).fetchOne(db)
+			}
+		}) else { return false }
+
+		blockCoordinator?.request(
+			for: previousBlockId,
+			at: position >= paragraph.string.count ? previousParagraph.string.count : min(position, previousParagraph.string.count),
+			startingInMode: .raw
+		)
+		return true
+	}
+
+	private func moveToNextBlock(fromCursorPosition position: Int) -> Bool {
+		guard let nextBlockId = blockTree.nextBlockOnScreen(for: paragraph), let nextParagraph = withErrorReporting(catching: {
+			try database.read { db in
+				try Paragraph.find(nextBlockId).fetchOne(db)
+			}
+		}) else { return false }
+
+		blockCoordinator?.request(
+			for: nextBlockId,
+			at: position >= paragraph.string.count ? nextParagraph.string.count : min(position, nextParagraph.string.count),
+			startingInMode: .raw
+		)
 		return true
 	}
 

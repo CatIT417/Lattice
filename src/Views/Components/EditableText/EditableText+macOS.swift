@@ -20,6 +20,8 @@ struct EditableTextView: NSViewRepresentable {
 	let onReturn: (String?) -> Void
 	let tryDeleteBlock: ((String) -> Bool)?
 	let onLinkTap: (URL) -> Void
+	let onMoveUp: ((Int) -> Bool)?
+	let onMoveDown: ((Int) -> Bool)?
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -27,8 +29,8 @@ struct EditableTextView: NSViewRepresentable {
 		ctFont as NSFont
 	}
 
-	func makeNSView(context: Context) -> NSTextView {
-		let textView = NSTextView(usingTextLayoutManager: false)
+	func makeNSView(context: Context) -> AutosizingTextView {
+		let textView = AutosizingTextView(usingTextLayoutManager: false)
 		textView.font = nsFont
 		textView.isEditable = true
 		textView.isSelectable = true
@@ -53,8 +55,10 @@ struct EditableTextView: NSViewRepresentable {
 
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
-		textView.textContainer?.widthTracksTextView = true
-		textView.textContainer?.heightTracksTextView = true
+		textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+		textView.textContainer?.widthTracksTextView = false
+		textView.textContainer?.heightTracksTextView = false
+		textView.textContainer?.lineFragmentPadding = 0
 
 		textView.setContentHuggingPriority(.required, for: .vertical)
 		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -66,7 +70,7 @@ struct EditableTextView: NSViewRepresentable {
 		return textView
 	}
 
-	func updateNSView(_ textView: NSTextView, context: Context) {
+	func updateNSView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
 
 		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
@@ -95,13 +99,26 @@ struct EditableTextView: NSViewRepresentable {
 		Coordinator(parent: self)
 	}
 
-	func sizeThatFits(_: ProposedViewSize, nsView _: NSTextView, context _: Context) -> CGSize? {
-		// Let SwiftUI use intrinsicContentSize.
-		// NSTextView with isVerticallyResizable handles this automatically.
-		return nil
+	func sizeThatFits(_ proposal: ProposedViewSize, nsView: AutosizingTextView, context _: Context) -> CGSize? {
+		let width = proposal.width ?? 300
+
+		if nsView.proposedWidth != width {
+			nsView.proposedWidth = width
+			nsView.invalidateIntrinsicContentSize()
+		}
+
+		guard let textContainer = nsView.textContainer, let layoutManager = nsView.layoutManager else {
+			return nil
+		}
+
+		textContainer.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+		layoutManager.ensureLayout(for: textContainer)
+
+		let usedRect = layoutManager.usedRect(for: textContainer)
+		return CGSize(width: width, height: max(usedRect.height, 22))
 	}
 
-	static func dismantleNSView(_ nsView: NSTextView, coordinator: Coordinator) {
+	static func dismantleNSView(_ nsView: AutosizingTextView, coordinator: Coordinator) {
 		// When SwiftUI tears down the view, force end editing to ensure text is saved
 		if coordinator.isEditing {
 			nsView.window?.makeFirstResponder(nil)
@@ -150,8 +167,6 @@ extension EditableTextView {
 
 			setText(.raw, text: lastKnownText, textView: textView)
 
-			// Map cursor from rendered to raw position, or use original offset if no mapping
-			// (plain text without references has 1:1 mapping)
 			let mappedOffset = indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset
 			moveCursorTo(offset: min(mappedOffset, parent.text.count), textView: textView)
 		}
@@ -166,6 +181,13 @@ extension EditableTextView {
 		fileprivate func newBlockRequested(textView: NSTextView, range: NSRange) {
 			let currentText = textView.attributedString().string
 			let newText = String(currentText.prefix(range.location))
+
+			// Save the raw text before switching to rendered mode, otherwise
+			// textDidEndEditing will read the rendered text (without [[...]] syntax)
+			// and save that to the database, stripping the link formatting.
+			parent.onSave(newText)
+			lastKnownText = newText
+			isEditing = false
 
 			setText(.rendered, text: newText, textView: textView)
 			parent.onReturn(String(currentText.dropFirst(range.location)))
@@ -241,7 +263,41 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			}
 		}
 
+		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), let onMoveUp = parent.onMoveUp, onMoveUp(textView.selectedRange().location) {
+			return true
+		}
+
+		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), let onMoveDown = parent.onMoveDown, onMoveDown(textView.selectedRange().location) {
+			return true
+		}
+
 		return false
+	}
+}
+
+final class AutosizingTextView: NSTextView {
+	var proposedWidth: CGFloat = 0
+	private var lastLayoutWidth: CGFloat = 0
+
+	override var intrinsicContentSize: NSSize {
+		guard let textContainer = textContainer, let layoutManager = layoutManager else {
+			return super.intrinsicContentSize
+		}
+
+		let width = proposedWidth > 0 ? proposedWidth : (bounds.width > 0 ? bounds.width : 300)
+		textContainer.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+		layoutManager.ensureLayout(for: textContainer)
+
+		let usedRect = layoutManager.usedRect(for: textContainer)
+		return NSSize(width: NSView.noIntrinsicMetric, height: max(usedRect.height, 22))
+	}
+
+	override func layout() {
+		super.layout()
+		if bounds.width != lastLayoutWidth {
+			lastLayoutWidth = bounds.width
+			invalidateIntrinsicContentSize()
+		}
 	}
 }
 #endif

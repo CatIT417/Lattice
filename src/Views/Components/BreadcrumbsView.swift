@@ -17,8 +17,10 @@ struct BreadcrumbsView: View {
 							.lineLimit(1)
 							.foregroundStyle(.secondary)
 					}
-					.pointerStyle(.link)
 					.buttonStyle(.plain)
+					#if os(macOS)
+						.pointerStyle(.link)
+					#endif
 
 					if ancestor.id != breadcrumbs.last?.id {
 						Image(systemName: "chevron.right")

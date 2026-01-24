@@ -32,9 +32,31 @@ struct BlockTree {
 		return paragraph.parentId
 	}
 
+	func nextBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
+		if let firstChild = children(of: paragraph.id).first {
+			return firstChild.id
+		}
+
+		return nextSiblingOrAncestorSibling(for: paragraph)
+	}
+
 	private func deepestLastChild(of parentId: Block.ID) -> Block.ID? {
 		guard let lastChild = children(of: parentId).last else { return nil }
 		return deepestLastChild(of: lastChild.id) ?? lastChild.id
+	}
+
+	private func nextSiblingOrAncestorSibling(for paragraph: Paragraph) -> Block.ID? {
+		if let nextSibling = children(of: paragraph.parentId).first(where: { $0.order > paragraph.order }) {
+			return nextSibling.id
+		}
+
+		guard paragraph.parentId != paragraph.pageId else { return nil }
+
+		if let parentParagraph = childrenByParentId.values.lazy.flatMap({ $0 }).first(where: { $0.id == paragraph.parentId }) {
+			return nextSiblingOrAncestorSibling(for: parentParagraph)
+		}
+
+		return nil
 	}
 }
 

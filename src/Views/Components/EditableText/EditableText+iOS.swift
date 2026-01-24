@@ -10,6 +10,8 @@ struct EditableTextView: UIViewRepresentable {
 	let onReturn: (String?) -> Void
 	let tryDeleteBlock: ((String) -> Bool)?
 	let onLinkTap: (URL) -> Void
+	let onMoveUp: ((Int) -> Bool)?
+	let onMoveDown: ((Int) -> Bool)?
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -154,6 +156,13 @@ extension EditableTextView {
 		private func newBlockRequested(textView: UITextView, range: NSRange) {
 			let currentText = textView.attributedText.string
 			let newText = String(currentText.prefix(range.location))
+
+			// Save the raw text before switching to rendered mode, otherwise
+			// textViewDidEndEditing will read the rendered text (without [[...]] syntax)
+			// and save that to the database, stripping the link formatting.
+			parent.onSave(newText)
+			lastKnownText = newText
+			isEditing = false
 
 			setText(.rendered, text: newText, textView: textView)
 			parent.onReturn(String(currentText.dropFirst(range.location)))
