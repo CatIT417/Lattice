@@ -16,10 +16,20 @@
 		C025F1B62F1A066F00687E49 /* ButtonKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B52F1A066F00687E49 /* ButtonKit */; };
 		C025F1B92F1A067F00687E49 /* Atlantis in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B82F1A067F00687E49 /* Atlantis */; };
 		C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C025F20B2F1AA3D100687E49 /* SQLiteData */; };
+		C0DEF00D2F2A000000000013 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000A /* TinyStorage */; };
+		C0DEF00D2F2A000000000014 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000B /* NavigationKit */; };
+		C0DEF00D2F2A000000000015 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000C /* ObfuscateMacro */; };
+		C0DEF00D2F2A000000000016 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */; };
+		C0DEF00D2F2A000000000017 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000E /* Nuke */; };
+		C0DEF00D2F2A000000000018 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000F /* NukeUI */; };
+		C0DEF00D2F2A000000000019 /* ButtonKit in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000010 /* ButtonKit */; };
+		C0DEF00D2F2A00000000001A /* Atlantis in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000011 /* Atlantis */; };
+		C0DEF00D2F2A00000000001B /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000012 /* SQLiteData */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		C02BFFA42F1A04EE00169A69 /* Lattice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lattice.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0DEF00D2F2A000000000001 /* LatticeDev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LatticeDev.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -30,6 +40,13 @@
 			);
 			target = C02BFFA32F1A04EE00169A69 /* Lattice */;
 		};
+		C0DEF00D2F2A000000000009 /* Exceptions for "src" folder in "LatticeDev" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C0DEF00D2F2A000000000002 /* LatticeDev */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -37,6 +54,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				C02CC24B2F1CC28A00B9708B /* Exceptions for "src" folder in "Lattice" target */,
+				C0DEF00D2F2A000000000009 /* Exceptions for "src" folder in "LatticeDev" target */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -60,6 +78,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0DEF00D2F2A000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0DEF00D2F2A00000000001B /* SQLiteData in Frameworks */,
+				C0DEF00D2F2A000000000015 /* ObfuscateMacro in Frameworks */,
+				C0DEF00D2F2A000000000018 /* NukeUI in Frameworks */,
+				C0DEF00D2F2A000000000013 /* TinyStorage in Frameworks */,
+				C0DEF00D2F2A000000000017 /* Nuke in Frameworks */,
+				C0DEF00D2F2A000000000019 /* ButtonKit in Frameworks */,
+				C0DEF00D2F2A000000000016 /* SwiftUIIntrospect in Frameworks */,
+				C0DEF00D2F2A00000000001A /* Atlantis in Frameworks */,
+				C0DEF00D2F2A000000000014 /* NavigationKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -75,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				C02BFFA42F1A04EE00169A69 /* Lattice.app */,
+				C0DEF00D2F2A000000000001 /* LatticeDev.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -113,6 +148,37 @@
 			productReference = C02BFFA42F1A04EE00169A69 /* Lattice.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0DEF00D2F2A000000000002 /* LatticeDev */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0DEF00D2F2A000000000006 /* Build configuration list for PBXNativeTarget "LatticeDev" */;
+			buildPhases = (
+				C0DEF00D2F2A000000000003 /* Sources */,
+				C0DEF00D2F2A000000000004 /* Frameworks */,
+				C0DEF00D2F2A000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C02BFFA62F1A04EE00169A69 /* src */,
+			);
+			name = LatticeDev;
+			packageProductDependencies = (
+				C0DEF00D2F2A00000000000A /* TinyStorage */,
+				C0DEF00D2F2A00000000000B /* NavigationKit */,
+				C0DEF00D2F2A00000000000C /* ObfuscateMacro */,
+				C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */,
+				C0DEF00D2F2A00000000000E /* Nuke */,
+				C0DEF00D2F2A00000000000F /* NukeUI */,
+				C0DEF00D2F2A000000000010 /* ButtonKit */,
+				C0DEF00D2F2A000000000011 /* Atlantis */,
+				C0DEF00D2F2A000000000012 /* SQLiteData */,
+			);
+			productName = LatticeDev;
+			productReference = C0DEF00D2F2A000000000001 /* LatticeDev.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -124,6 +190,9 @@
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					C02BFFA32F1A04EE00169A69 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					C0DEF00D2F2A000000000002 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -153,6 +222,7 @@
 			projectRoot = "";
 			targets = (
 				C02BFFA32F1A04EE00169A69 /* Lattice */,
+				C0DEF00D2F2A000000000002 /* LatticeDev */,
 			);
 		};
 /* End PBXProject section */
@@ -165,10 +235,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0DEF00D2F2A000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C02BFFA02F1A04EE00169A69 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0DEF00D2F2A000000000003 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -319,13 +403,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
@@ -355,13 +440,90 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		C0DEF00D2F2A000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Beta";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = src/Lattice.dev.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LR4RJT6586;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = src/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lattice Dev";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = build.miguel.Lattice.dev;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		C0DEF00D2F2A000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Beta";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = src/Lattice.dev.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LR4RJT6586;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = src/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Lattice Dev";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = build.miguel.Lattice.dev;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
@@ -383,6 +545,15 @@
 			buildConfigurations = (
 				C02BFFB02F1A04EE00169A69 /* Debug */,
 				C02BFFB12F1A04EE00169A69 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0DEF00D2F2A000000000006 /* Build configuration list for PBXNativeTarget "LatticeDev" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0DEF00D2F2A000000000007 /* Debug */,
+				C0DEF00D2F2A000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -497,6 +668,50 @@
 			productName = Atlantis;
 		};
 		C025F20B2F1AA3D100687E49 /* SQLiteData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SQLiteData;
+		};
+		C0DEF00D2F2A00000000000A /* TinyStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */;
+			productName = TinyStorage;
+		};
+		C0DEF00D2F2A00000000000B /* NavigationKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A62F1A061900687E49 /* XCRemoteSwiftPackageReference "NavigationKit" */;
+			productName = NavigationKit;
+		};
+		C0DEF00D2F2A00000000000C /* ObfuscateMacro */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */;
+			productName = ObfuscateMacro;
+		};
+		C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */;
+			productName = SwiftUIIntrospect;
+		};
+		C0DEF00D2F2A00000000000E /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		C0DEF00D2F2A00000000000F /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		C0DEF00D2F2A000000000010 /* ButtonKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */;
+			productName = ButtonKit;
+		};
+		C0DEF00D2F2A000000000011 /* Atlantis */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */;
+			productName = Atlantis;
+		};
+		C0DEF00D2F2A000000000012 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SQLiteData;
 		};

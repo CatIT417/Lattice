@@ -299,7 +299,7 @@ First, set session defaults:
 
 ```
 mcp__xcodebuildmcp__list_sims()
-mcp__xcodebuildmcp__session-set-defaults(projectPath: "Lattice.xcodeproj", scheme: "Lattice", simulatorId: "...", useLatestOS: true)
+mcp__xcodebuildmcp__session-set-defaults(projectPath: "Lattice.xcodeproj", scheme: "LatticeDev", simulatorId: "...", useLatestOS: true)
 ```
 
 ### Build & Run
@@ -327,6 +327,6 @@ Use XCodeBuildMCP's UI interaction tools (`mcp__xcodebuildmcp__tap`, `mcp__xcode
 
 ## Verifying Changes in macOS
 
-- Use `mcp__xcodebuildmcp__build_macos(scheme: "Lattice")` to build the macOS target
+- Use `mcp__xcodebuildmcp__build_macos(scheme: "LatticeDev")` to build the macOS target
 
 Sadly, there doesn't seem to currently be a way to give you access to UI automation for macOS apps, so once the app builds, just let the user know (feel free to suggest a testing flow if you have one in mind) and they'll do it for you.
