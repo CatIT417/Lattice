@@ -16,14 +16,8 @@ struct EditableTextView: NSViewRepresentable {
 	let blockId: Block.ID?
 	let text: String
 	let ctFont: CTFont
-	let onSave: (String) -> Void
-	let onReturn: (String?) -> Bool
-	let tryDeleteBlock: ((String) -> Bool)?
-	let onLinkTap: (URL) -> Void
-	let onMoveUp: ((Int) -> Bool)?
-	let onMoveDown: ((Int) -> Bool)?
-	let onIndent: ((Int) -> Bool)?
-	let onOutdent: ((Int) -> Bool)?
+	let onLinkClicked: (URL) -> Void
+	let handleAction: (EditableText.Action) -> Bool
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -179,15 +173,15 @@ extension EditableTextView {
 
 			if let pendingAction = parent.blockCoordinator?.popAction(for: parent.blockId) {
 				switch pendingAction {
-					case .indent: _ = parent.onIndent?(textView.selectedRange().location)
-					case .outdent: _ = parent.onOutdent?(textView.selectedRange().location)
+					case .indent: _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location))
+					case .outdent: _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location))
 				}
 			}
 		}
 
 		fileprivate func deletionRequested(textView: NSTextView) {
 			let currentText = textView.attributedString().string
-			if let tryDelete = parent.tryDeleteBlock, tryDelete(currentText) {
+			if parent.handleAction(.mergeIntoPrevious(appendingContent: currentText)) {
 				textView.window?.makeFirstResponder(nil)
 			}
 		}
@@ -195,14 +189,15 @@ extension EditableTextView {
 		fileprivate func newBlockRequested(textView: NSTextView, range: NSRange) {
 			let currentText = textView.attributedString().string
 			let newText = String(currentText.prefix(range.location))
+			let remainingText = String(currentText.dropFirst(range.location))
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textDidEndEditing will read the rendered text (without [[...]] syntax)
 			// and save that to the database, stripping the link formatting.
-			parent.onSave(newText)
+			_ = parent.handleAction(.textChanged(newText))
 			lastKnownText = newText
 
-			let createdNewBlock = parent.onReturn(String(currentText.dropFirst(range.location)))
+			let createdNewBlock = parent.handleAction(.blockBreak(remainingText: remainingText.isEmpty ? nil : remainingText))
 
 			// Only switch to rendered mode if focus moved to a new block
 			if createdNewBlock {
@@ -237,7 +232,7 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 		let newText = textView.attributedString().string
 		if newText != parent.text {
-			parent.onSave(newText)
+			_ = parent.handleAction(.textChanged(newText))
 		}
 		lastKnownText = newText
 
@@ -250,7 +245,7 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		linkWasTapped = true
 
 		if let url = link as? URL {
-			parent.onLinkTap(url)
+			parent.onLinkClicked(url)
 			textView.window?.makeFirstResponder(nil)
 			return true
 		}
@@ -281,24 +276,24 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			}
 		}
 
-		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), let onMoveUp = parent.onMoveUp, onMoveUp(textView.selectedRange().location) {
+		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), parent.handleAction(.moveCursorUp(cursorPosition: textView.selectedRange().location)) {
 			return true
 		}
 
-		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), let onMoveDown = parent.onMoveDown, onMoveDown(textView.selectedRange().location) {
+		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), parent.handleAction(.moveCursorDown(cursorPosition: textView.selectedRange().location)) {
 			return true
 		}
 
 		if selector == #selector(NSResponder.insertTab(_:)) {
 			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.indent) }
-			else { _ = parent.onIndent?(textView.selectedRange().location) }
+			else { _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location)) }
 
 			return true
 		}
 
 		if selector == #selector(NSResponder.insertBacktab(_:)) {
 			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.outdent) }
-			else { _ = parent.onOutdent?(textView.selectedRange().location) }
+			else { _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location)) }
 
 			return true
 		}

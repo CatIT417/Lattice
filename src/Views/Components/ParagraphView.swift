@@ -40,13 +40,7 @@ struct ParagraphView: View {
 				EditableText(
 					blockId: paragraph.id,
 					text: paragraph.string,
-					onSave: saveChanges,
-					onReturn: createNewBlock(withText:),
-					tryDeleteBlock: mergeIntoPrevious(appendingContent:),
-					onMoveUp: moveToPreviousBlock(fromCursorPosition:),
-					onMoveDown: moveToNextBlock(fromCursorPosition:),
-					onIndent: indentBlock(cursorPosition:),
-					onOutdent: outdentBlock(cursorPosition:)
+					handleAction: handleAction
 				)
 				.font(fontForHeading)
 				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
@@ -56,7 +50,21 @@ struct ParagraphView: View {
 		}
 	}
 
-	private func saveChanges(_ newText: String) {
+	private func handleAction(_ action: EditableText.Action) -> Bool {
+		switch action {
+			case let .textChanged(text): saveChanges(text)
+			case let .blockBreak(remainingText): createNewBlock(withText: remainingText)
+			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
+			#if os(macOS)
+			case let .indent(cursor): indentBlock(cursorPosition: cursor)
+			case let .outdent(cursor): outdentBlock(cursorPosition: cursor)
+			case let .moveCursorDown(cursor): moveToNextBlock(fromCursorPosition: cursor)
+			case let .moveCursorUp(cursor): moveToPreviousBlock(fromCursorPosition: cursor)
+			#endif
+		}
+	}
+
+	private func saveChanges(_ newText: String) -> Bool {
 		withErrorReporting {
 			try database.write { db in
 				try Paragraph.find(paragraph.id)
@@ -64,6 +72,8 @@ struct ParagraphView: View {
 					.execute(db)
 			}
 		}
+
+		return true
 	}
 
 	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)

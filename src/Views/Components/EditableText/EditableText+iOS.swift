@@ -6,14 +6,8 @@ struct EditableTextView: UIViewRepresentable {
 	let blockId: Block.ID?
 	let text: String
 	let ctFont: CTFont
-	let onSave: (String) -> Void
-	let onReturn: (String?) -> Bool
-	let tryDeleteBlock: ((String) -> Bool)?
-	let onLinkTap: (URL) -> Void
-	let onMoveUp: ((Int) -> Bool)?
-	let onMoveDown: ((Int) -> Bool)?
-	let onIndent: ((Int) -> Bool)?
-	let onOutdent: ((Int) -> Bool)?
+	let onLinkClicked: (URL) -> Void
+	let handleAction: (EditableText.Action) -> Bool
 
 	@Environment(\.blockCoordinator) var blockCoordinator
 
@@ -150,7 +144,7 @@ extension EditableTextView {
 
 		private func deletionRequested(textView: UITextView) {
 			let currentText = textView.attributedText.string
-			if let tryDelete = parent.tryDeleteBlock, tryDelete(currentText) {
+			if parent.handleAction(.mergeIntoPrevious(appendingContent: currentText)) {
 				textView.resignFirstResponder()
 			}
 		}
@@ -158,15 +152,16 @@ extension EditableTextView {
 		private func newBlockRequested(textView: UITextView, range: NSRange) {
 			let currentText = textView.attributedText.string
 			let newText = String(currentText.prefix(range.location))
+			let remainingText = String(currentText.dropFirst(range.location))
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textViewDidEndEditing will read the rendered text (without [[...]] syntax)
 			// and save that to the database, stripping the link formatting.
-			parent.onSave(newText)
+			_ = parent.handleAction(.textChanged(newText))
 			lastKnownText = newText
 
 			// Only switch to rendered mode if focus moved to a new block
-			if parent.onReturn(String(currentText.dropFirst(range.location))) {
+			if parent.handleAction(.blockBreak(remainingText: remainingText.isEmpty ? nil : remainingText)) {
 				isEditing = false
 				setText(.rendered, text: newText, textView: textView)
 			}
@@ -208,7 +203,7 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 
 		let newText = textView.attributedText.string
 		if newText != parent.text {
-			parent.onSave(newText)
+			_ = parent.handleAction(.textChanged(newText))
 		}
 		lastKnownText = newText
 
@@ -225,7 +220,7 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 		if case let .link(url) = textItem.content {
 			linkWasTapped = true
 			return UIAction { [weak self] _ in
-				self?.parent.onLinkTap(url)
+				self?.parent.onLinkClicked(url)
 			}
 		}
 

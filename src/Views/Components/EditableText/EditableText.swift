@@ -2,16 +2,27 @@ import SwiftUI
 import Dependencies
 
 struct EditableText: View {
+	enum Action {
+		/// Save text changes to database
+		case textChanged(String)
+
+		/// Return pressed - break block at cursor. May create new block or outdent.
+		case blockBreak(remainingText: String?)
+
+		/// Backspace at start - merge into previous block, appending this content
+		case mergeIntoPrevious(appendingContent: String)
+
+		#if os(macOS)
+		case indent(cursorPosition: Int)
+		case outdent(cursorPosition: Int)
+		case moveCursorUp(cursorPosition: Int)
+		case moveCursorDown(cursorPosition: Int)
+		#endif
+	}
+
 	var blockId: Block.ID? = nil
 	var text: String
-	var onSave: (String) -> Void
-	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)
-	var onReturn: (String?) -> Bool
-	var tryDeleteBlock: ((String) -> Bool)? = nil
-	var onMoveUp: ((Int) -> Bool)? = nil
-	var onMoveDown: ((Int) -> Bool)? = nil
-	var onIndent: ((Int) -> Bool)? = nil
-	var onOutdent: ((Int) -> Bool)? = nil
+	var handleAction: (Action) -> Bool
 
 	@Environment(\.font) private var font
 	@Environment(Router.self) private var router
@@ -26,21 +37,15 @@ struct EditableText: View {
 			blockId: blockId,
 			text: text,
 			ctFont: ctFont,
-			onSave: onSave,
-			onReturn: onReturn,
-			tryDeleteBlock: tryDeleteBlock,
-			onLinkTap: openLink,
-			onMoveUp: onMoveUp,
-			onMoveDown: onMoveDown,
-			onIndent: onIndent,
-			onOutdent: onOutdent
+			onLinkClicked: openLink,
+			handleAction: handleAction
 		)
 		.alignmentGuide(.firstTextBaseline) { _ in
 			CTFontGetAscent(ctFont)
 		}
 	}
 
-	func openLink(_ url: URL) {
+	private func openLink(_ url: URL) {
 		if url.scheme == Destination.Deeplinks.scheme, router.handleURL(url) {
 			// Deeplink handled by app
 		} else {
@@ -54,8 +59,7 @@ struct EditableText: View {
 #Preview("Display Mode") {
 	EditableText(
 		text: "Hello [[World]]!",
-		onSave: { _ in },
-		onReturn: { _ in true }
+		handleAction: { _ in true }
 	)
 	.padding()
 	.preview()
@@ -64,8 +68,7 @@ struct EditableText: View {
 #Preview("Long Text") {
 	EditableText(
 		text: "This is a longer piece of text that might wrap to multiple lines when displayed in the editor.",
-		onSave: { _ in },
-		onReturn: { _ in true }
+		handleAction: { _ in true }
 	)
 	.padding()
 	.preview()
@@ -74,8 +77,7 @@ struct EditableText: View {
 #Preview("With Multiple Links") {
 	EditableText(
 		text: "Check out [[Page One]] and ((abc123456)) and #tag for more info.",
-		onSave: { _ in },
-		onReturn: { _ in true }
+		handleAction: { _ in true }
 	)
 	.padding()
 	.preview()
