@@ -3,5 +3,6 @@ storage_mode("git")
 git_url("https://github.com/m1guelpf/fastlane-match")
 
 
+team_id("LR4RJT6586")
 username("apple@miguel.build")
 app_identifier(["build.miguel.Lattice"])

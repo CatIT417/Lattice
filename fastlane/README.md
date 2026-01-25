@@ -13,14 +13,6 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 # Available Actions
 
-### deploy
-
-```sh
-[bundle exec] fastlane deploy
-```
-
-Run release for the platform specified in the branch name
-
 ### generate_profiles_and_certificates
 
 ```sh
@@ -28,6 +20,32 @@ Run release for the platform specified in the branch name
 ```
 
 Generate profiles and certificates
+
+----
+
+
+## iOS
+
+### ios deploy
+
+```sh
+[bundle exec] fastlane ios deploy
+```
+
+Push a new beta build to TestFlight
+
+----
+
+
+## Mac
+
+### mac deploy
+
+```sh
+[bundle exec] fastlane mac deploy
+```
+
+Push a new beta build to TestFlight
 
 ----
 
