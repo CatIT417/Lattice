@@ -1,0 +1,86 @@
+name: Build and Deploy to TestFlight
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+    cancel-in-progress: true
+    group: "testflight-builds"
+
+
+jobs:
+  ios_build:
+    runs-on: namespace-profile-builder
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+            xcode-version: latest
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Set up Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: |
+            ruby
+            xcode
+            swiftpm
+
+      - name: Install Gems
+        run: bundle install
+
+      - name: Set Swift Syntax Prebuilts
+        run: defaults write com.apple.dt.Xcode IDEPackageEnablePrebuilts YES
+
+      - name: Build and Deploy
+        run: bundle exec fastlane ios deploy
+        env:
+          # SENTRY_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+  macos_build:
+    runs-on: namespace-profile-builder
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+            xcode-version: latest
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Set up Cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: |
+            ruby
+            xcode
+            swiftpm
+
+      - name: Install Gems
+        run: bundle install
+
+      - name: Set Swift Syntax Prebuilts
+        run: defaults write com.apple.dt.Xcode IDEPackageEnablePrebuilts YES
+
+      - name: Build and Deploy
+        run: bundle exec fastlane mac deploy
+        env:
+          # SENTRY_TOKEN: ${{ secrets.SENTRY_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}

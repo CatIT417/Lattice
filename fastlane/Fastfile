@@ -1,0 +1,68 @@
+platform :ios do
+    desc "Push a new beta build to TestFlight"
+    lane :deploy do
+        setup_ci
+
+        app_store_connect_api_key(
+            key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+            issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+            key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"]
+        )
+
+        sync_code_signing(
+            type: "appstore",
+            app_identifier: ["build.miguel.Lattice"],
+            readonly: true,
+            platform: "ios",
+            additional_cert_types: [],
+        )
+
+        increment_build_number(
+            build_number: latest_testflight_build_number + 1,
+            xcodeproj: "Lattice.xcodeproj"
+        )
+
+        build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
+        # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
+        upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
+    end
+end
+
+platform :mac do
+    desc "Push a new beta build to TestFlight"
+    lane :deploy do
+        setup_ci
+
+        app_store_connect_api_key(
+            key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+            issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+            key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"]
+        )
+
+        sync_code_signing(
+            type: "appstore",
+            app_identifier: ["build.miguel.Lattice"],
+            readonly: true,
+            platform: "macos",
+            additional_cert_types: [],
+        )
+
+        increment_build_number(
+            build_number: latest_testflight_build_number + 1,
+            xcodeproj: "Lattice.xcodeproj"
+        )
+
+        build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
+        # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
+        upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
+    end
+end
+
+desc "Generate profiles and certificates"
+lane :generate_profiles_and_certificates do
+	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
+	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos")
+
+    sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
+    sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos")
+end

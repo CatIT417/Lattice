@@ -1,0 +1,37 @@
+{
+	"fill": "system-light",
+	"groups": [
+		{
+			"blur-material": null,
+			"layers": [
+				{
+					"glass": true,
+					"image-name": "Icon.png",
+					"name": "Icon",
+					"position": {
+						"scale": 1,
+						"translation-in-points": [
+							32.680851063829834, 7.2609374999999545
+						]
+					}
+				}
+			],
+			"position": {
+				"scale": 0.94,
+				"translation-in-points": [0, 0]
+			},
+			"specular": false,
+			"translucency": { "enabled": false, "value": 0.5 },
+			"shadow": { "kind": "layer-color", "opacity": 0.5 }
+		},
+		{
+			"layers": [],
+			"shadow": { "kind": "neutral", "opacity": 0.5 },
+			"translucency": { "enabled": true, "value": 0.5 }
+		}
+	],
+	"supported-platforms": {
+		"circles": ["watchOS"],
+		"squares": "shared"
+	}
+}
