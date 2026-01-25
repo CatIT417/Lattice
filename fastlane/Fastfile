@@ -24,7 +24,7 @@ platform :ios do
 
         build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
         # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
-        upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
+        upload_to_testflight(distribute_external: false, changelog: "")
     end
 end
 
@@ -52,16 +52,16 @@ platform :mac do
             xcodeproj: "Lattice.xcodeproj"
         )
 
-        build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
+        build_mac_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
         # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
-        upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
+        upload_to_testflight(distribute_external: false, changelog: "")
     end
 end
 
 desc "Generate profiles and certificates"
 lane :generate_profiles_and_certificates do
 	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
-	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos", additional_cert_types: ["mac_installer_distribution"])
+	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos")
 
     sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
     sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos", additional_cert_types: ["mac_installer_distribution"])
