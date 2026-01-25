@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C01155052F26CD1A00317095 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C01155042F26CD1A00317095 /* SQLiteData */; };
 		C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A42F1A060C00687E49 /* TinyStorage */; };
 		C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A72F1A061900687E49 /* NavigationKit */; };
 		C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AA2F1A062900687E49 /* ObfuscateMacro */; };
@@ -68,6 +69,7 @@
 			files = (
 				C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */,
 				C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */,
+				C01155052F26CD1A00317095 /* SQLiteData in Frameworks */,
 				C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */,
 				C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */,
 				C025F1B12F1A065D00687E49 /* Nuke in Frameworks */,
@@ -143,6 +145,7 @@
 				C025F1B52F1A066F00687E49 /* ButtonKit */,
 				C025F1B82F1A067F00687E49 /* Atlantis */,
 				C025F20B2F1AA3D100687E49 /* SQLiteData */,
+				C01155042F26CD1A00317095 /* SQLiteData */,
 			);
 			productName = Lattice;
 			productReference = C02BFFA42F1A04EE00169A69 /* Lattice.app */;
@@ -214,7 +217,7 @@
 				C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */,
 				C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */,
 				C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */,
-				C025F20A2F1AA3D100687E49 /* XCLocalSwiftPackageReference "../../Temp/sqlite-data" */,
+				C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C02BFFA52F1A04EE00169A69 /* Products */;
@@ -572,14 +575,15 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		C025F20A2F1AA3D100687E49 /* XCLocalSwiftPackageReference "../../Temp/sqlite-data" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../Temp/sqlite-data";
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/m1guelpf/sqlite-data";
+			requirement = {
+				branch = recursion;
+				kind = branch;
+			};
+		};
 		C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/christianselig/TinyStorage.git";
@@ -639,6 +643,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C01155042F26CD1A00317095 /* SQLiteData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */;
+			productName = SQLiteData;
+		};
 		C025F1A42F1A060C00687E49 /* TinyStorage */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */;
