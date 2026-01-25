@@ -18,7 +18,7 @@ platform :ios do
         )
 
         increment_build_number(
-            build_number: latest_testflight_build_number + 1,
+            build_number: latest_testflight_build_number(platform: "ios")  + 1,
             xcodeproj: "Lattice.xcodeproj"
         )
 
@@ -44,11 +44,11 @@ platform :mac do
             app_identifier: ["build.miguel.Lattice"],
             readonly: true,
             platform: "macos",
-            additional_cert_types: [],
+            additional_cert_types: ["mac_installer_distribution"],
         )
 
         increment_build_number(
-            build_number: latest_testflight_build_number + 1,
+            build_number: latest_testflight_build_number(platform: "osx") + 1,
             xcodeproj: "Lattice.xcodeproj"
         )
 
@@ -61,8 +61,8 @@ end
 desc "Generate profiles and certificates"
 lane :generate_profiles_and_certificates do
 	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
-	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos")
+	sync_code_signing(type: "development", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos", additional_cert_types: ["mac_installer_distribution"])
 
     sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "ios")
-    sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos")
+    sync_code_signing(type: "appstore", app_identifier: ["build.miguel.Lattice"], readonly: false, platform: "macos", additional_cert_types: ["mac_installer_distribution"])
 end
