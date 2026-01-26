@@ -35,12 +35,15 @@ struct EditableTextView: UIViewRepresentable {
 		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-//		textView.withKeyboardActions(items: [
-//			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { _ in
-//				//
-//			}),
-//			UIBarButtonItem(systemItem: .flexibleSpace),
-//		])
+		textView.withKeyboardActions(items: [
+			UIBarButtonItem(image: UIImage(systemName: "increase.indent"), primaryAction: UIAction { _ in
+				context.coordinator.indent(textView: textView)
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "decrease.indent"), primaryAction: UIAction { _ in
+				context.coordinator.outdent(textView: textView)
+			}),
+			UIBarButtonItem(systemItem: .flexibleSpace),
+		])
 
 		context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 
@@ -124,6 +127,14 @@ extension EditableTextView {
 			if let position = textView.position(from: textView.beginningOfDocument, offset: offset) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
 			}
+		}
+
+		func indent(textView: UITextView) {
+			_ = parent.handleAction(.indent(cursorPosition: textView.selectedRange.location))
+		}
+
+		func outdent(textView: UITextView) {
+			_ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange.location))
 		}
 
 		private func transitionToEditMode(textView: UITextView) {

@@ -53,11 +53,11 @@ struct ParagraphView: View {
 	private func handleAction(_ action: EditableText.Action) -> Bool {
 		switch action {
 			case let .textChanged(text): saveChanges(text)
+			case let .indent(cursor): indentBlock(cursorPosition: cursor)
+			case let .outdent(cursor): outdentBlock(cursorPosition: cursor)
 			case let .blockBreak(remainingText): createNewBlock(withText: remainingText)
 			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			#if os(macOS)
-			case let .indent(cursor): indentBlock(cursorPosition: cursor)
-			case let .outdent(cursor): outdentBlock(cursorPosition: cursor)
 			case let .moveCursorDown(cursor): moveToNextBlock(fromCursorPosition: cursor)
 			case let .moveCursorUp(cursor): moveToPreviousBlock(fromCursorPosition: cursor)
 			#endif

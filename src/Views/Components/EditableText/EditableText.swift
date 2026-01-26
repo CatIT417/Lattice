@@ -12,9 +12,13 @@ struct EditableText: View {
 		/// Backspace at start - merge into previous block, appending this content
 		case mergeIntoPrevious(appendingContent: String)
 
-		#if os(macOS)
+		/// Turn this block into a child of the previous block
 		case indent(cursorPosition: Int)
+
+		/// Turn this block into a sibling of its parent
 		case outdent(cursorPosition: Int)
+
+		#if os(macOS)
 		case moveCursorUp(cursorPosition: Int)
 		case moveCursorDown(cursorPosition: Int)
 		#endif
