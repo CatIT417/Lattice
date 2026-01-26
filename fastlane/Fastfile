@@ -10,16 +10,16 @@ platform :ios do
         )
 
         sync_code_signing(
-            type: "appstore",
-            app_identifier: ["build.miguel.Lattice"],
             readonly: true,
             platform: "ios",
+            type: "appstore",
             additional_cert_types: [],
+            app_identifier: ["build.miguel.Lattice"],
         )
 
         increment_build_number(
-            build_number: latest_testflight_build_number(platform: "ios")  + 1,
-            xcodeproj: "Lattice.xcodeproj"
+            xcodeproj: "Lattice.xcodeproj",
+            build_number: latest_testflight_build_number(platform: "ios")  + 1
         )
 
         build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
@@ -40,19 +40,23 @@ platform :mac do
         )
 
         sync_code_signing(
-            type: "appstore",
-            app_identifier: ["build.miguel.Lattice"],
             readonly: true,
+            type: "appstore",
             platform: "macos",
+            app_identifier: ["build.miguel.Lattice"],
             additional_cert_types: ["mac_installer_distribution"],
         )
 
         increment_build_number(
-            build_number: latest_testflight_build_number(platform: "osx") + 1,
-            xcodeproj: "Lattice.xcodeproj"
+            xcodeproj: "Lattice.xcodeproj",
+            build_number: latest_testflight_build_number(platform: "osx") + 1
         )
 
-        build_mac_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
+        build_app(
+            sdk: "macosx",
+            scheme: "Lattice",
+            xcargs: "-skipMacroValidation"
+        )
         # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
         upload_to_testflight(distribute_external: false, changelog: "")
     end
