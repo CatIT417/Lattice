@@ -57,7 +57,9 @@ struct ParagraphView: View {
 			case let .outdent(cursor): outdentBlock(cursorPosition: cursor)
 			case let .blockBreak(remainingText): createNewBlock(withText: remainingText)
 			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
-			#if os(macOS)
+			#if os(iOS)
+			case let .moveBlock(delta, cursorPosition): changeOrder(cursorPosition: cursorPosition, delta: delta)
+			#elseif os(macOS)
 			case let .moveCursorDown(cursor): moveToNextBlock(fromCursorPosition: cursor)
 			case let .moveCursorUp(cursor): moveToPreviousBlock(fromCursorPosition: cursor)
 			#endif
@@ -73,6 +75,24 @@ struct ParagraphView: View {
 			}
 		}
 
+		return true
+	}
+
+	private func changeOrder(cursorPosition: Int, delta: Int) -> Bool {
+		let siblings = blockTree.children(of: paragraph.parentId)
+		guard paragraph.order + delta >= 0, paragraph.order + delta < siblings.count else {
+			return false
+		}
+
+		withErrorReporting {
+			try database.write { db in
+				try Paragraph.find(paragraph.id)
+					.update { $0.order += delta }
+					.execute(db)
+			}
+		}
+
+		blockCoordinator?.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
 		return true
 	}
 

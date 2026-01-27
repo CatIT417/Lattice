@@ -43,7 +43,19 @@ struct EditableTextView: UIViewRepresentable {
 				context.coordinator.indent(textView: textView)
 			}),
 			UIBarButtonItem(image: UIImage(named: "brackets"), primaryAction: UIAction { _ in
-				context.coordinator.indent(textView: textView)
+				// TODO: Add brackets button
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { _ in
+				context.coordinator.moveBlock(textView: textView, delta: -1)
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "arrow.down"), primaryAction: UIAction { _ in
+				context.coordinator.moveBlock(textView: textView, delta: 1)
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "checkmark.square"), primaryAction: UIAction { _ in
+				// TODO: Add checkmark button
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "photo"), primaryAction: UIAction { _ in
+				// TODO: Add photo button
 			}),
 			UIBarButtonItem(systemItem: .flexibleSpace),
 		])
@@ -142,6 +154,10 @@ extension EditableTextView {
 
 		func outdent(textView: UITextView) {
 			_ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange.location))
+		}
+
+		func moveBlock(textView: UITextView, delta: Int) {
+			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location))
 		}
 
 		private func transitionToEditMode(textView: UITextView) {

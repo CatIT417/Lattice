@@ -18,6 +18,10 @@ struct EditableText: View {
 		/// Turn this block into a sibling of its parent
 		case outdent(cursorPosition: Int)
 
+		#if os(iOS)
+		case moveBlock(delta: Int, cursorPosition: Int)
+		#endif
+
 		#if os(macOS)
 		case moveCursorUp(cursorPosition: Int)
 		case moveCursorDown(cursorPosition: Int)
