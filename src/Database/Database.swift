@@ -16,6 +16,10 @@ func appDatabase() throws -> any DatabaseWriter {
 				CreateBacklinksView.self,
 			])
 
+			if context == .live, !Bundle.main.isDev {
+				try db.attachMetadatabase()
+			}
+
 			#if DEBUG
 			db.trace(options: .profile) {
 				logger.debug("\($0.expandedDescription)")
@@ -29,7 +33,7 @@ func appDatabase() throws -> any DatabaseWriter {
 
 	var migrator = DatabaseMigrator()
 	#if DEBUG
-	migrator.eraseDatabaseOnSchemaChange = true
+	if Bundle.main.isDev { migrator.eraseDatabaseOnSchemaChange = true }
 	#endif
 
 	try database.write { db in
@@ -41,7 +45,7 @@ func appDatabase() throws -> any DatabaseWriter {
 		CreateReferencesTable.self,
 		CreateAncestorsTable.self,
 		CreateTriggerGuardTable.self,
-	], in: database, clean: context == .live && isDebug)
+	], in: database, clean: context == .live && isDebug && Bundle.main.isDev)
 
 	try database.setupTriggers([
 		MakePagesViewWritable.self,
@@ -55,7 +59,9 @@ func appDatabase() throws -> any DatabaseWriter {
 	])
 
 	#if DEBUG
-	try database.seed(SeedDatabase.self)
+	if Bundle.main.isDev {
+		try database.seed(SeedDatabase.self)
+	}
 	#endif
 
 	return database

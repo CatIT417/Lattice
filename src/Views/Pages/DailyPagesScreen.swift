@@ -19,6 +19,9 @@ struct DailyPagesScreen: View {
 				}
 			}
 		}
+		.navigationTitle("Daily Notes")
+		.toolbarTitleDisplayMode(.inline)
+		.doneButtonOnToolbar()
 	}
 }
 

@@ -4,6 +4,10 @@ import SQLiteData
 @main
 struct LatticeApp: App {
 	init() {
+		#if DEBUG
+		UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
+		#endif
+
 		withErrorReporting {
 			try prepareDependencies {
 				try $0.bootstrapDatabase()
