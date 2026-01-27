@@ -12,6 +12,12 @@ final class AvoidDuplicatePages: Trigger {
 		}, when: { block in
 			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
 		})).execute(db)
+
+		try Block.createTemporaryTrigger(after: .update(forEachRow: { _, page in
+			Values($moveBlocksToExistingPage(title: page.title.unsafelyUnwrapped, id: page.id))
+		}, when: { _, block in
+			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
+		})).execute(db)
 	}
 }
 
