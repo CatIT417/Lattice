@@ -263,9 +263,14 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString text: String?) -> Bool {
 		guard let text else { return true }
 
-		if let action = shouldAutoComplete(for: text, in: textView.string, at: range.location) {
-			textView.insertText(action.textToInsert, replacementRange: range)
-			moveCursorTo(offset: range.location + action.cursorOffset, textView: textView)
+		if shouldSkipClosingBracket(for: text, in: textView.string, at: range.location) {
+			moveCursorTo(offset: range.location + 1, textView: textView)
+			return false
+		}
+
+		if let textToInsert = shouldAutoComplete(for: text) {
+			textView.insertText(textToInsert, replacementRange: range)
+			moveCursorTo(offset: range.location + 1, textView: textView)
 			return false
 		}
 
@@ -282,8 +287,15 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 		if selector == #selector(NSResponder.deleteBackward(_:)) {
 			let range = textView.selectedRange()
+
 			if range.location == 0, range.length == 0 {
 				deletionRequested(textView: textView)
+				return true
+			}
+
+			if range.length == 0, let rangeToDelete = shouldAutoDelete(in: textView.string, at: range.location) {
+				textView.insertText("", replacementRange: rangeToDelete)
+				moveCursorTo(offset: rangeToDelete.location, textView: textView)
 				return true
 			}
 		}

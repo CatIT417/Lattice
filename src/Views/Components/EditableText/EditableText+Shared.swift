@@ -1,32 +1,51 @@
-// MARK: - Auto Complete
+import Foundation
+
+// MARK: - Bracket Pairs
 
 extension EditableTextView.Coordinator {
-	struct AutoComplete {
-		struct Action {
-			let cursorOffset: Int
-			let textToInsert: String
-		}
-
-		let trigger: Character
-		let preceding: Character
-		let insert: String
-		let cursorOffset: Int
+	struct BracketPair {
+		let open: Character
+		let close: Character
 	}
 
-	var autoCompletePairs: [AutoComplete] { [
-		AutoComplete(trigger: "[", preceding: "[", insert: "[]]", cursorOffset: 1),
+	var bracketPairs: [BracketPair] { [
+		BracketPair(open: "[", close: "]"),
+		BracketPair(open: "(", close: ")"),
 	] }
 
-	func shouldAutoComplete(for typedText: String, in currentText: String, at offset: Int) -> AutoComplete.Action? {
-		guard typedText.count == 1, let typedChar = typedText.first, offset > 0, let index = currentText.index(currentText.startIndex, offsetBy: offset, limitedBy: currentText.endIndex), index > currentText.startIndex
-		else { return nil }
+	/// Returns the text to insert (open + close) if the typed character is an opening bracket.
+	func shouldAutoComplete(for typedText: String) -> String? {
+		guard typedText.count == 1, let typedChar = typedText.first else { return nil }
 
-		let charBefore = currentText[currentText.index(before: index)]
-
-		for pair in autoCompletePairs where typedChar == pair.trigger && charBefore == pair.preceding {
-			return AutoComplete.Action(cursorOffset: pair.cursorOffset, textToInsert: pair.insert)
+		for pair in bracketPairs where typedChar == pair.open {
+			return "\(pair.open)\(pair.close)"
 		}
 
 		return nil
+	}
+
+	/// Returns the range to delete if the cursor is between a matching bracket pair.
+	func shouldAutoDelete(in currentText: String, at offset: Int) -> NSRange? {
+		guard offset > 0, offset < currentText.count else { return nil }
+
+		let index = currentText.index(currentText.startIndex, offsetBy: offset)
+		let charBefore = currentText[currentText.index(before: index)]
+		let charAfter = currentText[index]
+
+		for pair in bracketPairs where charBefore == pair.open && charAfter == pair.close {
+			return NSRange(location: offset - 1, length: 2)
+		}
+
+		return nil
+	}
+
+	/// Returns true if the typed character is a closing bracket that matches the character at cursor.
+	func shouldSkipClosingBracket(for typedText: String, in currentText: String, at offset: Int) -> Bool {
+		guard typedText.count == 1, let typedChar = typedText.first, offset < currentText.count else { return false }
+
+		let index = currentText.index(currentText.startIndex, offsetBy: offset)
+		let charAtCursor = currentText[index]
+
+		return bracketPairs.contains { $0.close == typedChar && charAtCursor == typedChar }
 	}
 }

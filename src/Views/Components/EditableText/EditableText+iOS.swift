@@ -287,9 +287,23 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 		shouldChangeTextIn range: NSRange,
 		replacementText text: String
 	) -> Bool {
-		if text.isEmpty, range.location == 0, range.length == 0 {
-			deletionRequested(textView: textView)
-			return false
+		if text.isEmpty {
+			if range.location == 0, range.length == 0 {
+				deletionRequested(textView: textView)
+				return false
+			}
+
+			if range.length == 1, let rangeToDelete = shouldAutoDelete(in: textView.text ?? "", at: range.location + 1) {
+				textView.replace(
+					textView.textRange(
+						from: textView.position(from: textView.beginningOfDocument, offset: rangeToDelete.location)!,
+						to: textView.position(from: textView.beginningOfDocument, offset: rangeToDelete.location + rangeToDelete.length)!
+					)!,
+					withText: ""
+				)
+				moveCursorTo(offset: rangeToDelete.location, textView: textView)
+				return false
+			}
 		}
 
 		if text == "\n" {
@@ -297,15 +311,20 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			return false
 		}
 
-		if let action = shouldAutoComplete(for: text, in: textView.text ?? "", at: range.location) {
+		if shouldSkipClosingBracket(for: text, in: textView.text ?? "", at: range.location) {
+			moveCursorTo(offset: range.location + 1, textView: textView)
+			return false
+		}
+
+		if let textToInsert = shouldAutoComplete(for: text) {
 			textView.replace(
 				textView.textRange(
 					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
 					to: textView.position(from: textView.beginningOfDocument, offset: range.location + range.length)!
 				)!,
-				withText: action.textToInsert
+				withText: textToInsert
 			)
-			moveCursorTo(offset: range.location + action.cursorOffset, textView: textView)
+			moveCursorTo(offset: range.location + 1, textView: textView)
 			return false
 		}
 
