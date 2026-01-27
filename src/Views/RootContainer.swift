@@ -1,22 +1,25 @@
 import SwiftUI
 import SQLiteData
 
-struct RootContainer: View {
-	@FetchAll(Page.all) var pages
-	@Dependency(\.defaultDatabase) var database
+fileprivate typealias Tabs = Destination.Tabs
 
-	var content: some View {
-		List(pages) { page in
-			NavigationButton(push: .page(id: page.id)) {
-				Text(page.title)
-			}
-		}
-		.navigationTitle("Pages")
-	}
+struct RootContainer: View {
+	@Dependency(\.defaultDatabase) var database
+	@State var router = Router(level: 0, identifierTab: nil)
 
 	var body: some View {
-		NavigationContainer(parentRouter: Router(level: 0)) {
-			content
+		TabView(selection: $router.selectedTab) {
+			Tab("Daily Notes", systemImage: "calendar", value: Tabs.daily) {
+				NavigationContainer(parentRouter: router, tab: .daily) {
+					DailyPagesScreen()
+				}
+			}
+
+			Tab("Search", systemImage: "magnifyingglass", value: Tabs.search, role: .search) {
+				NavigationContainer(parentRouter: router, tab: .search) {
+					SearchScreen()
+				}
+			}
 		}
 		#if os(iOS)
 		.postNotificationOnStateChange()

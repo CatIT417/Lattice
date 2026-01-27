@@ -3,6 +3,10 @@ import Foundation
 @_exported import NavigationKit
 
 struct Destination: NavigationDestination {
+	enum Tabs: String, TabRepresentable {
+		case daily, search
+	}
+
 	enum Pages: PageRepresentable {
 		case page(id: UUID)
 		case block(id: UUID)
