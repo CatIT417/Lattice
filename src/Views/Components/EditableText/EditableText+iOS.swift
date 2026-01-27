@@ -36,11 +36,14 @@ struct EditableTextView: UIViewRepresentable {
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 		textView.withKeyboardActions(items: [
-			UIBarButtonItem(image: UIImage(systemName: "increase.indent"), primaryAction: UIAction { _ in
+			UIBarButtonItem(image: UIImage(systemName: "chevron.backward"), primaryAction: UIAction { _ in
+				context.coordinator.outdent(textView: textView)
+			}),
+			UIBarButtonItem(image: UIImage(systemName: "chevron.forward"), primaryAction: UIAction { _ in
 				context.coordinator.indent(textView: textView)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "decrease.indent"), primaryAction: UIAction { _ in
-				context.coordinator.outdent(textView: textView)
+			UIBarButtonItem(image: UIImage(named: "brackets"), primaryAction: UIAction { _ in
+				context.coordinator.indent(textView: textView)
 			}),
 			UIBarButtonItem(systemItem: .flexibleSpace),
 		])
@@ -54,25 +57,29 @@ struct EditableTextView: UIViewRepresentable {
 		context.coordinator.parent = self
 
 		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
+			let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId)
+
 			// Becoming the first responder synchronously triggers an AttributeGraph cycle
 			// when calling BlockCoordinator.request in ParagraphView.moveCursorTo.
-			DispatchQueue.main.async {
-				textView.becomeFirstResponder()
-			}
+			DispatchQueue.main.async { [weak blockCoordinator] in
+				guard textView.becomeFirstResponder() else { return }
 
-			if let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId) {
-				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
-			}
+				if let cursorPosition {
+					context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+				}
 
-			blockCoordinator.clearFocus(for: blockId)
+				blockCoordinator?.clearFocus(for: self.blockId)
+			}
 		}
 
 		if context.coordinator.lastKnownText != text, let expectsNewText = blockCoordinator?.expectsNewText(for: blockId), expectsNewText || !context.coordinator.isEditing {
 			context.coordinator.lastKnownText = text
 			context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
+
 			if let cursorPosition = blockCoordinator?.cursorPositionFor(blockId: blockId) {
 				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
 			}
+
 			blockCoordinator?.textReceived(for: blockId)
 		}
 	}
