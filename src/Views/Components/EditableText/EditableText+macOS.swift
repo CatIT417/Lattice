@@ -260,6 +260,18 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		textView.invalidateIntrinsicContentSize()
 	}
 
+	func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString text: String?) -> Bool {
+		guard let text else { return true }
+
+		if let action = shouldAutoComplete(for: text, in: textView.string, at: range.location) {
+			textView.insertText(action.textToInsert, replacementRange: range)
+			moveCursorTo(offset: range.location + action.cursorOffset, textView: textView)
+			return false
+		}
+
+		return true
+	}
+
 	// MARK: - Command Handling
 
 	func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {

@@ -30,7 +30,7 @@ extension String {
 		var refs: [TextRef] = []
 
 		// [[Page Links]]
-		for match in matches(of: pagePattern) {
+		for match in matches(of: pagePattern) where !String(match.1).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 			refs.append(TextRef(target: String(match.1), kind: .pageLink, range: match.range))
 		}
 
@@ -40,7 +40,7 @@ extension String {
 		}
 
 		// #tags and #[[Page Links]]
-		for match in matches(of: tagPattern) {
+		for match in matches(of: tagPattern) where !String(match.1 ?? match.2!).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 			refs.append(TextRef(target: String(match.1 ?? match.2!), kind: .tag, range: match.range))
 		}
 

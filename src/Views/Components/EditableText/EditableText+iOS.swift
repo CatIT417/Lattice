@@ -43,7 +43,7 @@ struct EditableTextView: UIViewRepresentable {
 				context.coordinator.indent(textView: textView)
 			}),
 			UIBarButtonItem(image: UIImage(named: "brackets"), primaryAction: UIAction { _ in
-				// TODO: Add brackets button
+				context.coordinator.insertBrackets(textView: textView)
 			}),
 			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { _ in
 				context.coordinator.moveBlock(textView: textView, delta: -1)
@@ -158,6 +158,19 @@ extension EditableTextView {
 
 		func moveBlock(textView: UITextView, delta: Int) {
 			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location))
+		}
+
+		func insertBrackets(textView: UITextView) {
+			let range = textView.selectedRange
+			textView.replace(
+				textView.textRange(
+					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
+					to: textView.position(from: textView.beginningOfDocument, offset: range.location + range.length)!
+				)!,
+				withText: "[[]]"
+			)
+
+			moveCursorTo(offset: range.location + 2, textView: textView)
 		}
 
 		private func transitionToEditMode(textView: UITextView) {
@@ -281,6 +294,18 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 
 		if text == "\n" {
 			newBlockRequested(textView: textView, range: range)
+			return false
+		}
+
+		if let action = shouldAutoComplete(for: text, in: textView.text ?? "", at: range.location) {
+			textView.replace(
+				textView.textRange(
+					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
+					to: textView.position(from: textView.beginningOfDocument, offset: range.location + range.length)!
+				)!,
+				withText: action.textToInsert
+			)
+			moveCursorTo(offset: range.location + action.cursorOffset, textView: textView)
 			return false
 		}
 
