@@ -8,6 +8,7 @@ final class MakePagesViewWritable: Trigger {
 				Block.Columns(
 					id: page.id,
 					title: #sql("\(page.title)"),
+					dailyNoteDate: page.dailyNoteDate,
 					props: page.props,
 					createdAt: page.createdAt,
 					updatedAt: page.updatedAt
@@ -21,6 +22,7 @@ final class MakePagesViewWritable: Trigger {
 				block.title = #sql("\(new.title)")
 				block.props = new.props
 				block.updatedAt = new.updatedAt
+				block.dailyNoteDate = new.dailyNoteDate
 			}
 		})).execute(database)
 

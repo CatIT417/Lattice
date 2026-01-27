@@ -29,6 +29,10 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// Page title (NULL for regular blocks)
 	var title: String?
 
+	/// If this page is a daily note, the date in "YYYY-MM-DD" format
+	@Column(as: Date?.DayRepresentation.self)
+	var dailyNoteDate: Date? = nil
+
 	/// ID of parent block (NULL for root pages)
 	var parentId: Block.ID?
 

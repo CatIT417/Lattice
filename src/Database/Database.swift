@@ -49,6 +49,7 @@ func appDatabase() throws -> any DatabaseWriter {
 
 		TouchTimestamps.self,
 		SyncAncestorsTable.self,
+		AvoidDuplicatePages.self,
 		SyncReferencesTable.self,
 		UpdateParagraphOrder.self,
 	])

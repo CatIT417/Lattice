@@ -3,6 +3,7 @@ import SQLiteData
 
 struct RootContainer: View {
 	@FetchAll(Page.all) var pages
+	@Dependency(\.defaultDatabase) var database
 
 	var content: some View {
 		List(pages) { page in
@@ -20,6 +21,19 @@ struct RootContainer: View {
 		#if os(iOS)
 		.postNotificationOnStateChange()
 		#endif
+		.onAppear { createDailyNoteIfNeeded() }
+	}
+
+	func createDailyNoteIfNeeded() {
+		withErrorReporting {
+			guard let hasPage = try database.read({ db in
+				try Values(Page.where { $0.dailyNoteDate.eq(#bind(Date())) }.exists()).fetchOne(db)
+			}), !hasPage else { return }
+
+			try database.write { db in
+				try Page.insert { Page.createDailyNote(for: Date()) }.execute(db)
+			}
+		}
 	}
 }
 

@@ -8,6 +8,7 @@ final class CreateBlocksTable: Migration {
 
 			table.column("string", .text) // Block text content (NULL for pages)
 			table.column("title", .text) // Page title (NULL for regular blocks)
+			table.column("dailyNoteDate", .text) // If this page is a daily note, the date in "YYYY-MM-DD" format
 
 			// Hierarchy
 			table.column("parentId", .integer).references("blocks", column: "id", onDelete: .cascade)
@@ -29,6 +30,7 @@ final class CreateBlocksTable: Migration {
 
 			// Constraints
 			table.constraint(#sql("CHECK (title IS NOT NULL OR parentId IS NOT NULL)")) // Pages have title, blocks have parent
+			table.constraint(#sql("CHECK (dailyNoteDate IS NULL OR title IS NOT NULL)")) // dailyNoteDate only on pages
 			table.constraint(#sql("CHECK ((title IS NOT NULL) != (string IS NOT NULL))")) // XOR: either page OR block
 		}
 
@@ -36,6 +38,7 @@ final class CreateBlocksTable: Migration {
 
 		try db.create(indexOn: "blocks", columns: ["parentId", "order"])
 		try db.create(indexOn: "blocks", columns: ["title"], condition: "title IS NOT NULL")
+		try db.create(indexOn: "blocks", columns: ["dailyNoteDate"], condition: "dailyNoteDate IS NOT NULL")
 	}
 
 	static func down(_ db: Database) throws {
