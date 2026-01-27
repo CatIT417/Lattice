@@ -17,6 +17,9 @@ struct RootContainer: View {
 		NavigationContainer(parentRouter: Router(level: 0)) {
 			content
 		}
+		#if os(iOS)
+		.postNotificationOnStateChange()
+		#endif
 	}
 }
 

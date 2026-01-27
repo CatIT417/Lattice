@@ -27,34 +27,30 @@ struct EditableTextView: NSViewRepresentable {
 
 	func makeNSView(context: Context) -> AutosizingTextView {
 		let textView = AutosizingTextView(usingTextLayoutManager: false)
+
 		textView.font = nsFont
 		textView.isEditable = true
+		textView.isRichText = false
 		textView.isSelectable = true
+		textView.importsGraphics = false
 		textView.drawsBackground = false
 		textView.textContainerInset = .zero
 		textView.delegate = context.coordinator
-		textView.isRichText = false
-		textView.importsGraphics = false
+		context.coordinator.textView = textView
 		textView.isAutomaticLinkDetectionEnabled = false
-		textView.isAutomaticQuoteSubstitutionEnabled = true
-		textView.isAutomaticDashSubstitutionEnabled = true
 		textView.isAutomaticTextReplacementEnabled = true
+		textView.isAutomaticDashSubstitutionEnabled = true
+		textView.isAutomaticQuoteSubstitutionEnabled = true
 		textView.isAutomaticSpellingCorrectionEnabled = true
-		textView.typingAttributes = [
-			.font: nsFont,
-			.foregroundColor: NSColor.labelColor,
-		]
-		textView.linkTextAttributes = [
-			.cursor: NSCursor.pointingHand,
-			.foregroundColor: NSColor.systemBlue,
-		]
+		textView.typingAttributes = [.font: nsFont, .foregroundColor: NSColor.labelColor]
+		textView.linkTextAttributes = [.cursor: NSCursor.pointingHand, .foregroundColor: NSColor.systemBlue]
 
 		textView.isVerticallyResizable = true
 		textView.isHorizontallyResizable = false
-		textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+		textView.textContainer?.lineFragmentPadding = 0
 		textView.textContainer?.widthTracksTextView = false
 		textView.textContainer?.heightTracksTextView = false
-		textView.textContainer?.lineFragmentPadding = 0
+		textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
 
 		textView.setContentHuggingPriority(.required, for: .vertical)
 		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -130,14 +126,33 @@ struct EditableTextView: NSViewRepresentable {
 extension EditableTextView {
 	@MainActor class Coordinator: NSObject {
 		var parent: EditableTextView
+		weak var textView: NSTextView?
+
 		var isEditing = false
 		var lastKnownText: String
-		var indexMapping: IndexMapping?
 		var linkWasTapped = false
+		var indexMapping: IndexMapping?
 
 		init(parent: EditableTextView) {
 			self.parent = parent
 			lastKnownText = parent.text
+			super.init()
+
+			NotificationCenter.default.addObserver(
+				self,
+				selector: #selector(saveIfEditing),
+				name: NSApplication.didResignActiveNotification,
+				object: nil
+			)
+		}
+
+		@objc func saveIfEditing() {
+			guard isEditing, let textView else { return }
+			let newText = textView.attributedString().string
+			if newText != parent.text {
+				_ = parent.handleAction(.textChanged(newText))
+			}
+			lastKnownText = newText
 		}
 
 		func setText(_ mode: BlockCoordinator.RenderMode, text: String, textView: NSTextView) {

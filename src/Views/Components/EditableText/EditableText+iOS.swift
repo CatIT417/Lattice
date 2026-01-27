@@ -26,15 +26,15 @@ struct EditableTextView: UIViewRepresentable {
 		textView.backgroundColor = .clear
 		textView.textContainerInset = .zero
 		textView.delegate = context.coordinator
+		context.coordinator.textView = textView
 		textView.textContainer.lineFragmentPadding = 0
-		textView.linkTextAttributes = [
-			.foregroundColor: UIColor.tintColor,
-		]
+		textView.linkTextAttributes = [.foregroundColor: UIColor.tintColor]
 
 		textView.setContentHuggingPriority(.required, for: .vertical)
 		textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
 		textView.withKeyboardActions(items: [
 			UIBarButtonItem(image: UIImage(systemName: "chevron.backward"), primaryAction: UIAction { _ in
 				context.coordinator.outdent(textView: textView)
@@ -123,10 +123,28 @@ extension EditableTextView {
 		var indexMapping: IndexMapping?
 		var linkWasTapped = false
 		var willSwitchToEditing = false
+		weak var textView: UITextView?
 
 		init(parent: EditableTextView) {
 			self.parent = parent
 			lastKnownText = parent.text
+			super.init()
+
+			NotificationCenter.default.addObserver(
+				self,
+				selector: #selector(saveIfEditing),
+				name: .appResignedActive,
+				object: nil
+			)
+		}
+
+		@objc func saveIfEditing() {
+			guard isEditing, let textView else { return }
+			let newText = textView.attributedText.string
+			if newText != parent.text {
+				_ = parent.handleAction(.textChanged(newText))
+			}
+			lastKnownText = newText
 		}
 
 		func setText(_ mode: BlockCoordinator.RenderMode, text: String, textView: UITextView) {
