@@ -11,20 +11,14 @@
 		C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A42F1A060C00687E49 /* TinyStorage */; };
 		C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A72F1A061900687E49 /* NavigationKit */; };
 		C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AA2F1A062900687E49 /* ObfuscateMacro */; };
-		C025F1AE2F1A064400687E49 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */; };
 		C025F1B12F1A065D00687E49 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B02F1A065D00687E49 /* Nuke */; };
 		C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B22F1A065D00687E49 /* NukeUI */; };
-		C025F1B62F1A066F00687E49 /* ButtonKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B52F1A066F00687E49 /* ButtonKit */; };
-		C025F1B92F1A067F00687E49 /* Atlantis in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1B82F1A067F00687E49 /* Atlantis */; };
 		C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C025F20B2F1AA3D100687E49 /* SQLiteData */; };
 		C0DEF00D2F2A000000000013 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000A /* TinyStorage */; };
 		C0DEF00D2F2A000000000014 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000B /* NavigationKit */; };
 		C0DEF00D2F2A000000000015 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000C /* ObfuscateMacro */; };
-		C0DEF00D2F2A000000000016 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */; };
 		C0DEF00D2F2A000000000017 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000E /* Nuke */; };
 		C0DEF00D2F2A000000000018 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A00000000000F /* NukeUI */; };
-		C0DEF00D2F2A000000000019 /* ButtonKit in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000010 /* ButtonKit */; };
-		C0DEF00D2F2A00000000001A /* Atlantis in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000011 /* Atlantis */; };
 		C0DEF00D2F2A00000000001B /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C0DEF00D2F2A000000000012 /* SQLiteData */; };
 /* End PBXBuildFile section */
 
@@ -73,9 +67,6 @@
 				C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */,
 				C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */,
 				C025F1B12F1A065D00687E49 /* Nuke in Frameworks */,
-				C025F1B62F1A066F00687E49 /* ButtonKit in Frameworks */,
-				C025F1AE2F1A064400687E49 /* SwiftUIIntrospect in Frameworks */,
-				C025F1B92F1A067F00687E49 /* Atlantis in Frameworks */,
 				C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -89,9 +80,6 @@
 				C0DEF00D2F2A000000000018 /* NukeUI in Frameworks */,
 				C0DEF00D2F2A000000000013 /* TinyStorage in Frameworks */,
 				C0DEF00D2F2A000000000017 /* Nuke in Frameworks */,
-				C0DEF00D2F2A000000000019 /* ButtonKit in Frameworks */,
-				C0DEF00D2F2A000000000016 /* SwiftUIIntrospect in Frameworks */,
-				C0DEF00D2F2A00000000001A /* Atlantis in Frameworks */,
 				C0DEF00D2F2A000000000014 /* NavigationKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -139,11 +127,8 @@
 				C025F1A42F1A060C00687E49 /* TinyStorage */,
 				C025F1A72F1A061900687E49 /* NavigationKit */,
 				C025F1AA2F1A062900687E49 /* ObfuscateMacro */,
-				C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */,
 				C025F1B02F1A065D00687E49 /* Nuke */,
 				C025F1B22F1A065D00687E49 /* NukeUI */,
-				C025F1B52F1A066F00687E49 /* ButtonKit */,
-				C025F1B82F1A067F00687E49 /* Atlantis */,
 				C025F20B2F1AA3D100687E49 /* SQLiteData */,
 				C01155042F26CD1A00317095 /* SQLiteData */,
 			);
@@ -171,11 +156,8 @@
 				C0DEF00D2F2A00000000000A /* TinyStorage */,
 				C0DEF00D2F2A00000000000B /* NavigationKit */,
 				C0DEF00D2F2A00000000000C /* ObfuscateMacro */,
-				C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */,
 				C0DEF00D2F2A00000000000E /* Nuke */,
 				C0DEF00D2F2A00000000000F /* NukeUI */,
-				C0DEF00D2F2A000000000010 /* ButtonKit */,
-				C0DEF00D2F2A000000000011 /* Atlantis */,
 				C0DEF00D2F2A000000000012 /* SQLiteData */,
 			);
 			productName = LatticeDev;
@@ -213,10 +195,7 @@
 				C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */,
 				C025F1A62F1A061900687E49 /* XCRemoteSwiftPackageReference "NavigationKit" */,
 				C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */,
-				C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */,
 				C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */,
-				C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */,
-				C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */,
 				C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -632,36 +611,12 @@
 				minimumVersion = 0.13.0;
 			};
 		};
-		C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/siteline/swiftui-introspect.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 26.0.0;
-			};
-		};
 		C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kean/Nuke";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 12.8.0;
-			};
-		};
-		C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Dean151/ButtonKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.6.1;
-			};
-		};
-		C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ProxymanApp/atlantis.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.31.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -687,11 +642,6 @@
 			package = C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */;
 			productName = ObfuscateMacro;
 		};
-		C025F1AD2F1A064400687E49 /* SwiftUIIntrospect */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */;
-			productName = SwiftUIIntrospect;
-		};
 		C025F1B02F1A065D00687E49 /* Nuke */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
@@ -701,16 +651,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
 			productName = NukeUI;
-		};
-		C025F1B52F1A066F00687E49 /* ButtonKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */;
-			productName = ButtonKit;
-		};
-		C025F1B82F1A067F00687E49 /* Atlantis */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */;
-			productName = Atlantis;
 		};
 		C025F20B2F1AA3D100687E49 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -731,11 +671,6 @@
 			package = C025F1A92F1A062900687E49 /* XCRemoteSwiftPackageReference "ObfuscateMacro" */;
 			productName = ObfuscateMacro;
 		};
-		C0DEF00D2F2A00000000000D /* SwiftUIIntrospect */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1AC2F1A064400687E49 /* XCRemoteSwiftPackageReference "swiftui-introspect" */;
-			productName = SwiftUIIntrospect;
-		};
 		C0DEF00D2F2A00000000000E /* Nuke */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
@@ -745,16 +680,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C025F1AF2F1A065D00687E49 /* XCRemoteSwiftPackageReference "Nuke" */;
 			productName = NukeUI;
-		};
-		C0DEF00D2F2A000000000010 /* ButtonKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1B42F1A066F00687E49 /* XCRemoteSwiftPackageReference "ButtonKit" */;
-			productName = ButtonKit;
-		};
-		C0DEF00D2F2A000000000011 /* Atlantis */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C025F1B72F1A067F00687E49 /* XCRemoteSwiftPackageReference "atlantis" */;
-			productName = Atlantis;
 		};
 		C0DEF00D2F2A000000000012 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
