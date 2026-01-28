@@ -4,7 +4,7 @@ import SQLiteData
 #if DEBUG
 final class SeedDatabase: Seeder {
 	static func seed() -> Records {
-		apply([seedDailies, seedThingsIdLikeToBuildPage])
+		apply([seedDailies, seedQuickStart])
 	}
 
 	private static func seedDailies() -> Records {
@@ -19,7 +19,7 @@ final class SeedDatabase: Seeder {
 		return records
 	}
 
-	private static func seedThingsIdLikeToBuildPage() -> Records {
+	private static func seedQuickStart() -> Records {
 		var records = Records()
 
 		let page = Page(title: "Lattice Quick Start")
