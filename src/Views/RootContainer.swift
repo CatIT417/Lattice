@@ -15,12 +15,13 @@ struct RootContainer: View {
 				}
 			}
 
-			Tab("Search", systemImage: "magnifyingglass", value: Tabs.search, role: .search) {
+			Tab(value: Tabs.search, role: .search) {
 				NavigationContainer(parentRouter: router, tab: .search) {
 					SearchScreen()
 				}
 			}
 		}
+		.tabViewSearchActivation(.searchTabSelection)
 		#if os(iOS)
 		.postNotificationOnStateChange()
 		#endif

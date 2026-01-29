@@ -69,6 +69,13 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 
 		fatalError("Invalid Block: \(self)")
 	}
+
+	var destination: Destination.Pages {
+		switch kind {
+			case let .page(page): .page(id: page.id)
+			case let .paragraph(paragraph): .block(id: paragraph.id)
+		}
+	}
 }
 
 extension Block.TableColumns {
