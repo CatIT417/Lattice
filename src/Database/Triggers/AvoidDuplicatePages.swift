@@ -2,48 +2,51 @@ import SQLiteData
 
 final class AvoidDuplicatePages: Trigger {
 	static var uses: [any ScalarDatabaseFunction] {
-		[$moveBlocksToExistingPage]
+		[$unifyPagesWithSameTitle]
 	}
 
 	static func install(in db: Database) throws {
-		// TODO: Revise this to make sure there are no edge cases with syncronization
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { page in
-			Values($moveBlocksToExistingPage(title: page.title.unsafelyUnwrapped, id: page.id))
+			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { block in
 			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(forEachRow: { _, page in
-			Values($moveBlocksToExistingPage(title: page.title.unsafelyUnwrapped, id: page.id))
+			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { _, block in
 			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
 		})).execute(db)
 	}
 }
 
-@DatabaseFunction
-func moveBlocksToExistingPage(title: String, id: Block.ID) throws {
+@DatabaseFunction(isDeterministic: false)
+func unifyPagesWithSameTitle(title: String) throws {
 	Task {
 		@Dependency(\.defaultDatabase) var database
 
 		withErrorReporting {
 			try database.write { db in
-				guard let existingPage = try Page.where({ $0.title == title && $0.id != id }).fetchOne(db) else { return }
+				var pages = try Page.where { $0.title == title }.order { $0.createdAt.asc() }.fetchAll(db)
+				guard pages.count > 1 else { return }
 
-				let affectedRecords = try Paragraph.where { $0.pageId.eq(id) || $0.parentId.eq(id) }.fetchAll(db)
-				guard !affectedRecords.isEmpty else { return }
+				let keeper = pages.removeFirst()
 
-				for block in affectedRecords {
-					try Paragraph.find(block.id).update {
-						$0.pageId = existingPage.id
+				for duplicatePage in pages {
+					let affectedRecords = try Paragraph.where { $0.pageId.eq(duplicatePage.id) || $0.parentId.eq(duplicatePage.id) }.fetchAll(db)
 
-						if block.parentId == id {
-							$0.parentId = existingPage.id
-						}
-					}.execute(db)
+					for block in affectedRecords {
+						try Paragraph.find(block.id).update {
+							$0.pageId = keeper.id
+
+							if block.parentId == duplicatePage.id {
+								$0.parentId = keeper.id
+							}
+						}.execute(db)
+					}
+
+					try Page.find(duplicatePage.id).delete().execute(db)
 				}
-
-				try Page.find(id).delete().execute(db)
 			}
 		}
 	}
