@@ -14,7 +14,9 @@ final class SeedDatabase: Seeder {
 		records.append(firstDaily)
 		records.append(Paragraph(string: "This is my first daily note! 🎉", parentId: firstDaily.id, pageId: firstDaily.id, order: 0))
 
-		records.append(Page.createDailyNote(for: Date()))
+		let currentDaily = Page.createDailyNote(for: Date())
+		records.append(currentDaily)
+		records.append(Paragraph(string: "See the [[Lattice Quick Start]] page to get started!", parentId: currentDaily.id, pageId: currentDaily.id, order: 0))
 
 		return records
 	}
