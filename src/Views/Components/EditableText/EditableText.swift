@@ -36,11 +36,9 @@ struct EditableText: View {
 	@Environment(Router.self) private var router
 	@Environment(\.fontResolutionContext) private var fontContext
 
-	private var ctFont: CTFont {
-		(font ?? .body).resolve(in: fontContext).ctFont
-	}
-
 	var body: some View {
+		let ctFont = (font ?? .body).resolve(in: fontContext).ctFont
+
 		EditableTextView(
 			blockId: blockId,
 			text: text,
@@ -48,8 +46,8 @@ struct EditableText: View {
 			onLinkClicked: openLink,
 			handleAction: handleAction
 		)
-		.alignmentGuide(.firstTextBaseline) { _ in
-			CTFontGetAscent(ctFont)
+		.alignmentGuide(.firstTextBaseline) { [ascent = CTFontGetAscent(ctFont)] _ in
+			ascent
 		}
 	}
 

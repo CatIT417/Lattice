@@ -29,8 +29,8 @@ struct ParagraphView: View {
 						bulletView
 					}
 					.buttonStyle(.plain)
-					.alignmentGuide(.firstTextBaseline) { _ in
-						CTFontGetXHeight(font)
+					.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
+						xHeight
 					}
 					#if os(macOS)
 					.pointerStyle(.link)

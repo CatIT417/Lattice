@@ -4,7 +4,7 @@ import Foundation
 @Table
 struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// Internal entity ID (like Roam's e-id)
-	var id: UUID
+	let id: UUID
 
 	/// Page title (NULL for regular blocks)
 	var title: String

@@ -21,7 +21,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	}
 
 	/// Internal entity ID (like Roam's e-id)
-	var id: UUID
+	let id: UUID
 
 	/// Block text content (NULL for pages)
 	var string: String?

@@ -1,9 +1,9 @@
 import Foundation
 import SQLiteData
 
-fileprivate let pagePattern = /\[\[([^\]]+)\]\]/
-fileprivate let tagPattern = /#(?:\[\[([^\]]+)\]\]|(\w+))/
-fileprivate let blockPattern = /\(\(([a-zA-Z0-9_-]{9})\)\)/
+fileprivate nonisolated(unsafe) let pagePattern = /\[\[([^\]]+)\]\]/
+fileprivate nonisolated(unsafe) let tagPattern = /#(?:\[\[([^\]]+)\]\]|(\w+))/
+fileprivate nonisolated(unsafe) let blockPattern = /\(\(([a-zA-Z0-9_-]{9})\)\)/
 
 struct TextRef {
 	let target: String

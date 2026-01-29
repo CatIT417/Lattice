@@ -2,8 +2,13 @@ import SQLiteData
 
 @Table("_trigger_guard")
 struct TriggerGuard {
-	var id: Int = 0
-	var depth: Int = 0
+	let id: Int
+	var depth: Int
+
+	init(depth: Int = 0) {
+		id = 0
+		self.depth = depth
+	}
 
 	static var isActive: Select<Bool, TriggerGuard, Void> {
 		TriggerGuard

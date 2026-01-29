@@ -25,7 +25,7 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 		}
 	}
 
-	var id: UUID
+	let id: UUID
 	var sourceBlockId: Block.ID
 	var targetBlockId: Block.ID
 	var kind: Kind

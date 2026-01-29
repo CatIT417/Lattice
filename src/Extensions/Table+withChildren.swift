@@ -26,6 +26,8 @@ extension HasChildren {
 	}
 }
 
+extension _WithChildren: Sendable where Model: Sendable {}
+
 extension _WithChildren {
 	init(decoder: inout some QueryDecoder) throws {
 		guard let block = try decoder.decode(Model.self) else { throw QueryDecodingError.missingRequiredColumn }

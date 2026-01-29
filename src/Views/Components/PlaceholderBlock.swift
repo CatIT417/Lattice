@@ -16,8 +16,8 @@ struct PlaceholderBlock: View {
 				Circle()
 					.fill(Color.primary)
 					.frame(width: 6, height: 6)
-					.alignmentGuide(.firstTextBaseline) { _ in
-						CTFontGetXHeight(font)
+					.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
+						xHeight
 					}
 
 				Text("Tap here to start typing")

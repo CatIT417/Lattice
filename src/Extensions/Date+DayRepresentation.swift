@@ -1,11 +1,13 @@
 import Foundation
 import SQLiteData
 
-fileprivate let formatter = tap(ISO8601DateFormatter()) { $0.formatOptions = [.withFullDate] }
-
 public extension Date {
+	fileprivate static var formatter: ISO8601DateFormatter {
+		tap(ISO8601DateFormatter()) { $0.formatOptions = [.withFullDate] }
+	}
+
 	var asDayRepresentation: String {
-		formatter.string(from: self)
+		Self.formatter.string(from: self)
 	}
 
 	struct DayRepresentation: QueryRepresentable, QueryBindable, QueryDecodable, SQLiteType {

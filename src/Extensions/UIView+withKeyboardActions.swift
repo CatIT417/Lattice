@@ -1,7 +1,7 @@
 #if os(iOS)
 import SwiftUI
 
-fileprivate var inputAccessoryViewControllerKey: Void?
+@MainActor fileprivate var inputAccessoryViewControllerKey: Void?
 
 public extension UIView {
 	override var inputAccessoryViewController: UIInputViewController? {

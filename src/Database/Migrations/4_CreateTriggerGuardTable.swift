@@ -11,7 +11,7 @@ final class CreateTriggerGuardTable: Migration {
 			table.constraint(sql: "CHECK (id = 0)")
 		}
 
-		try TriggerGuard.insert { TriggerGuard(id: 0, depth: 0) }.execute(db)
+		try TriggerGuard.insert { TriggerGuard(depth: 0) }.execute(db)
 	}
 
 	static func down(_: Database) throws {

@@ -4,7 +4,7 @@ import Foundation
 @Table
 struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChildren {
 	/// Internal entity ID (like Roam's e-id)
-	var id: UUID
+	let id: UUID
 
 	/// Block text content
 	var string: String
