@@ -17,7 +17,7 @@ final class CreateParagraphsView: DatabaseView {
 					isOpen: $0.isOpen,
 					props: $0.props,
 					createdAt: $0.createdAt,
-					updatedAt: $0.createdAt
+					updatedAt: $0.updatedAt
 				)
 			}
 		).execute(db)

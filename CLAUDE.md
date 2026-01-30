@@ -41,6 +41,7 @@ blocks (table)
 - `id: UUID` - Primary key
 - `string: String?` - Text content (NULL for pages)
 - `title: String?` - Page title (NULL for paragraphs)
+- `dailyNoteDate: Date?` - Date in "YYYY-MM-DD" format for daily notes (NULL unless page is a daily note)
 - `parentId: Block.ID?` - Parent block (NULL for root pages)
 - `pageId: Block.ID?` - Root page this block belongs to
 - `order: Int` - Position among siblings
@@ -64,6 +65,13 @@ blocks (table)
 - `ancestorId` - An ancestor
 - `depth` - 1 = parent, 2 = grandparent, etc.
 
+**\_trigger_guard** - Temporary table for preventing cascading triggers
+
+- `id: Int` - Must equal 0 (only one row allowed)
+- `depth: Int` - Trigger recursion depth counter
+
+Used by triggers like `UpdateParagraphOrder` to prevent infinite loops when triggers modify blocks that would otherwise re-trigger.
+
 ### Views (Temporary, created on each connection)
 
 - **pages** - Filters blocks with titles, projects to Page model
@@ -72,10 +80,12 @@ blocks (table)
 
 ### Triggers
 
-- **TouchTimestamps** - Auto-updates `updatedAt` on block modifications
+- **TouchTimestamps** - Auto-updates `updatedAt` on block modifications and parent page's `updatedAt` when a paragraph is modified
 - **SyncAncestorsTable** - Automatically maintains ancestor table on block insert/update
-- **MakePagesViewWritable** / **MakeParagraphsViewWritable** - INSTEAD OF triggers that redirect INSERT/UPDATE/DELETE on views to the blocks table
+- **MakePagesViewWritable** / **MakeParagraphsViewWritable** - INSTEAD OF triggers that redirect INSERT/DELETE on views to the blocks table (no UPDATE redirects for performance reasons, use `blocks` directly)
 - **SyncReferencesTable** - Extracts references from block text and syncs to blockReferences table; auto-creates pages for newly mentioned `[[Page Links]]`; also updates blocks when a referenced page's title changes (uses `@DatabaseFunction` for async processing)
+- **UpdateParagraphOrder** - Maintains correct ordering of sibling blocks when inserting, moving, or deleting; uses `TriggerGuard` to prevent cascading trigger issues
+- **AvoidDuplicatePages** - Prevents duplicate pages with the same title; when duplicates are detected (on INSERT or UPDATE), merges them by keeping the oldest page and moving all blocks to it
 
 ## Key Patterns
 
@@ -147,12 +157,13 @@ src/
 │   ├── Migrations/               # Schema migrations (numbered)
 │   ├── Views/                    # SQL view definitions
 │   └── Triggers/                 # SQL trigger definitions
-├── Models/                       # @Table models (Block, Page, Paragraph, etc.)
+├── Models/                       # @Table models (Block, Page, Paragraph, Ancestor, Reference, etc.)
 ├── ViewModels/                   # View models and coordinators
 ├── Extensions/                   # Swift extensions
-├── Support/                      # Shared utilities (AttributedStringBuilder, BlockTree, etc.)
+├── Support/                      # Shared utilities (AttributedStringBuilder, BlockTree, Navigation, etc.)
 └── Views/
-    ├── Pages/                    # Full-screen views (PageScreen, etc.)
+    ├── Pages/                    # Full-screen views (PageScreen, ParagraphScreen, etc.)
+    ├── Modifiers/                # View modifiers
     └── Components/               # Reusable UI components
         └── EditableText/         # Text editor (platform-specific files)
 ```
@@ -162,6 +173,11 @@ src/
 Uses NavigationKit with typed destinations:
 
 ```swift
+enum Destination.Tabs {
+    case daily   // Daily notes view
+    case search  // Search screen
+}
+
 enum Destination.Pages {
     case page(id: UUID)
     case paragraph(id: UUID)
@@ -214,6 +230,7 @@ EditableText (SwiftUI view wrapper)
     - `EditableText.swift` - Main SwiftUI view that wraps platform-specific implementations
     - `EditableText+iOS.swift` - iOS/visionOS implementation with `AutosizingTextView` and `EditableTextView` (UIViewRepresentable)
     - `EditableText+macOS.swift` - macOS implementation with `EditableTextView` (NSViewRepresentable)
+    - `EditableText+Shared.swift` - Shared helper functions for bracket auto-completion, auto-deletion, and text wrapping
 - **`Support/AttributedStringBuilder.swift`** - Builds NSAttributedString with clickable links and provides index mapping
 
 ### View Mode vs Edit Mode
@@ -283,11 +300,11 @@ The `linkWasTapped` flag prevents the text view from entering edit mode when a l
 
 ## Database Initialization Order
 
-1. Configure SQLite (foreign keys, tracing)
+1. Configure SQLite (foreign keys, disable recursive triggers)
 2. Create temporary views (in `prepareDatabase` callback)
-3. Run migrations (blocks → references → ancestors)
+3. Run migrations (blocks → references → ancestors → trigger guard)
 4. Install triggers
-5. Seed data (DEBUG only)
+5. Seed data (only on `build.miguel.Lattice.dev` target)
 
 ## Verifying Changes on iOS
 
