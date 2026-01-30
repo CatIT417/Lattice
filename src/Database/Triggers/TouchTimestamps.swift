@@ -1,7 +1,7 @@
 import Foundation
 import SQLiteData
 
-fileprivate let currentTimestamp = #sql("current_timestamp", as: Date.UnixTimeRepresentation.self)
+fileprivate let currentTimestamp = #sql("current_timestamp", as: Date.self)
 
 final class TouchTimestamps: Trigger {
 	static func install(in db: Database) throws {

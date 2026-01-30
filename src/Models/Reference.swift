@@ -30,6 +30,5 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 	var targetBlockId: Block.ID
 	var kind: Kind
 
-	@Column(as: Date.UnixTimeRepresentation.self)
 	var createdAt: Date = .now
 }

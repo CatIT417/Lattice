@@ -16,10 +16,7 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// JSON blob for extensible data
 	var props: String?
 
-	@Column(as: Date.UnixTimeRepresentation.self)
 	var createdAt: Date = .now
-
-	@Column(as: Date.UnixTimeRepresentation.self)
 	var updatedAt: Date = .now
 
 	init(id: UUID = UUID(), title: String, dailyNoteDate: Date? = nil, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {

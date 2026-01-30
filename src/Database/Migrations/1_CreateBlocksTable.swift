@@ -25,8 +25,8 @@ final class CreateBlocksTable: Migration {
 			table.column("props", .jsonText) // JSON blob for extensible data
 
 			// Timestamps
-			table.column("createdAt", .integer).notNull().defaults(sql: "current_timestamp") // Unix timestamp
-			table.column("updatedAt", .integer).notNull().defaults(sql: "current_timestamp").indexed() // Unix timestamp
+			table.column("createdAt", .datetime).notNull().defaults(sql: "current_timestamp")
+			table.column("updatedAt", .datetime).notNull().defaults(sql: "current_timestamp").indexed()
 
 			// Constraints
 			table.constraint(#sql("CHECK (title IS NOT NULL OR parentId IS NOT NULL)")) // Pages have title, blocks have parent

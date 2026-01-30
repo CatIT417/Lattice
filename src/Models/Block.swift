@@ -57,10 +57,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// JSON blob for extensible data
 	var props: String? = nil
 
-	@Column(as: Date.UnixTimeRepresentation.self)
 	var createdAt: Date = .now
-
-	@Column(as: Date.UnixTimeRepresentation.self)
 	var updatedAt: Date = .now
 
 	var kind: Kind {
