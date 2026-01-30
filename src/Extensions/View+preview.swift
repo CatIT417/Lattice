@@ -5,6 +5,7 @@ import SQLiteData
 func previewData<T>(_ block: ((Database) throws -> T) = { _ in }) -> T {
 	try! prepareDependencies {
 		try $0.bootstrapDatabase()
+		try $0.defaultDatabase.seed(SeedDatabase.self)
 
 		return try $0.defaultDatabase.read(block)
 	}

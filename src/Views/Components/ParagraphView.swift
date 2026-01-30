@@ -69,7 +69,7 @@ struct ParagraphView: View {
 	private func saveChanges(_ newText: String) -> Bool {
 		withErrorReporting {
 			try database.write { db in
-				try Paragraph.find(paragraph.id)
+				try Block.find(paragraph.id)
 					.update { $0.string = newText }
 					.execute(db)
 			}
@@ -86,7 +86,7 @@ struct ParagraphView: View {
 
 		withErrorReporting {
 			try database.write { db in
-				try Paragraph.find(paragraph.id)
+				try Block.find(paragraph.id)
 					.update { $0.order += delta }
 					.execute(db)
 			}
@@ -141,10 +141,10 @@ struct ParagraphView: View {
 					return
 				}
 
-				try Paragraph.find(paragraph.id)
+				try Block.find(paragraph.id)
 					.update {
-						$0.parentId = parentBlock.parentId
 						$0.order = parentBlock.order + 1
+						$0.parentId = parentBlock.parentId
 					}
 					.execute(db)
 			}
@@ -171,10 +171,10 @@ struct ParagraphView: View {
 
 		withErrorReporting {
 			try database.write { db in
-				try Paragraph.find(paragraph.id)
+				try Block.find(paragraph.id)
 					.update {
-						$0.parentId = previousSibling.id
 						$0.order = (maxOrder ?? -1) + 1
+						$0.parentId = previousSibling.id
 					}
 					.execute(db)
 			}
@@ -193,8 +193,10 @@ struct ParagraphView: View {
 
 		withErrorReporting {
 			try database.write { db in
-				try Paragraph.find(previousParagraphID)
-					.update { $0.string += content }
+				try Block.find(previousParagraphID)
+					.update {
+						$0.string = $0.string.map({ $0 + content }, or: content).asOptional
+					}
 					.execute(db)
 
 				try Paragraph.find(paragraph.id).delete().execute(db)

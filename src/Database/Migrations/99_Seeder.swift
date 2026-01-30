@@ -4,29 +4,28 @@ import SQLiteData
 #if DEBUG
 final class SeedDatabase: Seeder {
 	static func seed() -> Records {
-		apply([seedDailies, seedQuickStart])
+		seedDailies()
+		seedQuickStart()
 	}
 
-	private static func seedDailies() -> Records {
-		var records = Records()
-
+	@SeedsBuilder private static func seedDailies() -> Records {
 		let firstDaily = Page.createDailyNote(for: try! Date("1/1/2024 1:12AM", strategy: .dateTime))
-		records.append(firstDaily)
-		records.append(Paragraph(string: "This is my first daily note! 🎉", parentId: firstDaily.id, pageId: firstDaily.id, order: 0))
+
+		firstDaily
+		Paragraph(string: "This is my first daily note! 🎉", parentId: firstDaily.id, pageId: firstDaily.id, order: 0)
 
 		let currentDaily = Page.createDailyNote(for: Date())
-		records.append(currentDaily)
-		records.append(Paragraph(string: "See the [[Lattice Quick Start]] page to get started!", parentId: currentDaily.id, pageId: currentDaily.id, order: 0))
 
-		return records
+		currentDaily
+		Paragraph(string: "See the [[Lattice Quick Start]] page to get started!", parentId: currentDaily.id, pageId: currentDaily.id, order: 0)
 	}
 
-	private static func seedQuickStart() -> Records {
-		var records = Records()
-
+	@SeedsBuilder private static func seedQuickStart() -> Records {
 		let page = Page(title: "Lattice Quick Start")
-		records.append(page)
-		records.append(contentsOf: buildParagraphs([
+
+		page
+
+		buildParagraphs([
 			"What is Lattice?": [
 				"Lattice is a tool for thinking, heavily inspired by [[Roam Research]]": [:],
 				#"Unlike other "Roam Clones", every bullet is a block"#: [
@@ -63,9 +62,7 @@ final class SeedDatabase: Seeder {
 				#"Lattice is under active development, so you can expect many more features soon, as it slowly morphs into a proper "second brain""#: [:],
 				"If this excites you, hit me up! [@m1guelpf](https://twitter.com/m1guelpf) on Twitter.": [:],
 			],
-		], parentId: page.id, pageId: page.id))
-
-		return records
+		], parentId: page.id, pageId: page.id)
 	}
 }
 

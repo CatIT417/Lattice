@@ -8,10 +8,8 @@ struct LatticeApp: App {
 		UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
 		#endif
 
-		withErrorReporting {
-			try prepareDependencies {
-				try $0.bootstrapDatabase()
-			}
+		prepareDependencies {
+			try! $0.bootstrapDatabase()
 		}
 	}
 

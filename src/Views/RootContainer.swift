@@ -23,9 +23,9 @@ struct RootContainer: View {
 		}
 		.tabViewSearchActivation(.searchTabSelection)
 		#if os(iOS)
-		.postNotificationOnStateChange()
+			.postNotificationOnStateChange()
 		#endif
-		.onAppear { createDailyNoteIfNeeded() }
+			.onAppear { createDailyNoteIfNeeded() }
 	}
 
 	func createDailyNoteIfNeeded() {
@@ -42,11 +42,7 @@ struct RootContainer: View {
 }
 
 #Preview {
-	let _ = withErrorReporting {
-		try prepareDependencies {
-			try $0.bootstrapDatabase()
-		}
-	}
+	let _ = previewData()
 
 	RootContainer()
 		.preview(wrapInNavigation: false)

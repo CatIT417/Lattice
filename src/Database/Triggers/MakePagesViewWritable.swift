@@ -7,7 +7,7 @@ final class MakePagesViewWritable: Trigger {
 			Block.insert {
 				Block.Columns(
 					id: page.id,
-					title: #sql("\(page.title)"),
+					title: page.title.asOptional,
 					dailyNoteDate: page.dailyNoteDate,
 					props: page.props,
 					createdAt: page.createdAt,
@@ -16,15 +16,8 @@ final class MakePagesViewWritable: Trigger {
 			}
 		})).execute(database)
 
-		try Page.createTemporaryTrigger(insteadOf: .update(forEachRow: { old, new in
-			Block.find(old.id).update { block in
-				block.id = new.id
-				block.title = #sql("\(new.title)")
-				block.props = new.props
-				block.updatedAt = new.updatedAt
-				block.dailyNoteDate = new.dailyNoteDate
-			}
-		})).execute(database)
+		// We intentionally do not support updates to pages via the view.
+		// Updates should be done on the Block table directly.
 
 		try Page.createTemporaryTrigger(insteadOf: .delete(forEachRow: { page in
 			Block.find(page.id).delete()

@@ -10,7 +10,7 @@ final class TouchTimestamps: Trigger {
 		}).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(forEachRow: { _, block in
-			Page.where { $0.id.eq(block.pageId.unsafelyUnwrapped) }.update { $0.updatedAt = currentTimestamp }
+			Block.where { $0.id.eq(block.pageId.unsafelyUnwrapped) }.update { $0.updatedAt = currentTimestamp }
 		}, when: { _, block in
 			block.string.isNot(nil) && block.pageId.isNot(nil)
 		})).execute(db)

@@ -18,14 +18,10 @@ extension Migration {
 nonisolated protocol Seeder: Sendable {
 	typealias Records = [any StructuredQueriesCore.Table]
 
-	static func seed() -> Records
+	@SeedsBuilder static func seed() -> Records
 }
 
 extension Seeder {
-	static func run(_ db: Database) throws {
-		try db.seed { seed() }
-	}
-
 	static func apply(_ generators: [() -> Records]) -> Records {
 		var records: Records = []
 
@@ -53,25 +49,13 @@ extension Trigger {
 }
 
 extension DatabaseMigrator {
-	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter, clean: Bool = false) throws {
-		if clean {
-			if let appliedMigrations = try? database.read({ try MigrationRecord.fetchAll($0) }) {
-				try database.write { db in
-					for migration in migrations {
-						if appliedMigrations.contains(where: { $0.identifier == String(describing: migration) }) {
-							try migration.down(db)
-						}
-					}
-				}
-			}
-		}
-
+	mutating func migrate(_ migrations: [Migration.Type], in database: any DatabaseWriter) throws {
 		registerMigrations(migrations.filter { !$0.isTemporary })
 
 		try migrate(database)
 
 		for migration in migrations.filter({ $0.isTemporary }) {
-			try database.write { db in
+			try database.barrierWriteWithoutTransaction { db in
 				try migration.up(db)
 			}
 		}
@@ -113,7 +97,7 @@ extension GRDB.TableDefinition {
 
 extension DatabaseWriter {
 	func setupTriggers(_ triggers: [Trigger.Type]) throws {
-		try write { database in
+		try barrierWriteWithoutTransaction { database in
 			for trigger in triggers {
 				for function in trigger.uses {
 					database.add(function: function)
@@ -125,20 +109,8 @@ extension DatabaseWriter {
 	}
 
 	func seed<T: Seeder>(_: T.Type) throws {
-		@Dependency(\.context) var context
-
-		if context == .live {
-			DispatchQueue.main.async {
-				withErrorReporting {
-					try self.write { database in
-						try database.seed(T.seed)
-					}
-				}
-			}
-		} else {
-			try write { database in
-				try database.seed(T.seed)
-			}
+		try write { db in
+			try db.seed(T.seed)
 		}
 	}
 }

@@ -18,6 +18,10 @@ final class SearchResults {
 		!results.isEmpty
 	}
 
+	var isLoading: Bool {
+		$results.isLoading
+	}
+
 	private var searchTask: Task<Void, any Error>?
 
 	init() {}
