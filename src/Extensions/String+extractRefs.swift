@@ -23,28 +23,39 @@ struct TextRef {
 			case .blockRef, .blockEmbed: URL(string: "lattice://block/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
 		}
 	}
+
+	func replacement(forRenamedPage title: String) -> String? {
+		switch kind {
+			case .pageLink: return "[[\(title)]]"
+			case .blockRef, .blockEmbed: return nil
+			case .tag:
+				let needsBracketing = title.unicodeScalars.contains { scalar in
+					!scalar.isASCII || CharacterSet.whitespacesAndNewlines.contains(scalar)
+				}
+
+				return needsBracketing ? "#[[\(title)]]" : "#\(title)"
+		}
+	}
 }
 
 extension String {
 	func extractRefs() -> [TextRef] {
-		var refs: [TextRef] = []
+		var references: [TextRef] = []
 
-		// [[Page Links]]
-		for match in matches(of: pagePattern) where !String(match.1).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-			refs.append(TextRef(target: String(match.1), kind: .pageLink, range: match.range))
-		}
-
-		// ((block refs))
-		for match in matches(of: blockPattern) where UUID(uuidString: String(match.1)) != nil {
-			refs.append(TextRef(target: String(match.1), kind: .blockRef, range: match.range))
-		}
-
-		// #tags and #[[Page Links]]
 		for match in matches(of: tagPattern) where !String(match.1 ?? match.2!).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-			refs.append(TextRef(target: String(match.1 ?? match.2!), kind: .tag, range: match.range))
+			references.append(TextRef(target: String(match.1 ?? match.2!), kind: .tag, range: match.range))
 		}
 
-		return refs
+		for match in matches(of: pagePattern) where !String(match.1).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			guard !references.contains(where: { $0.range.contains(match.range) }) else { continue }
+			references.append(TextRef(target: String(match.1), kind: .pageLink, range: match.range))
+		}
+
+		for match in matches(of: blockPattern) where UUID(uuidString: String(match.1)) != nil {
+			references.append(TextRef(target: String(match.1), kind: .blockRef, range: match.range))
+		}
+
+		return references.sorted { $0.range.lowerBound < $1.range.lowerBound }
 	}
 }
 

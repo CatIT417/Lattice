@@ -42,11 +42,12 @@ func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasEx
 	withErrorReporting {
 		try database.unsafeReentrantWrite { db in
 			let references = try new.extractRefs().map { try $0.resolved(using: db) }
-			guard !references.isEmpty else { return }
 
 			if hasExistingReferencesInDatabase {
 				try Reference.where { $0.sourceBlockId == blockID }.delete().execute(db)
 			}
+
+			guard !references.isEmpty else { return }
 
 			try Reference.insert {
 				for reference in references {
@@ -63,22 +64,36 @@ func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Pag
 
 	withErrorReporting {
 		try database.unsafeReentrantWrite { db in
-			let blocks = try Reference.where { $0.targetBlockId.eq(pageID) }.join(Paragraph.all) { $0.sourceBlockId == $1.id }.select { $1 }.fetchAll(db)
+			let blocks = try Reference
+				.group(by: \.sourceBlockId)
+				.where { $0.targetBlockId.eq(pageID) }
+				.join(Paragraph.all) { $0.sourceBlockId == $1.id }
+				.select { $1 }
+				.fetchAll(db)
 
 			for block in blocks {
-				let references = block.string.extractRefs().filter { $0.kind.isPage && $0.target == old }
+				let original = block.string
+				let references = original.extractRefs().filter { $0.kind.isPage && $0.target == old }
+				guard !references.isEmpty else { continue }
 
-				if !references.isEmpty {
-					try Block.find(block.id).update {
-						var string = block.string
+				let mutable = NSMutableString(string: original)
+				let ranges = references
+					.map { ref in
+						(ref: ref, range: NSRange(ref.range, in: original))
+					}
+					.sorted { $0.range.location > $1.range.location }
 
-						for reference in references {
-							string = string.replacingOccurrences(of: old, with: new, range: reference.range)
-						}
-
-						$0.string = string
-					}.execute(db)
+				for item in ranges {
+					guard let replacement = item.ref.replacement(forRenamedPage: new) else { continue }
+					mutable.replaceCharacters(in: item.range, with: replacement)
 				}
+
+				let updated = mutable as String
+				guard updated != original else { continue }
+
+				try Block.find(block.id).update {
+					$0.string = updated
+				}.execute(db)
 			}
 		}
 	}
