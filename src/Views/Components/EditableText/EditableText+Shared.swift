@@ -48,4 +48,15 @@ extension EditableTextView.Coordinator {
 
 		return bracketPairs.contains { $0.close == typedChar && charAtCursor == typedChar }
 	}
+
+	/// Returns the wrapped text if the typed character is an opening bracket and text is selected.
+	func wrapWithBrackets(for typedText: String, selectedText: String) -> String? {
+		guard !selectedText.isEmpty, typedText.count == 1, let typedChar = typedText.first else { return nil }
+
+		for pair in bracketPairs where typedChar == pair.open {
+			return "\(pair.open)\(selectedText)\(pair.close)"
+		}
+
+		return nil
+	}
 }

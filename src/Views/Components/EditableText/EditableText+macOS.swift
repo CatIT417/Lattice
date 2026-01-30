@@ -283,6 +283,13 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			return false
 		}
 
+		if range.length > 0, let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.string as NSString).substring(with: range)) {
+			textView.insertText(wrappedText, replacementRange: range)
+
+			textView.setSelectedRange(NSRange(location: range.location + 1, length: range.length))
+			return false
+		}
+
 		if let textToInsert = shouldAutoComplete(for: text) {
 			textView.insertText(textToInsert, replacementRange: range)
 			moveCursorTo(offset: range.location + 1, textView: textView)
