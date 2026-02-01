@@ -2,6 +2,12 @@ import SQLiteData
 import Foundation
 
 final class SyncAncestorsTable: Trigger {
+	/// Registers the SQLite function used by the trigger.
+	static var uses: [any ScalarDatabaseFunction] {
+		[$rebuildAncestorsForSubtree]
+	}
+
+	/// Installs triggers that keep the ancestors table in sync with blocks.
 	static func install(in database: Database) throws {
 		// When inserting a new block
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { new in
@@ -12,16 +18,12 @@ final class SyncAncestorsTable: Trigger {
 		})).execute(database)
 
 		// When moving a block (parent changes)
-		try Block.createTemporaryTrigger(after: .update(of: \.parentId, forEachRow: { old, new in
-			// Delete old ancestry
-			Ancestor.where { $0.blockId == old.id }.delete()
-
-			// Rebuild (same as insert logic)
-			Self.insertParent(blockId: new.id, parentId: new.parentId.unsafelyUnwrapped)
-			Self.propagateParentAncestors(blockId: new.id, parentId: new.parentId)
+		try Block.createTemporaryTrigger(after: .update(of: \.parentId, forEachRow: { _, new in
+			Values($rebuildAncestorsForSubtree(blockId: new.id))
 		}, when: { $0.parentId != $1.parentId })).execute(database)
 	}
 
+	/// Inserts the parent as the direct ancestor for a new block.
 	private static func insertParent<T1: QueryExpression<Block.ID>, T2: QueryExpression<Block.ID>>(blockId: T1, parentId: T2) -> InsertOf<Ancestor> {
 		Ancestor.insert {
 			Ancestor.Columns(
@@ -32,7 +34,7 @@ final class SyncAncestorsTable: Trigger {
 		}
 	}
 
-	/// Copy all ancestors of parent, incrementing depth
+	/// Copy all ancestors of the parent, incrementing depth.
 	private static func propagateParentAncestors<T1: TableColumnExpression, T2: TableColumnExpression>(blockId: T1, parentId: T2) -> SQLQueryExpression<Any> {
 		#sql("""
 			INSERT INTO \(Ancestor.self) ("blockId", "ancestorId", "depth")
@@ -40,5 +42,53 @@ final class SyncAncestorsTable: Trigger {
 			FROM \(Ancestor.self)
 			WHERE \(Ancestor.blockId) = \(parentId)
 		""")
+	}
+}
+
+/// Rebuilds all ancestor rows for a moved block and its descendants.
+@DatabaseFunction
+func rebuildAncestorsForSubtree(blockId: Block.ID) throws {
+	@Dependency(\.defaultDatabase) var database
+
+	withErrorReporting {
+		try database.unsafeReentrantWrite { db in
+			// Clear all ancestor rows for the moved subtree; we rebuild from blocks to avoid stale/partial ancestry.
+			try #sql("""
+				WITH RECURSIVE descendants("blockId") AS (
+					SELECT \(bind: blockId)
+					UNION ALL
+					SELECT \(Block.id)
+					FROM \(Block.self)
+					JOIN descendants ON \(Block.parentId) = descendants."blockId"
+				)
+				DELETE FROM \(Ancestor.self)
+				WHERE \(Ancestor.blockId) IN (SELECT "blockId" FROM descendants);
+			""").execute(db)
+
+			// Recompute ancestors by walking parentId chains; recursive CTE keeps depths consistent for every descendant.
+			try #sql("""
+				WITH RECURSIVE
+					descendants("blockId") AS (
+						SELECT \(bind: blockId)
+						UNION ALL
+						SELECT \(Block.id)
+						FROM \(Block.self)
+						JOIN descendants ON \(Block.parentId) = descendants."blockId"
+					),
+					ancestors("blockId", "ancestorId", "depth") AS (
+						SELECT descendants."blockId", \(Block.parentId), 1
+						FROM descendants
+						JOIN \(Block.self) ON \(Block.id) = descendants."blockId"
+						WHERE \(Block.parentId) IS NOT NULL
+						UNION ALL
+						SELECT ancestors."blockId", \(Block.parentId), ancestors."depth" + 1
+						FROM ancestors
+						JOIN \(Block.self) ON \(Block.id) = ancestors."ancestorId"
+						WHERE \(Block.parentId) IS NOT NULL
+					)
+				INSERT INTO \(Ancestor.self) ("blockId", "ancestorId", "depth")
+				SELECT "blockId", "ancestorId", "depth" FROM ancestors;
+			""").execute(db)
+		}
 	}
 }
