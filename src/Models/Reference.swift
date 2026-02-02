@@ -30,5 +30,16 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 	var targetBlockId: Block.ID
 	var kind: Kind
 
-	var createdAt: Date = .now
+	var createdAt: Date
+
+	init(id: UUID? = nil, sourceBlockId: Block.ID, targetBlockId: Block.ID, kind: Kind, createdAt: Date? = nil) {
+		@Dependency(\.uuid) var uuid
+		@Dependency(\.date.now) var now
+
+		self.kind = kind
+		self.id = id ?? uuid()
+		self.sourceBlockId = sourceBlockId
+		self.targetBlockId = targetBlockId
+		self.createdAt = createdAt ?? now
+	}
 }

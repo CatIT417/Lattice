@@ -3,12 +3,26 @@ import Foundation
 
 fileprivate nonisolated let logger = Logger(category: "Database")
 
+@DatabaseFunction
+var uuid: UUID {
+	@Dependency(\.uuid) var uuid
+	return uuid()
+}
+
+@DatabaseFunction
+var now: Date {
+	@Dependency(\.date.now) var now
+	return now
+}
+
 func makeDatabase() throws -> any DatabaseWriter {
 	@Dependency(\.context) var context
 
 	let configuration = tap(Configuration()) { config in
 		config.foreignKeysEnabled = true
 		config.prepareDatabase { db in
+			db.add(function: $now)
+			db.add(function: $uuid)
 			try db.setupViews([CreatePagesView.self, CreateParagraphsView.self, CreateBacklinksView.self])
 			if context == .live, !Bundle.main.isDev { try db.attachMetadatabase() }
 

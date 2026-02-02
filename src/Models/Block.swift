@@ -43,7 +43,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var order: Int = 0
 
 	/// 1, 2, or 3 (NULL = normal)
-	var heading: HeadingLevel? = nil
+	var heading: HeadingLevel?
 
 	/// 'bullet', 'document', 'numbered'
 	var viewType: ViewType = .bullet
@@ -55,10 +55,10 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var isOpen: Bool = true
 
 	/// JSON blob for extensible data
-	var props: String? = nil
+	var props: String?
 
-	var createdAt: Date = .now
-	var updatedAt: Date = .now
+	var createdAt: Date
+	var updatedAt: Date
 
 	var kind: Kind {
 		if let page = Page(block: self) { return .page(page) }
@@ -72,6 +72,26 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 			case let .page(page): .page(id: page.id)
 			case let .paragraph(paragraph): .block(id: paragraph.id)
 		}
+	}
+
+	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: Date? = nil, parentId: Block.ID? = nil, pageId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+		@Dependency(\.uuid) var uuid
+		@Dependency(\.date.now) var now
+
+		self.id = id ?? uuid()
+		self.title = title
+		self.props = props
+		self.order = order
+		self.isOpen = isOpen
+		self.string = string
+		self.pageId = pageId
+		self.heading = heading
+		self.parentId = parentId
+		self.viewType = viewType
+		self.textAlign = textAlign
+		self.createdAt = createdAt ?? now
+		self.updatedAt = updatedAt ?? now
+		self.dailyNoteDate = dailyNoteDate
 	}
 }
 

@@ -16,15 +16,18 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	/// JSON blob for extensible data
 	var props: String?
 
-	var createdAt: Date = .now
-	var updatedAt: Date = .now
+	var createdAt: Date
+	var updatedAt: Date
 
-	init(id: UUID = UUID(), title: String, dailyNoteDate: Date? = nil, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
-		self.id = id
+	init(id: UUID? = nil, title: String, dailyNoteDate: Date? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+		@Dependency(\.uuid) var uuid
+		@Dependency(\.date.now) var now
+
+		self.id = id ?? uuid()
 		self.title = title
 		self.props = props
-		self.createdAt = createdAt
-		self.updatedAt = updatedAt
+		self.createdAt = createdAt ?? now
+		self.updatedAt = updatedAt ?? now
 		self.dailyNoteDate = dailyNoteDate
 	}
 

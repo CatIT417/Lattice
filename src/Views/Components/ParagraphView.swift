@@ -5,6 +5,7 @@ import Dependencies
 struct ParagraphView: View {
 	var paragraph: Paragraph
 
+	@Dependency(\.uuid) var uuid
 	@Environment(\.blockTree) var blockTree
 	@Dependency(\.defaultDatabase) var database
 	@Environment(\.blockCoordinator) var blockCoordinator
@@ -108,20 +109,17 @@ struct ParagraphView: View {
 			return false
 		}
 
-		let newBlockId = UUID()
-
-		withErrorReporting {
+		let newBlockId = withErrorReporting {
 			try database.write { db in
 				try Paragraph.insert {
 					Paragraph(
-						id: newBlockId,
 						string: text ?? "",
 						parentId: isRootParagraph ? paragraph.id : paragraph.parentId,
 						pageId: paragraph.pageId,
 						order: isRootParagraph ? 0 : paragraph.order + 1,
 						viewType: paragraph.viewType
 					)
-				}.execute(db)
+				}.returning(\.id).fetchOne(db)
 			}
 		}
 

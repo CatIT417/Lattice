@@ -33,26 +33,29 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 	/// JSON blob for extensible data
 	var props: String? = nil
 
-	var createdAt: Date = .now
-	var updatedAt: Date = .now
+	var createdAt: Date
+	var updatedAt: Date
 
 	var parentIsPage: Bool {
 		parentId == pageId
 	}
 
-	init(id: UUID = UUID(), string: String, parentId: Block.ID, pageId: Page.ID, order: Int, heading: Block.HeadingLevel? = nil, viewType: Block.ViewType = .bullet, textAlign: Block.TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date = Date(), updatedAt: Date = Date()) {
-		self.id = id
+	init(id: UUID? = nil, string: String, parentId: Block.ID, pageId: Page.ID, order: Int, heading: Block.HeadingLevel? = nil, viewType: Block.ViewType = .bullet, textAlign: Block.TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+		@Dependency(\.uuid) var uuid
+		@Dependency(\.date.now) var now
+
 		self.props = props
 		self.order = order
 		self.string = string
 		self.isOpen = isOpen
 		self.pageId = pageId
+		self.id = id ?? uuid()
 		self.heading = heading
 		self.viewType = viewType
 		self.parentId = parentId
 		self.textAlign = textAlign
-		self.createdAt = createdAt
-		self.updatedAt = updatedAt
+		self.createdAt = createdAt ?? now
+		self.updatedAt = updatedAt ?? now
 	}
 
 	init?(block: Block) {

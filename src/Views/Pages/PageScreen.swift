@@ -63,7 +63,7 @@ extension PageScreen {
 
 			withErrorReporting {
 				try database.write { db in
-					try Page.insert { Page(id: UUID(), title: title) }.execute(db)
+					try Page.insert { Page(title: title) }.execute(db)
 				}
 			}
 		}
@@ -86,7 +86,8 @@ extension PageScreen {
 
 #Preview("PageScreen.ByTitle new") {
 	let _ = previewData()
+	@Dependency(\.uuid) var uuid
 
-	PageScreen.ByTitle(title: "New Page \(UUID().uuidString)")
+	PageScreen.ByTitle(title: "New Page \(uuid().uuidString)")
 		.preview()
 }

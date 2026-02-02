@@ -12,7 +12,9 @@ final class BlockCoordinator {
 	private var pendingAction: PendingAction?
 	private var renderMode: RenderMode = .rendered
 
-	func request(for blockId: Block.ID, at position: Int? = nil, expectsNewText: Bool = false, startingInMode mode: RenderMode = .rendered) {
+	func request(for blockId: Block.ID?, at position: Int? = nil, expectsNewText: Bool = false, startingInMode mode: RenderMode = .rendered) {
+		guard let blockId else { return }
+
 		renderMode = mode
 		focusedBlock = blockId
 		cursorPosition = position

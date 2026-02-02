@@ -4,6 +4,7 @@ import SQLiteData
 struct PlaceholderBlock: View {
 	var pageId: Page.ID
 
+	@Dependency(\.uuid) var uuid
 	@Dependency(\.defaultDatabase) var database
 	@Environment(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
@@ -33,19 +34,16 @@ struct PlaceholderBlock: View {
 	}
 
 	private func createFirstBlock() {
-		let newBlockId = UUID()
-
-		withErrorReporting {
+		let newBlockId = withErrorReporting {
 			try database.write { db in
 				try Paragraph.insert {
 					Paragraph(
-						id: newBlockId,
 						string: "",
 						parentId: pageId,
 						pageId: pageId,
 						order: 0
 					)
-				}.execute(db)
+				}.returning(\.id).fetchOne(db)
 			}
 		}
 

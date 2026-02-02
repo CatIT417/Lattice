@@ -37,6 +37,7 @@ final class SyncReferencesTable: Trigger {
 
 @DatabaseFunction
 func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasExistingReferencesInDatabase: Bool) throws {
+	@Dependency(\.uuid) var uuid
 	@Dependency(\.defaultDatabase) var database
 
 	withErrorReporting {
@@ -51,7 +52,7 @@ func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasEx
 
 			try Reference.insert {
 				for reference in references {
-					Reference(id: UUID(), sourceBlockId: blockID, targetBlockId: reference.targetID, kind: reference.kind)
+					Reference(id: uuid(), sourceBlockId: blockID, targetBlockId: reference.targetID, kind: reference.kind)
 				}
 			}.execute(db)
 		}
