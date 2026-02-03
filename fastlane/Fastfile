@@ -1,7 +1,7 @@
 platform :ios do
     desc "Run iOS tests"
     lane :tests do
-        run_tests(scheme: "LatticeDev")
+        run_tests(scheme: "LatticeDev", xcargs: "-skipMacroValidation")
     end
 
     desc "Push a new beta build to TestFlight"
@@ -36,7 +36,7 @@ end
 platform :mac do
     desc "Run macOS tests"
     lane :tests do
-        run_tests(scheme: "LatticeDev")
+        run_tests(scheme: "LatticeDev", xcargs: "-skipMacroValidation")
     end
 
     desc "Push a new beta build to TestFlight"
