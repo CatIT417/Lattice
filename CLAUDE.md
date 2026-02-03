@@ -19,7 +19,8 @@ Lattice is a personal knowledge management tool inspired by Roam Research's outl
 - **Dependencies** - Pointfree-style dependency injection
 - **NavigationKit** - Custom navigation library for routing
 
-Use the library-docs skill if you need extra info on any of these, and the sosumi MCP to consult Swift/SwiftUI/Apple documentation.
+Use the `mcp__xcode__DocumentationSearch` tool to search Apple Developer Documentation, and `mcp__sosumi__fetchAppleDocumentation` to fetch specific pages.
+You may also use the `library-docs` skill if you need extra info on how third-party libraries work.
 
 ## Database Architecture
 
@@ -310,42 +311,51 @@ The `linkWasTapped` flag prevents the text view from entering edit mode when a l
 4. Install triggers
 5. Seed data (only on `build.miguel.Lattice.dev` target)
 
-## Verifying Changes on iOS
+## Verifying Changes
 
-Use the xcodebuild MCP to build, run, and test the app in the iOS Simulator.
+You have access to multiple tools to verify your changes, both during and after development (executing snippets, looking at previews, getting build issues, running tests, etc.).
+Prefer using these tools over manually calling `xcodebuild`.
 
-### Setup
+### Building the Project
 
-First, set session defaults:
+Use the Xcode MCP to build the project and check for errors:
 
 ```
-mcp__xcodebuildmcp__list_sims()
-mcp__xcodebuildmcp__session-set-defaults(projectPath: "Lattice.xcodeproj", scheme: "LatticeDev", simulatorId: "...", useLatestOS: true)
+tabId = mcp__xcode__XcodeListWindows() # Get tabIdentifier
+mcp__xcode__BuildProject(tabIdentifier: tabId)
+mcp__xcode__XcodeListNavigatorIssues(tabIdentifier: tabId) # or mcp__xcode__XcodeRefreshCodeIssuesInFile(tabIdentifier: tabId, filePath:) for a specific file
 ```
 
-### Tests
+If Xcode isn't open (there is no tabIdentifier), fall back to xcodebuildmcp:
 
-Run the iOS test suite in the simulator: `mcp__xcodebuildmcp__test_sim()`
+```
+mcp__xcodebuildmcp__build_sim(scheme: "LatticeDev") # Build for iOS
+mcp__xcodebuildmcp__build_macos(scheme: "LatticeDev") # Build for macOS
+```
 
-### Build & Run
+Ensure the app is in building order before finishing your work.
 
-Build the app and launch it in the simulator: `mcp__xcodebuildmcp__build_run_sim()`
-If you only need to build without running: `mcp__xcodebuildmcp__build_sim()`
+### Running Tests
 
-### Testing Workflow
+Use `mcp__xcode__RunAllTests` to run all tests, or `mcp__xcode__RunSomeTests` to run specific tests.
+If Xcode isn't open, you can use `mcp__xcodebuildmcp__test_sim(scheme: "LatticeDev")` or `mcp__xcodebuildmcp__test_macos(scheme: "LatticeDev")` to run all tests, depending on which OS you're targeting.
+Ensure all tests pass before finishing your work.
 
-1. Make sure the tests pass with `mcp__xcodebuildmcp__test_sim()`
-2. Build and run the app with `build_run_sim`
-3. Take a screenshot with `mcp__xcodebuildmcp__screenshot()` to verify initial state
-4. Use `describe_ui` to get element coordinates
-5. Interact with the UI (`mcp__xcodebuildmcp__tap`, `mcp__xcodebuildmcp__type_text`, etc.)
-6. Take another screenshot to verify the result
-7. Repeat as needed to test different flows
-8. **Always close the simulator when done**: `xcrun simctl shutdown <simulator-id>`
+### Executing Snippets
 
-## Verifying Changes in macOS
+If you need to test a specific snippet of code, use `mcp__xcode__ExecuteSnippet` to run it in the context of a specific file (with access to `fileprivate` declarations).
 
-- Use `mcp__xcodebuildmcp__build_macos(scheme: "LatticeDev")` to build the macOS target
-- Run the macOS test suite with `mcp__xcodebuildmcp__test_macos(scheme: "LatticeDev")`
+### Rendering Previews
 
-Sadly, there doesn't seem to currently be a way to give you access to UI automation for macOS apps, so once the app builds and tests pass, just let the user know (feel free to suggest a testing flow if you have one in mind) and they'll do it for you.
+You can render a SwiftUI preview to an image to quickly check how a view looks with `mcp__xcode__RenderPreview`.
+
+### UI Automation (iOS)
+
+For iOS, you can launch the app in a simulator and interact with it. Use this when replicating UI issues or after extensive updates.
+
+1. Build and run the app: `mcp__xcodebuildmcp__build_run_sim()`
+2. Take a screenshot: `mcp__xcodebuildmcp__screenshot()`
+3. Get element coordinates: `mcp__xcodebuildmcp__describe_ui()`
+4. Interact with UI: `tap`, `type_text`, `swipe`, etc.
+5. Screenshot again to verify
+6. **Always close the simulator when done**: `xcrun simctl shutdown <simulator-id>`
