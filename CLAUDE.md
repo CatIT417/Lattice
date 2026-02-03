@@ -14,11 +14,12 @@ Lattice is a personal knowledge management tool inspired by Roam Research's outl
 ## Tech Stack
 
 - **SwiftUI** for UI
+- **Swift Testing** - Unit tests
 - **SQLiteData** - Type-safe GRDB wrapper with macros
-- **NavigationKit** - Custom navigation library for routing
 - **Dependencies** - Pointfree-style dependency injection
+- **NavigationKit** - Custom navigation library for routing
 
-Use the library-docs skill if you need extra info on any of these, and the sosumi MCP for SwiftUI & other Apple docs.
+Use the library-docs skill if you need extra info on any of these, and the sosumi MCP to consult Swift/SwiftUI/Apple documentation.
 
 ## Database Architecture
 
@@ -166,6 +167,9 @@ src/
     ├── Modifiers/                # View modifiers
     └── Components/               # Reusable UI components
         └── EditableText/         # Text editor (platform-specific files)
+tests/
+├── Database                      # Database-related tests
+└── Tests.swift                   # Base Test Case & helpers
 ```
 
 ## Navigation
@@ -319,31 +323,29 @@ mcp__xcodebuildmcp__list_sims()
 mcp__xcodebuildmcp__session-set-defaults(projectPath: "Lattice.xcodeproj", scheme: "LatticeDev", simulatorId: "...", useLatestOS: true)
 ```
 
+### Tests
+
+Run the iOS test suite in the simulator: `mcp__xcodebuildmcp__test_sim()`
+
 ### Build & Run
 
 Build the app and launch it in the simulator: `mcp__xcodebuildmcp__build_run_sim()`
 If you only need to build without running: `mcp__xcodebuildmcp__build_sim()`
 
-### Visual Verification
-
-**Take a screenshot** to see the current state: `mcp__xcodebuildmcp__screenshot()`
-
-### UI Interaction
-
-Use XCodeBuildMCP's UI interaction tools (`mcp__xcodebuildmcp__tap`, `mcp__xcodebuildmcp__type_text`, etc.)
-
 ### Testing Workflow
 
-1. Build and run the app with `build_run_sim`
-2. Take a screenshot to verify initial state
-3. Use `describe_ui` to get element coordinates
-4. Interact with the UI (tap, type, scroll)
-5. Take another screenshot to verify the result
-6. Repeat as needed to test different flows
-7. **Always close the simulator when done**: `xcrun simctl shutdown <simulator-id>`
+1. Make sure the tests pass with `mcp__xcodebuildmcp__test_sim()`
+2. Build and run the app with `build_run_sim`
+3. Take a screenshot with `mcp__xcodebuildmcp__screenshot()` to verify initial state
+4. Use `describe_ui` to get element coordinates
+5. Interact with the UI (`mcp__xcodebuildmcp__tap`, `mcp__xcodebuildmcp__type_text`, etc.)
+6. Take another screenshot to verify the result
+7. Repeat as needed to test different flows
+8. **Always close the simulator when done**: `xcrun simctl shutdown <simulator-id>`
 
 ## Verifying Changes in macOS
 
 - Use `mcp__xcodebuildmcp__build_macos(scheme: "LatticeDev")` to build the macOS target
+- Run the macOS test suite with `mcp__xcodebuildmcp__test_macos(scheme: "LatticeDev")`
 
-Sadly, there doesn't seem to currently be a way to give you access to UI automation for macOS apps, so once the app builds, just let the user know (feel free to suggest a testing flow if you have one in mind) and they'll do it for you.
+Sadly, there doesn't seem to currently be a way to give you access to UI automation for macOS apps, so once the app builds and tests pass, just let the user know (feel free to suggest a testing flow if you have one in mind) and they'll do it for you.
