@@ -5,7 +5,8 @@ import CustomDump
 @testable import LatticeDev
 
 extension Tests {
-	@Suite struct TriggerGuardTest {
+	@Suite("Models/TriggerGuard")
+	struct TriggerGuardTest {
 		@Dependency(\.defaultDatabase) var database
 	}
 }

@@ -6,7 +6,8 @@ import CustomDump
 @testable import LatticeDev
 
 extension Tests {
-	@Suite struct PageTest {
+	@Suite("Models/Page")
+	struct PageTest {
 		@Dependency(\.defaultDatabase) var database
 	}
 }

@@ -6,7 +6,8 @@ import CustomDump
 @testable import LatticeDev
 
 extension Tests {
-	@Suite struct MakeParagraphsViewWritableTest {
+	@Suite("Database/Triggers/MakeParagraphsViewWritable")
+	struct MakeParagraphsViewWritableTest {
 		@Dependency(\.defaultDatabase) var database
 
 		let page: Page

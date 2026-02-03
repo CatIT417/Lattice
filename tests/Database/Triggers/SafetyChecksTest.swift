@@ -5,7 +5,8 @@ import Foundation
 @testable import LatticeDev
 
 extension Tests {
-	@Suite struct SafetyChecksTest {
+	@Suite("Database/Triggers/SafetyChecks")
+	struct SafetyChecksTest {
 		@Dependency(\.defaultDatabase) var database
 
 		let page: Page

@@ -6,7 +6,8 @@ import CustomDump
 @testable import LatticeDev
 
 extension Tests {
-	@Suite struct SyncAncestorsTableTest {
+	@Suite("Database/Triggers/SyncAncestorsTable")
+	struct SyncAncestorsTableTest {
 		@Dependency(\.defaultDatabase) var database
 	}
 }

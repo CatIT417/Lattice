@@ -7,7 +7,8 @@ import CustomDump
 
 extension Tests {
 	// TODO: Throughly check all edge cases that can occur when syncing.
-	@Suite struct AvoidDuplicatePagesTest {
+	@Suite("Database/Triggers/AvoidDuplicatePages")
+	struct AvoidDuplicatePagesTest {
 		@Dependency(\.defaultDatabase) var database
 	}
 }

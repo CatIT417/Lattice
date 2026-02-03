@@ -7,7 +7,7 @@ import DependenciesTestSupport
 @testable import LatticeDev
 
 extension Tests {
-	@Suite(.dependency(\.date, .constant(.distantPast)))
+	@Suite("Database/Triggers/SyncReferencesTable", .dependency(\.date, .constant(.distantPast)))
 	struct SyncReferencesTableTest {
 		@Dependency(\.defaultDatabase) var database
 	}
