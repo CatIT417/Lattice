@@ -19,6 +19,7 @@ struct Tests {}
 // MARK: - Test Helpers
 
 import CustomDump
+import InlineSnapshotTesting
 
 func expectDifference<T: Equatable>(
 	_ expression: @autoclosure () -> FetchAll<T>,
@@ -36,4 +37,10 @@ func expectDifference<T: Equatable>(
 		try await operation()
 		try await expression.load()
 	}, changes: changes, fileID: fileID, filePath: filePath, line: line, column: column)
+}
+
+public extension Snapshotting where Value == NSAttributedString, Format == String {
+	static var raw: Snapshotting {
+		return SimplySnapshotting.lines.pullback { $0.snapshotDescription }
+	}
 }

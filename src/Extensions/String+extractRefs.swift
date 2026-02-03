@@ -3,7 +3,7 @@ import SQLiteData
 
 fileprivate nonisolated(unsafe) let pagePattern = /\[\[([^\]]+)\]\]/
 fileprivate nonisolated(unsafe) let tagPattern = /#(?:\[\[([^\]]+)\]\]|(\w+))/
-fileprivate nonisolated(unsafe) let blockPattern = /\(\(([a-zA-Z0-9_-]{9})\)\)/
+fileprivate nonisolated(unsafe) let blockPattern = /\(\(([a-fA-F0-9-]{36})\)\)/
 
 struct TextRef {
 	let target: String

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C01155052F26CD1A00317095 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C01155042F26CD1A00317095 /* SQLiteData */; };
+		C020D7BB2F31E163008A1039 /* InlineSnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C020D7BA2F31E163008A1039 /* InlineSnapshotTesting */; };
 		C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A42F1A060C00687E49 /* TinyStorage */; };
 		C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A72F1A061900687E49 /* NavigationKit */; };
 		C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1AA2F1A062900687E49 /* ObfuscateMacro */; };
@@ -97,6 +98,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C033A44E2F2FE22400717CFE /* DependenciesTestSupport in Frameworks */,
+				C020D7BB2F31E163008A1039 /* InlineSnapshotTesting in Frameworks */,
 				C030BFBE2F313A940070CA7A /* CustomDump in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -198,6 +200,7 @@
 			packageProductDependencies = (
 				C033A44D2F2FE22400717CFE /* DependenciesTestSupport */,
 				C030BFBD2F313A940070CA7A /* CustomDump */,
+				C020D7BA2F31E163008A1039 /* InlineSnapshotTesting */,
 			);
 			productName = LatticeTests;
 			productReference = C033A4402F2FE0B100717CFE /* LatticeTests.xctest */;
@@ -271,6 +274,7 @@
 				C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */,
 				C033A44C2F2FE22400717CFE /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				C030BFBC2F313A940070CA7A /* XCRemoteSwiftPackageReference "swift-custom-dump" */,
+				C020D7B72F31E0BA008A1039 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C02BFFA52F1A04EE00169A69 /* Products */;
@@ -756,6 +760,14 @@
 				kind = branch;
 			};
 		};
+		C020D7B72F31E0BA008A1039 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.18.9;
+			};
+		};
 		C025F1A32F1A060C00687E49 /* XCRemoteSwiftPackageReference "TinyStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/christianselig/TinyStorage.git";
@@ -811,6 +823,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */;
 			productName = SQLiteData;
+		};
+		C020D7BA2F31E163008A1039 /* InlineSnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C020D7B72F31E0BA008A1039 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = InlineSnapshotTesting;
 		};
 		C025F1A42F1A060C00687E49 /* TinyStorage */ = {
 			isa = XCSwiftPackageProductDependency;

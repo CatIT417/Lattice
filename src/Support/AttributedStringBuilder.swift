@@ -78,7 +78,8 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 
 		// For the link text, map to positions within the raw ref syntax
 		// E.g., for [[World]], "World" chars map to positions 2,3,4,5,6 (skipping [[)
-		let bracketOffset = ref.kind == .blockRef ? 2 : 2 // [[ or ((
+		let bracketOffset = ref.kind.bracketOffset(for: String(text[ref.range]))
+
 		for i in 0..<targetLength {
 			// Map to the corresponding character in the raw target
 			renderedToRaw.append(rawRefStart + bracketOffset + i)

@@ -23,6 +23,13 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 				case .blockRef, .blockEmbed: true
 			}
 		}
+
+		func bracketOffset(for text: String) -> Int {
+			switch self {
+				case .pageLink, .blockRef, .blockEmbed: 2
+				case .tag: text.starts(with: "#[[") ? 3 : 1
+			}
+		}
 	}
 
 	let id: UUID
