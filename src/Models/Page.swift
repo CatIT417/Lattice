@@ -55,8 +55,17 @@ extension Page {
 
 extension Page {
 	static func findOrCreate(title: String, in db: Database) throws -> Page {
-		try #sql("INSERT INTO \(Block.self) (title) SELECT \(bind: title) WHERE NOT EXISTS (SELECT 1 FROM \(Block.self) WHERE \(Block.title) = \(bind: title));").execute(db)
+		let newlyCreatedBlock = try #sql("""
+		INSERT INTO \(Block.self) (title)
+		SELECT \(bind: title)
+		WHERE NOT EXISTS (
+			SELECT 1 FROM \(Block.self)
+			WHERE \(Block.title) = \(bind: title)
+		)
+		RETURNING *;
+		""", as: Block.self).fetchOne(db)
 
+		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
 		return try Page.where { $0.title == title }.fetchOne(db)!
 	}
 }
