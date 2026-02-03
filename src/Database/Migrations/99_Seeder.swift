@@ -1,7 +1,6 @@
 import Foundation
 import SQLiteData
 
-#if DEBUG
 final class SeedDatabase: Seeder {
 	static func seed() -> Records {
 		seedDailies()
@@ -80,4 +79,3 @@ fileprivate func buildParagraphs(_ tree: [String: Any], parentId: Block.ID, page
 
 	return records
 }
-#endif
