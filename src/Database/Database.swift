@@ -63,7 +63,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 	], in: database)
 
 	try database.setupTriggers([
-		SafetyTriggers.self,
+		SafetyChecks.self,
 		MakePagesViewWritable.self,
 		MakeParagraphsViewWritable.self,
 

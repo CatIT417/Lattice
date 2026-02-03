@@ -1,6 +1,6 @@
 import SQLiteData
 
-struct SafetyTriggers: Trigger {
+struct SafetyChecks: Trigger {
 	static func install(in db: Database) throws {
 		try Block.createTemporaryTrigger(before: .update(of: \.pageId, forEachRow: { _, _ in
 			Values(#sql("RAISE(ABORT, 'You forgot to update the `parentId` field to the new page!')"))
