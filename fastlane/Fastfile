@@ -1,4 +1,9 @@
 platform :ios do
+    desc "Run iOS tests"
+    lane :tests do
+        run_tests(scheme: "LatticeDev")
+    end
+
     desc "Push a new beta build to TestFlight"
     lane :deploy do
         setup_ci
@@ -29,6 +34,11 @@ platform :ios do
 end
 
 platform :mac do
+    desc "Run macOS tests"
+    lane :tests do
+        run_tests(scheme: "LatticeDev")
+    end
+
     desc "Push a new beta build to TestFlight"
     lane :deploy do
         setup_ci

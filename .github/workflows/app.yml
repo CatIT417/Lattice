@@ -1,4 +1,4 @@
-name: Build and Deploy to TestFlight
+name: Build, Test and Deploy
 
 on:
   push:
@@ -10,7 +10,7 @@ concurrency:
 
 
 jobs:
-  ios_build:
+  ios:
     runs-on: namespace-profile-builder
     steps:
       - uses: actions/checkout@v5
@@ -37,6 +37,9 @@ jobs:
 
       - name: Set Swift Syntax Prebuilts
         run: defaults write com.apple.dt.Xcode IDEPackageEnablePrebuilts YES
+
+      - name: Run Tests
+        run: bundle exec fastlane ios tests
 
       - name: Build and Deploy
         run: bundle exec fastlane ios deploy
@@ -47,7 +50,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-  macos_build:
+  macos:
     runs-on: namespace-profile-builder
     steps:
       - uses: actions/checkout@v5
@@ -74,6 +77,9 @@ jobs:
 
       - name: Set Swift Syntax Prebuilts
         run: defaults write com.apple.dt.Xcode IDEPackageEnablePrebuilts YES
+
+      - name: Run Tests
+        run: bundle exec fastlane mac tests
 
       - name: Build and Deploy
         run: bundle exec fastlane mac deploy

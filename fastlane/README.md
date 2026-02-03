@@ -13,6 +13,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 # Available Actions
 
+### tests
+
+```sh
+[bundle exec] fastlane tests
+```
+
+Run tests
+
 ### generate_profiles_and_certificates
 
 ```sh
@@ -25,6 +33,14 @@ Generate profiles and certificates
 
 
 ## iOS
+
+### ios tests
+
+```sh
+[bundle exec] fastlane ios tests
+```
+
+Run iOS tests
 
 ### ios deploy
 
