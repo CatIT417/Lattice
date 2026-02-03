@@ -1,7 +1,5 @@
 import SQLiteData
 
-// TODO: Once we add tests, we should throughly check all edge cases that can occur when syncing.
-
 final class AvoidDuplicatePages: Trigger {
 	static var uses: [any ScalarDatabaseFunction] {
 		[$unifyPagesWithSameTitle]
