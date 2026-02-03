@@ -10,9 +10,9 @@ final class SyncAncestorsTable: Trigger {
 	/// Installs triggers that keep the ancestors table in sync with blocks.
 	static func install(in database: Database) throws {
 		// When inserting a new block
-		try Block.createTemporaryTrigger(after: .insert(forEachRow: { new in
-			Self.insertParent(blockId: new.id, parentId: new.parentId.unsafelyUnwrapped)
-			Self.propagateParentAncestors(blockId: new.id, parentId: new.parentId)
+		try Block.createTemporaryTrigger(after: .insert(forEachRow: { block in
+			Self.insertParent(for: block)
+			Self.propagateParentAncestors(for: block)
 		}, when: {
 			$0.parentId.isNot(nil)
 		})).execute(database)
@@ -24,23 +24,23 @@ final class SyncAncestorsTable: Trigger {
 	}
 
 	/// Inserts the parent as the direct ancestor for a new block.
-	private static func insertParent<T1: QueryExpression<Block.ID>, T2: QueryExpression<Block.ID>>(blockId: T1, parentId: T2) -> InsertOf<Ancestor> {
+	private static func insertParent<AliasName>(for block: TableAlias<Block, AliasName>.TableColumns) -> InsertOf<Ancestor> {
 		Ancestor.insert {
 			Ancestor.Columns(
-				blockId: blockId,
-				ancestorId: parentId,
+				blockId: block.id,
+				ancestorId: block.parentId.unsafelyUnwrapped,
 				depth: 1
 			)
 		}
 	}
 
 	/// Copy all ancestors of the parent, incrementing depth.
-	private static func propagateParentAncestors<T1: TableColumnExpression, T2: TableColumnExpression>(blockId: T1, parentId: T2) -> SQLQueryExpression<Any> {
+	private static func propagateParentAncestors<AliasName>(for block: TableAlias<Block, AliasName>.TableColumns) -> SQLQueryExpression<Any> {
 		#sql("""
 			INSERT INTO \(Ancestor.self) ("blockId", "ancestorId", "depth")
-			SELECT \(blockId), \(Ancestor.ancestorId), \(Ancestor.depth) + 1
+			SELECT \(block.id), \(Ancestor.ancestorId), \(Ancestor.depth) + 1
 			FROM \(Ancestor.self)
-			WHERE \(Ancestor.blockId) = \(parentId)
+			WHERE \(Ancestor.blockId) = \(block.parentId)
 		""")
 	}
 }

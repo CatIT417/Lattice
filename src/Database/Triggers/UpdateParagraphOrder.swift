@@ -5,11 +5,13 @@ final class UpdateParagraphOrder: Trigger {
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { paragraph in
 			TriggerGuard.increment()
 
+			// First, we increment the order of all sibling paragraphs that come after the inserted one
 			Block
 				.where { $0.id != paragraph.id && $0.parentId == paragraph.parentId && $0.order >= paragraph.order }
-				.update {
-					$0.order += 1
-				}
+				.update { $0.order += 1 }
+
+			// Then, we clamp the inserted paragraph's order to not exceed the max if needed
+			Self.clampToMaxOrder(for: paragraph)
 
 			TriggerGuard.decrement()
 		}, when: { block in
@@ -28,6 +30,9 @@ final class UpdateParagraphOrder: Trigger {
 			Block
 				.where { $0.id != new.id && $0.parentId == new.parentId && $0.order >= new.order }
 				.update { $0.order += 1 }
+
+			// Clamp to max order in new parent
+			Self.clampToMaxOrder(for: new)
 
 			TriggerGuard.decrement()
 		}, when: { old, new in
@@ -56,6 +61,9 @@ final class UpdateParagraphOrder: Trigger {
 						&& $0.order < old.order
 				}
 				.update { $0.order += 1 }
+
+			// Clamp to max order in parent
+			Self.clampToMaxOrder(for: new)
 		}, when: { old, new in
 			new.string.isNot(nil) && old.parentId == new.parentId && !TriggerGuard.isActive
 		})).execute(db)
@@ -71,5 +79,17 @@ final class UpdateParagraphOrder: Trigger {
 		}, when: { block in
 			block.string.isNot(nil)
 		})).execute(db)
+	}
+
+	@QueryFragmentBuilder<any Statement> private static func clampToMaxOrder<AliasName>(for paragraph: TableAlias<Block, AliasName>.TableColumns) -> [QueryFragment] {
+		// Then, we fetch the max possible order for this parent
+		let maxOrder = Block
+			.where { $0.id != paragraph.id && $0.parentId == paragraph.parentId }
+			.select { $0.order.max().ifnull(0) + 1 }
+
+		// Finally, we clamp the inserted paragraph's order to not exceed the max if needed
+		Block
+			.where { $0.id == paragraph.id && $0.order > maxOrder }
+			.update { $0.order = maxOrder }
 	}
 }

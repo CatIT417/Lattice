@@ -7,6 +7,11 @@ func tap<T, E>(_ value: T, _ block: (inout T) throws(E) -> Void) throws(E) -> T 
 	return value
 }
 
+/// Call the given Closure with the given value.
+func tap<T, E>(_ value: inout T, _ block: (inout T) throws(E) -> Void) throws(E) {
+	try block(&value)
+}
+
 /// Call the given Closure with the given value then return the value.
 func tap<T, E>(_ value: T, _ block: (inout T) async throws(E) -> Void) async throws(E) -> T {
 	var value = value

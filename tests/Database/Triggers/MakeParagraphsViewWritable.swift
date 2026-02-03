@@ -21,7 +21,7 @@ extension Tests {
 extension Tests.MakeParagraphsViewWritableTest {
 	@Test("Inserting into the Paragraphs view creates the corresponding Block")
 	func canInsertIntoParagraphs() throws {
-		let order = 2
+		let order = 1
 		let isOpen = false
 		let props = "{\"foo\":1}"
 		let string = "My Paragraph"

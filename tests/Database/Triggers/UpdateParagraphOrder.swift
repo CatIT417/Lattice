@@ -45,8 +45,10 @@ extension Tests.UpdateParagraphOrderTest {
 			}
 		} changes: { paragraphs in
 			for i in paragraphs.indices {
-				if paragraphs[i].order >= 2 {
-					paragraphs[i].order += 1
+				tap(&paragraphs[i]) {
+					if $0.order >= 2 {
+						$0.order += 1
+					}
 				}
 			}
 
@@ -72,9 +74,11 @@ extension Tests.UpdateParagraphOrderTest {
 				}.execute(db)
 			}
 		} changes: { paragraphs in
-			for i in paragraphs.indices {
-				if i == 3 { paragraphs[i].order = 1 }
-				else if i < 3, paragraphs[i].order >= 1 { paragraphs[i].order += 1 }
+			tap(&paragraphs[3]) { $0.order = 1 }
+			for i in paragraphs.indices where i < 3 {
+				tap(&paragraphs[i]) {
+					if $0.order >= 1 { $0.order += 1 }
+				}
 			}
 		}
 	}
@@ -97,9 +101,9 @@ extension Tests.UpdateParagraphOrderTest {
 				}.execute(db)
 			}
 		} changes: { paragraphs in
-			paragraphs[1].order = 3
-			paragraphs[2].order -= 1
-			paragraphs[3].order -= 1
+			tap(&paragraphs[1]) { $0.order = 3 }
+			tap(&paragraphs[2]) { $0.order -= 1 }
+			tap(&paragraphs[3]) { $0.order -= 1 }
 		}
 	}
 
@@ -151,16 +155,22 @@ extension Tests.UpdateParagraphOrderTest {
 			try await database.write { db in
 				try Block.find(paragraphs[3].id).update {
 					$0.order = 0
+					$0.pageId = secondPage.id
 					$0.parentId = secondPage.id
 				}.execute(db)
 			}
 		} changes: { paragraphs in
-			paragraphs[3].order = 0
-			paragraphs[3].parentId = secondPage.id
+			tap(&paragraphs[3]) {
+				$0.order = 0
+				$0.pageId = secondPage.id
+				$0.parentId = secondPage.id
+			}
 
-			for i in paragraphs.indices {
-				if paragraphs[i].pageId == page.id, paragraphs[i].order > 3 { paragraphs[i].order -= 1 }
-				else if paragraphs[i].pageId == secondPage.id { paragraphs[i].order += 1 }
+			for i in paragraphs.indices where i != 3 {
+				tap(&paragraphs[i]) {
+					if $0.pageId == page.id, $0.order > 3 { $0.order -= 1 }
+					else if $0.pageId == secondPage.id { $0.order += 1 }
+				}
 			}
 		}
 	}
@@ -189,16 +199,22 @@ extension Tests.UpdateParagraphOrderTest {
 			try await database.write { db in
 				try Block.find(paragraphs[1].id).update {
 					$0.order = 3
+					$0.pageId = secondPage.id
 					$0.parentId = secondPage.id
 				}.execute(db)
 			}
 		} changes: { paragraphs in
-			paragraphs[1].order = 3
-			paragraphs[1].parentId = secondPage.id
+			tap(&paragraphs[1]) {
+				$0.order = 3
+				$0.pageId = secondPage.id
+				$0.parentId = secondPage.id
+			}
 
-			for i in paragraphs.indices {
-				if i != 1, paragraphs[i].pageId == page.id, paragraphs[i].order > 1 {
-					paragraphs[i].order -= 1
+			for i in paragraphs.indices where i != 1 {
+				tap(&paragraphs[i]) {
+					if $0.pageId == page.id, $0.order > 1 {
+						$0.order -= 1
+					}
 				}
 			}
 		}
@@ -223,8 +239,102 @@ extension Tests.UpdateParagraphOrderTest {
 			paragraphs.remove(at: 2)
 
 			for i in paragraphs.indices {
-				if paragraphs[i].order > 2 {
-					paragraphs[i].order -= 1
+				tap(&paragraphs[i]) {
+					if $0.order > 2 {
+						$0.order -= 1
+					}
+				}
+			}
+		}
+	}
+
+	@Test("Inserting a Paragraph with an order greater than siblings sets order to end")
+	func insertingBlockProperlySetsInitialOrder() async throws {
+		try await database.write { db in
+			try Paragraph.insert {
+				for i in 0..<3 {
+					Paragraph(string: "Paragraph \(i)", parentId: page.id, pageId: page.id, order: i)
+				}
+			}.execute(db)
+		}
+		try await $paragraphs.load()
+
+		let newParagraphID = uuid()
+
+		await expectDifference($paragraphs) {
+			try await database.write { db in
+				try Paragraph.insert {
+					Paragraph(id: newParagraphID, string: "New Paragraph", parentId: page.id, pageId: page.id, order: 99)
+				}.execute(db)
+			}
+		} changes: { paragraphs in
+			paragraphs.append(Paragraph(id: newParagraphID, string: "New Paragraph", parentId: page.id, pageId: page.id, order: 3))
+		}
+	}
+
+	@Test("Updating a Paragraph's order greater than siblings sets order to end")
+	func updatingOrderClampsToEnd() async throws {
+		try await database.write { db in
+			try Paragraph.insert {
+				for i in 0..<3 {
+					Paragraph(string: "Paragraph \(i)", parentId: page.id, pageId: page.id, order: i)
+				}
+			}.execute(db)
+		}
+		try await $paragraphs.load()
+
+		await expectDifference($paragraphs) {
+			try await database.write { db in
+				try Block.find(paragraphs[1].id).update {
+					$0.order = 99
+				}.execute(db)
+			}
+		} changes: { paragraphs in
+			tap(&paragraphs[2]) { $0.order = 1 }
+			tap(&paragraphs[1]) { $0.order = 2 }
+		}
+	}
+
+	@Test("Moving a Paragraph to a new parent with an order greater than siblings sets order to end")
+	func updatingParentClampsToEnd() async throws {
+		let secondPage = try await database.write { db in
+			try Paragraph.insert {
+				for i in 0..<3 {
+					Paragraph(string: "Paragraph \(i)", parentId: page.id, pageId: page.id, order: i)
+				}
+			}.execute(db)
+
+			let secondPage = try Page.insert { Page(title: "Another Page") }.returning(\.self).fetchOne(db)!
+			try Paragraph.insert {
+				for i in 0..<2 {
+					Paragraph(string: "Paragraph \(i)", parentId: secondPage.id, pageId: secondPage.id, order: i)
+				}
+			}.execute(db)
+
+			return secondPage
+		}
+		try await $paragraphs.load()
+
+		await expectDifference($paragraphs) {
+			try await database.write { db in
+				try Block.find(paragraphs[1].id).update {
+					$0.order = 99
+					$0.pageId = secondPage.id
+					$0.parentId = secondPage.id
+				}.execute(db)
+			}
+		} changes: { paragraphs in
+			tap(&paragraphs[1]) {
+				$0.order = 2
+				$0.pageId = secondPage.id
+				$0.parentId = secondPage.id
+			}
+
+			for i in paragraphs.indices where i != 1 {
+				tap(&paragraphs[i]) {
+					if $0.pageId == page.id, $0.order > 1 {
+						$0.order -= 1
+					}
 				}
 			}
 		}
