@@ -1,6 +1,7 @@
 import Testing
 import SQLiteData
 import Foundation
+import CustomDump
 
 @testable import LatticeDev
 
@@ -13,29 +14,52 @@ extension Tests {
 extension Tests.MakePagesViewWritableTest {
 	@Test("Inserting into the Pages view creates the corresponding Block")
 	func canInsertIntoPages() throws {
+		let props = "{\"color\":\"blue\"}"
+		let date = Calendar.current.startOfDay(for: Date())
+
 		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "Test Page") }.returning(\.self).fetchOne(db)
+			try Page.insert {
+				Page(title: "Test Page", dailyNoteDate: date, props: props, createdAt: date, updatedAt: date)
+			}.returning(\.self).fetchOne(db)
 		})
 
 		let block = try #require(database.read { db in
 			try Block.find(page.id).fetchOne(db)
 		})
 
-		#expect(page.id == block.id)
-		#expect(page.title == block.title)
-		#expect(page.props == block.props)
-		#expect(page.createdAt == block.createdAt)
-		#expect(page.updatedAt == block.updatedAt)
-		#expect(page.dailyNoteDate == block.dailyNoteDate)
+		expectNoDifference(page.props, props)
+		expectNoDifference(page.createdAt, date)
+		expectNoDifference(page.updatedAt, date)
+		expectNoDifference(page.dailyNoteDate, date)
 
-		#expect(block.order == 0)
-		#expect(block.string == nil)
-		#expect(block.pageId == nil)
-		#expect(block.isOpen == true)
-		#expect(block.heading == nil)
-		#expect(block.parentId == nil)
-		#expect(block.textAlign == .left)
-		#expect(block.viewType == .bullet)
+		expectNoDifference(page.id, block.id)
+		expectNoDifference(page.title, block.title)
+		expectNoDifference(page.props, block.props)
+		expectNoDifference(page.createdAt, block.createdAt)
+		expectNoDifference(page.updatedAt, block.updatedAt)
+		expectNoDifference(page.dailyNoteDate, block.dailyNoteDate)
+
+		expectNoDifference(block.order, 0)
+		expectNoDifference(block.string, nil)
+		expectNoDifference(block.pageId, nil)
+		expectNoDifference(block.isOpen, true)
+		expectNoDifference(block.heading, nil)
+		expectNoDifference(block.parentId, nil)
+		expectNoDifference(block.textAlign, .left)
+		expectNoDifference(block.viewType, .bullet)
+	}
+
+	@Test("Updating via the Pages view is not supported")
+	func updateViaViewFails() throws {
+		let page = try #require(database.write { db in
+			try Page.insert { Page(title: "Test Page") }.returning(\.self).fetchOne(db)
+		})
+
+		#expect(throws: DatabaseError.self) {
+			try database.write { db in
+				try Page.find(page.id).update { $0.title = "Updated Title" }.execute(db)
+			}
+		}
 	}
 
 	@Test("Deleting from the Pages view deletes the corresponding Block")
