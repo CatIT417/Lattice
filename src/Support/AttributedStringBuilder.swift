@@ -6,24 +6,29 @@ import UIKit
 import AppKit
 #endif
 
-/// Maps character positions between rendered text (with links like "World") and raw text (with "[[World]]")
-struct IndexMapping {
-	fileprivate let renderedToRaw: [Int]
-
-	/// Convert a cursor position from rendered text to raw text position
-	func rawIndex(fromRendered renderedIndex: Int) -> Int {
-		guard renderedIndex >= 0 else { return 0 }
-		guard renderedIndex < renderedToRaw.count else {
-			return renderedToRaw.last ?? renderedIndex
-		}
-		return renderedToRaw[renderedIndex]
-	}
-}
-
 /// Result of building an attributed string, including the string and index mapping
 struct AttributedStringResult {
+	/// Maps character positions between rendered text (with links like "World") and raw text (with "[[World]]")
+	struct IndexMapping {
+		fileprivate let renderedToRaw: [Int]
+
+		/// Convert a cursor position from rendered text to raw text position
+		func rawIndex(fromRendered renderedIndex: Int) -> Int {
+			guard renderedIndex >= 0 else { return 0 }
+			guard renderedIndex < renderedToRaw.count else {
+				return renderedToRaw.last ?? renderedIndex
+			}
+			return renderedToRaw[renderedIndex]
+		}
+	}
+
 	let indexMapping: IndexMapping?
 	let attributedString: NSAttributedString
+
+	init(renderedToRaw: [Int]? = nil, attributedString: NSAttributedString) {
+		self.attributedString = attributedString
+		indexMapping = renderedToRaw.map { IndexMapping(renderedToRaw: $0) }
+	}
 }
 
 func removeReferences(from text: String) -> String {
@@ -37,70 +42,261 @@ func removeReferences(from text: String) -> String {
 	return result
 }
 
-/// Build an NSAttributedString from text with refs
+/// Characters that can start inline markup — if none are present, parsing can be skipped entirely.
+private let inlineMarkupCharacters: Set<Character> = ["*", "_", "`", "=", "[", "(", "#"]
+
+/// Build an NSAttributedString from text with refs and formatting
 func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body)) -> AttributedStringResult {
 	let baseAttributes: [NSAttributedString.Key: Any] = [
 		.font: font,
 		.foregroundColor: labelColor,
 	]
 
-	let refs = text.extractRefs().sorted { $0.range.lowerBound < $1.range.lowerBound }
-	if refs.isEmpty {
-		return AttributedStringResult(indexMapping: nil, attributedString: NSAttributedString(string: text, attributes: baseAttributes))
+	// Fast path: skip parsing when no inline markup markers are present
+	guard text.contains(where: { inlineMarkupCharacters.contains($0) }) else {
+		return plainAttributedResult(for: text, attributes: baseAttributes)
+	}
+
+	let spans = InlineParser.default.parse(text)
+
+	// Check if there's any non-text content (markers were present but didn't form valid syntax)
+	let hasFormatting = spans.contains { $0.kind != .text }
+	if !hasFormatting {
+		return plainAttributedResult(for: text, attributes: baseAttributes)
 	}
 
 	let result = NSMutableAttributedString()
-	var currentIndex = text.startIndex
 	var renderedToRaw: [Int] = []
+	renderedToRaw.reserveCapacity(text.count + 1)
 
-	for ref in refs {
-		// Add plain text before this ref
-		if currentIndex < ref.range.lowerBound {
-			let plainText = String(text[currentIndex..<ref.range.lowerBound])
-			result.append(NSAttributedString(string: plainText, attributes: baseAttributes))
-
-			// Map each character in plain text
-			let rawStartOffset = text.distance(from: text.startIndex, to: currentIndex)
-			for i in 0..<plainText.count {
-				renderedToRaw.append(rawStartOffset + i)
-			}
-		}
-
-		// Add styled link (just the target text, not the [[brackets]])
-		var linkAttrs = baseAttributes
-		linkAttrs[.link] = ref.url
-		linkAttrs[.foregroundColor] = tintColor
-		result.append(NSAttributedString(string: ref.target, attributes: linkAttrs))
-
-		// Map each character in the rendered link text to raw text positions
-		let rawRefStart = text.distance(from: text.startIndex, to: ref.range.lowerBound)
-		let targetLength = ref.target.count
-
-		// For the link text, map to positions within the raw ref syntax
-		// E.g., for [[World]], "World" chars map to positions 2,3,4,5,6 (skipping [[)
-		let bracketOffset = ref.kind.bracketOffset(for: String(text[ref.range]))
-
-		for i in 0..<targetLength {
-			// Map to the corresponding character in the raw target
-			renderedToRaw.append(rawRefStart + bracketOffset + i)
-		}
-
-		currentIndex = ref.range.upperBound
-	}
-
-	// Add remaining text after last ref
-	if currentIndex < text.endIndex {
-		let remaining = String(text[currentIndex...])
-		result.append(NSAttributedString(string: remaining, attributes: baseAttributes))
-
-		let rawStartOffset = text.distance(from: text.startIndex, to: currentIndex)
-		for i in 0..<remaining.count {
-			renderedToRaw.append(rawStartOffset + i)
-		}
+	let context = RenderContext(sourceText: text, rawStartOffset: 0, attributes: baseAttributes, font: font, inheritedTraits: [])
+	for span in spans {
+		context.render(span: span, into: result, renderedToRaw: &renderedToRaw)
 	}
 
 	// Add final position (for cursor at end)
 	renderedToRaw.append(text.count)
 
-	return AttributedStringResult(indexMapping: IndexMapping(renderedToRaw: renderedToRaw), attributedString: result)
+	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: result)
 }
+
+private func plainAttributedResult(for text: String, attributes: [NSAttributedString.Key: Any]) -> AttributedStringResult {
+	AttributedStringResult(attributedString: NSAttributedString(string: text, attributes: attributes))
+}
+
+private struct RenderContext {
+	let sourceText: String
+	let rawStartOffset: Int
+	let attributes: [NSAttributedString.Key: Any]
+	let font: PlatformFont
+	let inheritedTraits: PlatformFontDescriptor.SymbolicTraits
+}
+
+private struct RenderStyle {
+	let baseAttributes: [NSAttributedString.Key: Any]
+	let baseFont: PlatformFont
+	let inheritedTraits: PlatformFontDescriptor.SymbolicTraits
+
+	func withFont(_ font: PlatformFont) -> [NSAttributedString.Key: Any] {
+		tap(baseAttributes) { $0[.font] = font }
+	}
+
+	func link(_ url: URL) -> [NSAttributedString.Key: Any] {
+		tap(baseAttributes) {
+			$0[.link] = url
+			$0[.foregroundColor] = tintColor
+		}
+	}
+
+	func highlight() -> [NSAttributedString.Key: Any] {
+		tap(baseAttributes) {
+			$0[.backgroundColor] = PlatformColor.systemYellow.withAlphaComponent(0.3)
+		}
+	}
+
+	func code() -> [NSAttributedString.Key: Any] {
+		tap(baseAttributes) {
+			$0[.font] = PlatformFont.monospacedSystemFont(ofSize: baseFont.pointSize, weight: .regular)
+
+			#if canImport(UIKit)
+			$0[.backgroundColor] = UIColor.secondarySystemFill
+			#elseif canImport(AppKit)
+			$0[.backgroundColor] = NSColor.unemphasizedSelectedContentBackgroundColor
+			#endif
+		}
+	}
+
+	func emphasis(_ trait: PlatformFontDescriptor.SymbolicTraits) -> (
+		attributes: [NSAttributedString.Key: Any],
+		font: PlatformFont,
+		traits: PlatformFontDescriptor.SymbolicTraits
+	) {
+		let traits = inheritedTraits.union(trait)
+		let font = baseFont.withTraits(traits)
+		return (withFont(font), font, traits)
+	}
+}
+
+private extension RenderContext {
+	var style: RenderStyle {
+		RenderStyle(baseAttributes: attributes, baseFont: font, inheritedTraits: inheritedTraits)
+	}
+
+	func render(span: InlineSpan, into result: NSMutableAttributedString, renderedToRaw: inout [Int]) {
+		let spanRawStart = rawStart(for: span)
+
+		switch span.kind {
+			case .text: append(text: span.content, with: attributes, rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
+			case .pageLink, .tag, .blockRef, .blockEmbed: render(reference: span, spanRawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
+			case .code: append(text: span.content, with: style.code(), rawStart: spanRawStart + 1, /* Skip opening ` */ into: result, renderedToRaw: &renderedToRaw)
+			case .bold:
+				render(
+					emphasis: span,
+					spanRawStart: spanRawStart,
+					addingTrait: .traitBold,
+					contentDelimiterLength: 2, // **
+					into: result,
+					renderedToRaw: &renderedToRaw
+				)
+			case .italic:
+				render(
+					emphasis: span,
+					spanRawStart: spanRawStart,
+					addingTrait: .traitItalic,
+					contentDelimiterLength: 1, // *
+					into: result,
+					renderedToRaw: &renderedToRaw
+				)
+			case .highlight:
+				render(
+					container: span,
+					spanRawStart: spanRawStart,
+					contentDelimiterLength: 2, // ==
+					childAttributes: style.highlight(),
+					childFont: font,
+					childTraits: inheritedTraits,
+					into: result,
+					renderedToRaw: &renderedToRaw
+				)
+			case let .link(url):
+				render(
+					container: span,
+					spanRawStart: spanRawStart,
+					contentDelimiterLength: 1, // [
+					childAttributes: style.link(url),
+					childFont: font,
+					childTraits: inheritedTraits,
+					into: result,
+					renderedToRaw: &renderedToRaw
+				)
+		}
+	}
+
+	func render(
+		emphasis span: InlineSpan,
+		spanRawStart: Int,
+		addingTrait trait: PlatformFontDescriptor.SymbolicTraits,
+		contentDelimiterLength: Int,
+		into result: NSMutableAttributedString,
+		renderedToRaw: inout [Int]
+	) {
+		let emphasis = style.emphasis(trait)
+		render(
+			container: span,
+			spanRawStart: spanRawStart,
+			contentDelimiterLength: contentDelimiterLength,
+			childAttributes: emphasis.attributes,
+			childFont: emphasis.font,
+			childTraits: emphasis.traits,
+			into: result,
+			renderedToRaw: &renderedToRaw
+		)
+	}
+
+	func render(
+		container span: InlineSpan,
+		spanRawStart: Int,
+		contentDelimiterLength: Int,
+		childAttributes: [NSAttributedString.Key: Any],
+		childFont: PlatformFont,
+		childTraits: PlatformFontDescriptor.SymbolicTraits,
+		into result: NSMutableAttributedString,
+		renderedToRaw: inout [Int]
+	) {
+		let contentRawStart = spanRawStart + contentDelimiterLength
+
+		guard !span.children.isEmpty else {
+			append(text: span.content, with: childAttributes, rawStart: contentRawStart, into: result, renderedToRaw: &renderedToRaw)
+			return
+		}
+
+		let childContext = RenderContext(
+			sourceText: span.content,
+			rawStartOffset: contentRawStart,
+			attributes: childAttributes,
+			font: childFont,
+			inheritedTraits: childTraits
+		)
+
+		for child in span.children {
+			childContext.render(span: child, into: result, renderedToRaw: &renderedToRaw)
+		}
+	}
+
+	func render(
+		reference span: InlineSpan,
+		spanRawStart: Int,
+		into result: NSMutableAttributedString,
+		renderedToRaw: inout [Int]
+	) {
+		guard let ref = TextRef(from: span) else {
+			append(text: span.content, with: attributes, rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
+			return
+		}
+		result.append(NSAttributedString(string: ref.prefix + span.content, attributes: style.link(ref.url)))
+
+		let rawSpanText = String(sourceText[span.range])
+		let bracketOffset = ref.kind.bracketOffset(for: rawSpanText)
+		appendRawOffsets(count: ref.prefix.count, from: spanRawStart, into: &renderedToRaw)
+		appendRawOffsets(count: span.content.count, from: spanRawStart + bracketOffset, into: &renderedToRaw)
+	}
+
+	func append(text string: String, with attributes: [NSAttributedString.Key: Any], rawStart: Int, into result: NSMutableAttributedString, renderedToRaw: inout [Int]) {
+		result.append(NSAttributedString(string: string, attributes: attributes))
+		appendRawOffsets(count: string.count, from: rawStart, into: &renderedToRaw)
+	}
+
+	func appendRawOffsets(count: Int, from start: Int, into renderedToRaw: inout [Int]) {
+		renderedToRaw.append(contentsOf: start..<(start + count))
+	}
+
+	func rawStart(for span: InlineSpan) -> Int {
+		rawStartOffset + sourceText.distance(from: sourceText.startIndex, to: span.range.lowerBound)
+	}
+}
+
+// MARK: - Font Extensions
+
+extension PlatformFont {
+	/// Returns a new font with the specified traits added
+	func withTraits(_ traits: PlatformFontDescriptor.SymbolicTraits) -> PlatformFont {
+		#if canImport(UIKit)
+		guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
+			return self
+		}
+		return PlatformFont(descriptor: descriptor, size: pointSize)
+		#elseif canImport(AppKit)
+		let descriptor = fontDescriptor.withSymbolicTraits(traits)
+		return PlatformFont(descriptor: descriptor, size: pointSize) ?? self
+		#endif
+	}
+}
+
+// MARK: - Symbolic Traits Compatibility
+
+#if canImport(AppKit)
+extension NSFontDescriptor.SymbolicTraits {
+	static let traitBold: NSFontDescriptor.SymbolicTraits = .bold
+	static let traitItalic: NSFontDescriptor.SymbolicTraits = .italic
+}
+#endif

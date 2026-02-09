@@ -9,9 +9,11 @@ import AppKit
 #if canImport(UIKit)
 typealias PlatformFont = UIFont
 typealias PlatformColor = UIColor
+typealias PlatformFontDescriptor = UIFontDescriptor
 #else
 typealias PlatformFont = NSFont
 typealias PlatformColor = NSColor
+typealias PlatformFontDescriptor = NSFontDescriptor
 #endif
 
 // MARK: - Colors

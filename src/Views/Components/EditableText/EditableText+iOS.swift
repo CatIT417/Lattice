@@ -120,7 +120,7 @@ extension EditableTextView {
 		var parent: EditableTextView
 		var isEditing = false
 		var lastKnownText: String
-		var indexMapping: IndexMapping?
+		var indexMapping: AttributedStringResult.IndexMapping?
 		var linkWasTapped = false
 		var willSwitchToEditing = false
 		weak var textView: UITextView?

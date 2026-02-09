@@ -1,19 +1,22 @@
 import Foundation
 import SQLiteData
 
-fileprivate nonisolated(unsafe) let pagePattern = /\[\[([^\]]+)\]\]/
-fileprivate nonisolated(unsafe) let tagPattern = /#(?:\[\[([^\]]+)\]\]|(\w+))/
-fileprivate nonisolated(unsafe) let blockPattern = /\(\(([a-fA-F0-9-]{36})\)\)/
-
 struct TextRef {
 	let target: String
 	let kind: Reference.Kind
 	let range: Range<String.Index>
 
-	fileprivate init(target: String, kind: Reference.Kind, range: Range<String.Index>) {
+	init(target: String, kind: Reference.Kind, range: Range<String.Index>) {
 		self.kind = kind
 		self.range = range
 		self.target = target
+	}
+
+	init?(from span: InlineSpan) {
+		guard let refKind = span.kind.asReferenceKind else { return nil }
+		kind = refKind
+		range = span.range
+		target = span.content
 	}
 
 	var url: URL {
@@ -21,6 +24,13 @@ struct TextRef {
 			case .tag: URL(string: "lattice://tag/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
 			case .pageLink: URL(string: "lattice://page/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
 			case .blockRef, .blockEmbed: URL(string: "lattice://block/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
+		}
+	}
+
+	var prefix: String {
+		switch kind {
+			case .tag: "#"
+			case .pageLink, .blockRef, .blockEmbed: ""
 		}
 	}
 
@@ -40,22 +50,12 @@ struct TextRef {
 
 extension String {
 	func extractRefs() -> [TextRef] {
-		var references: [TextRef] = []
+		guard contains("[") || contains("#") || contains("(") else { return [] }
 
-		for match in matches(of: tagPattern) where !String(match.1 ?? match.2!).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-			references.append(TextRef(target: String(match.1 ?? match.2!), kind: .tag, range: match.range))
-		}
-
-		for match in matches(of: pagePattern) where !String(match.1).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-			guard !references.contains(where: { $0.range.contains(match.range) }) else { continue }
-			references.append(TextRef(target: String(match.1), kind: .pageLink, range: match.range))
-		}
-
-		for match in matches(of: blockPattern) where UUID(uuidString: String(match.1)) != nil {
-			references.append(TextRef(target: String(match.1), kind: .blockRef, range: match.range))
-		}
-
-		return references.sorted { $0.range.lowerBound < $1.range.lowerBound }
+		return InlineParser.referencesOnly
+			.extractReferences(from: self)
+			.compactMap { TextRef(from: $0) }
+			.sorted { $0.range.lowerBound < $1.range.lowerBound }
 	}
 }
 

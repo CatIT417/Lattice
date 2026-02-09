@@ -131,7 +131,7 @@ extension EditableTextView {
 		var isEditing = false
 		var lastKnownText: String
 		var linkWasTapped = false
-		var indexMapping: IndexMapping?
+		var indexMapping: AttributedStringResult.IndexMapping?
 
 		init(parent: EditableTextView) {
 			self.parent = parent

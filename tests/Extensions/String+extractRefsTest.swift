@@ -126,4 +126,24 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(tagPage.title, "myTag")
 		expectNoDifference(blockResolved.targetID, UUID(uuidString: uuidString)!)
 	}
+
+	@Test("extractRefs ignores references inside markdown link labels")
+	func extractRefsIgnoresReferencesInsideMarkdownLinkLabels() {
+		let text = "[go #tag](https://example.com) and [[Real Page]]"
+
+		let refs = text.extractRefs()
+
+		expectNoDifference(refs.map(\.kind), [.pageLink])
+		expectNoDifference(refs.map(\.target), ["Real Page"])
+	}
+
+	@Test("extractRefs ignores references inside inline code spans")
+	func extractRefsIgnoresReferencesInsideCodeSpans() {
+		let text = "Before #tag `[[Not a link]]` `#fakeTag [[Page]] ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))` after [[Real Link]]"
+
+		let refs = text.extractRefs()
+
+		expectNoDifference(refs.map(\.kind), [.tag, .pageLink])
+		expectNoDifference(refs.map(\.target), ["tag", "Real Link"])
+	}
 }
