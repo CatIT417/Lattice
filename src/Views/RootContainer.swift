@@ -21,11 +21,13 @@ struct RootContainer: View {
 				}
 			}
 		}
+		.onAppear { createDailyNoteIfNeeded() }
 		.tabViewSearchActivation(.searchTabSelection)
 		#if os(iOS)
 			.postNotificationOnStateChange()
+		#elseif os(macOS)
+			.clearInitialResponderOnLaunch()
 		#endif
-			.onAppear { createDailyNoteIfNeeded() }
 	}
 
 	func createDailyNoteIfNeeded() {

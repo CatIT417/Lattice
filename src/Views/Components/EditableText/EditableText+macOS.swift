@@ -302,6 +302,11 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	// MARK: - Command Handling
 
 	func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+		if selector == #selector(NSResponder.cancelOperation(_:)) {
+			textView.window?.makeFirstResponder(nil)
+			return true
+		}
+
 		if selector == #selector(NSResponder.insertNewline(_:)) {
 			newBlockRequested(textView: textView, range: textView.selectedRange())
 			return true
