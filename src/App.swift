@@ -13,11 +13,11 @@ struct LatticeApp: App {
 		UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
 		#elseif canImport(Sentry)
 		SentrySDK.start { options in
+			options.enableLogs = true
 			options.sendDefaultPii = true
 			options.attachScreenshot = true
 			options.attachViewHierarchy = true
 			options.sessionReplay.quality = .low
-			options.experimental.enableLogs = true
 			options.enableAutoSessionTracking = true
 			options.sessionReplay.maskAllText = false
 			options.sessionReplay.maskAllImages = false
