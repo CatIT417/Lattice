@@ -117,13 +117,13 @@ struct EditableTextView: UIViewRepresentable {
 
 extension EditableTextView {
 	@MainActor class Coordinator: NSObject {
-		var parent: EditableTextView
 		var isEditing = false
 		var lastKnownText: String
-		var indexMapping: AttributedStringResult.IndexMapping?
 		var linkWasTapped = false
-		var willSwitchToEditing = false
+		var parent: EditableTextView
 		weak var textView: UITextView?
+		var willSwitchToEditing = false
+		var indexMapping: AttributedStringResult.IndexMapping?
 
 		init(parent: EditableTextView) {
 			self.parent = parent
@@ -161,7 +161,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: UITextView) {
-			if let position = textView.position(from: textView.beginningOfDocument, offset: offset) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: min(max(0, offset), textView.attributedText.string.count)) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
 			}
 		}
@@ -202,8 +202,8 @@ extension EditableTextView {
 
 			setText(.raw, text: lastKnownText, textView: textView)
 
-			if let cursorOffset, let mapping = indexMapping {
-				moveCursorTo(offset: min(mapping.rawIndex(fromRendered: cursorOffset), parent.text.count), textView: textView)
+			if let cursorOffset {
+				moveCursorTo(offset: min(indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset, lastKnownText.count), textView: textView)
 			}
 		}
 
@@ -228,6 +228,7 @@ extension EditableTextView {
 			// Only switch to rendered mode if focus moved to a new block
 			if parent.handleAction(.blockBreak(remainingText: remainingText.isEmpty ? nil : remainingText)) {
 				isEditing = false
+				textView.resignFirstResponder()
 				setText(.rendered, text: newText, textView: textView)
 			}
 		}

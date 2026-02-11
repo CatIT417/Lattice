@@ -16,7 +16,9 @@ extension Tests.MakePagesViewWritableTest {
 	@Test("Inserting into the Pages view creates the corresponding Block")
 	func canInsertIntoPages() throws {
 		let props = "{\"color\":\"blue\"}"
-		let date = Calendar.current.startOfDay(for: Date())
+		// `dailyNoteDate` is persisted as a day-only ISO string (YYYY-MM-DD).
+		// Use a canonical UTC midnight value to keep this assertion timezone-stable.
+		let date = Date(timeIntervalSince1970: 1_770_076_800)
 
 		let page = try #require(database.write { db in
 			try Page.insert {
