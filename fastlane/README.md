@@ -13,14 +13,6 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 # Available Actions
 
-### tests
-
-```sh
-[bundle exec] fastlane tests
-```
-
-Run tests
-
 ### generate_profiles_and_certificates
 
 ```sh
@@ -54,6 +46,14 @@ Push a new beta build to TestFlight
 
 
 ## Mac
+
+### mac tests
+
+```sh
+[bundle exec] fastlane mac tests
+```
+
+Run macOS tests
 
 ### mac deploy
 

@@ -6,9 +6,11 @@
 	<string>production</string>
 	<key>com.apple.developer.aps-environment</key>
 	<string>production</string>
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>Production</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.build.miguel.Lattice</string>
+		<string>iCloud.build.miguel.Lattice.Data</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
