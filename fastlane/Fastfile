@@ -29,6 +29,7 @@ platform :ios do
 
         build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
         # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
+        sentry_upload_build(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', build_configuration: 'Release')
         upload_to_testflight(distribute_external: false, changelog: "")
     end
 end
@@ -67,7 +68,7 @@ platform :mac do
             scheme: "Lattice",
             xcargs: "-skipMacroValidation"
         )
-        # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
+        sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
         upload_to_testflight(distribute_external: false, changelog: "")
     end
 end

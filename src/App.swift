@@ -1,5 +1,8 @@
 import SwiftUI
 import SQLiteData
+#if !DEBUG && canImport(Sentry)
+import Sentry
+#endif
 
 @main
 struct LatticeApp: App {
@@ -8,6 +11,21 @@ struct LatticeApp: App {
 	init() {
 		#if DEBUG
 		UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
+		#elseif canImport(Sentry)
+		SentrySDK.start { options in
+			options.sendDefaultPii = true
+			options.attachScreenshot = true
+			options.attachViewHierarchy = true
+			options.sessionReplay.quality = .low
+			options.experimental.enableLogs = true
+			options.enableAutoSessionTracking = true
+			options.sessionReplay.maskAllText = false
+			options.sessionReplay.maskAllImages = false
+			options.sessionReplay.onErrorSampleRate = 1.0
+			options.sessionReplay.sessionSampleRate = 0.1
+			options.screenshot = SentryViewScreenshotOptions(maskAllText: false, maskAllImages: false)
+			options.dsn = "https://296e9abf10b15af57e543fe72127f224@o85760.ingest.us.sentry.io/4510864994795520"
+		}
 		#endif
 
 		do {

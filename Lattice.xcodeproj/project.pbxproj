@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C01155052F26CD1A00317095 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = C01155042F26CD1A00317095 /* SQLiteData */; };
+		C013D7E32F3C23A200D4F59A /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = C013D7E22F3C23A200D4F59A /* Sentry */; };
 		C020D7BB2F31E163008A1039 /* InlineSnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C020D7BA2F31E163008A1039 /* InlineSnapshotTesting */; };
 		C025F1A52F1A060C00687E49 /* TinyStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A42F1A060C00687E49 /* TinyStorage */; };
 		C025F1A82F1A061900687E49 /* NavigationKit in Frameworks */ = {isa = PBXBuildFile; productRef = C025F1A72F1A061900687E49 /* NavigationKit */; };
@@ -84,6 +85,7 @@
 			files = (
 				C025F20C2F1AA3D100687E49 /* SQLiteData in Frameworks */,
 				C025F1AB2F1A062900687E49 /* ObfuscateMacro in Frameworks */,
+				C013D7E32F3C23A200D4F59A /* Sentry in Frameworks */,
 				C01155052F26CD1A00317095 /* SQLiteData in Frameworks */,
 				C033A4502F2FE24300717CFE /* Dependencies in Frameworks */,
 				C025F1B32F1A065D00687E49 /* NukeUI in Frameworks */,
@@ -175,6 +177,7 @@
 				C025F20B2F1AA3D100687E49 /* SQLiteData */,
 				C01155042F26CD1A00317095 /* SQLiteData */,
 				C033A44F2F2FE24300717CFE /* Dependencies */,
+				C013D7E22F3C23A200D4F59A /* Sentry */,
 			);
 			productName = Lattice;
 			productReference = C02BFFA42F1A04EE00169A69 /* Lattice.app */;
@@ -275,6 +278,7 @@
 				C033A44C2F2FE22400717CFE /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				C030BFBC2F313A940070CA7A /* XCRemoteSwiftPackageReference "swift-custom-dump" */,
 				C020D7B72F31E0BA008A1039 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+				C013D7E12F3C23A200D4F59A /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C02BFFA52F1A04EE00169A69 /* Products */;
@@ -768,6 +772,14 @@
 				kind = branch;
 			};
 		};
+		C013D7E12F3C23A200D4F59A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.4.0;
+			};
+		};
 		C020D7B72F31E0BA008A1039 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
@@ -831,6 +843,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */;
 			productName = SQLiteData;
+		};
+		C013D7E22F3C23A200D4F59A /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C013D7E12F3C23A200D4F59A /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 		C020D7BA2F31E163008A1039 /* InlineSnapshotTesting */ = {
 			isa = XCSwiftPackageProductDependency;
