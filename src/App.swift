@@ -15,7 +15,9 @@ struct LatticeApp: App {
 		SentrySDK.start { options in
 			options.enableLogs = true
 			options.sendDefaultPii = true
+			#if os(iOS)
 			options.attachScreenshot = true
+			#endif
 			options.attachViewHierarchy = true
 			options.sessionReplay.quality = .low
 			options.enableAutoSessionTracking = true
