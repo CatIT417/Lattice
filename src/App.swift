@@ -17,15 +17,15 @@ struct LatticeApp: App {
 			options.sendDefaultPii = true
 			#if os(iOS)
 			options.attachScreenshot = true
-			#endif
 			options.attachViewHierarchy = true
 			options.sessionReplay.quality = .low
-			options.enableAutoSessionTracking = true
 			options.sessionReplay.maskAllText = false
 			options.sessionReplay.maskAllImages = false
 			options.sessionReplay.onErrorSampleRate = 1.0
 			options.sessionReplay.sessionSampleRate = 0.1
 			options.screenshot = SentryViewScreenshotOptions(maskAllText: false, maskAllImages: false)
+			#endif
+			options.enableAutoSessionTracking = true
 			options.dsn = "https://296e9abf10b15af57e543fe72127f224@o85760.ingest.us.sentry.io/4510864994795520"
 		}
 		#endif
