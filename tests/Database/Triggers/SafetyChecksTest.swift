@@ -54,6 +54,25 @@ extension Tests.SafetyChecksTest {
 		}
 	}
 
+	@Test("Updating parentId to another Paragraph doesn't fail")
+	func canUpdateParentIdToNonRootBlock() throws {
+		let (parent, child) = try database.write { db in
+			let parent = try #require(try Paragraph.insert {
+				Paragraph(string: "Parent Paragraph", parentId: page.id, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db))
+
+			let child = try #require(try Paragraph.insert {
+				Paragraph(string: "Child Paragraph", parentId: page.id, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db))
+
+			return (parent, child)
+		}
+
+		try database.write { db in
+			try Block.find(child.id).update { $0.parentId = parent.id }.execute(db)
+		}
+	}
+
 	@Test("Updating pageId and parentId together succeeds")
 	func updatingPageIdAndParentIdTogetherSucceeds() throws {
 		let paragraph = try #require(database.write { db in
