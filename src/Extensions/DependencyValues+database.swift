@@ -7,8 +7,6 @@ extension DependencyValues {
 		defaultDatabase = try makeDatabase()
 		try prepareDatabase(defaultDatabase)
 
-		if context == .live, !Bundle.main.isDev {
-			defaultSyncEngine = try SyncEngine(for: defaultDatabase, tables: Block.self)
-		}
+		defaultSyncEngine = try SyncEngine(for: defaultDatabase, tables: Block.self)
 	}
 }

@@ -5,6 +5,7 @@ fileprivate typealias Tabs = Destination.Tabs
 
 struct RootContainer: View {
 	@Dependency(\.defaultDatabase) var database
+	@Dependency(\.defaultSyncEngine) var syncEngine
 	@State var router = Router(level: 0, identifierTab: nil)
 
 	var body: some View {
@@ -12,12 +13,26 @@ struct RootContainer: View {
 			Tab("Daily Notes", systemImage: "calendar", value: Tabs.daily) {
 				NavigationContainer(parentRouter: router, tab: .daily) {
 					DailyPagesScreen()
+						.toolbar {
+							ToolbarItem {
+								Image(systemName: syncEngine.isSynchronizing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud")
+									.imageScale(.small)
+							}
+							.sharedBackgroundVisibility(.hidden)
+						}
 				}
 			}
 
 			Tab(value: Tabs.search, role: .search) {
 				NavigationContainer(parentRouter: router, tab: .search) {
 					SearchScreen()
+						.toolbar {
+							ToolbarItem {
+								Image(systemName: syncEngine.isSynchronizing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud")
+									.imageScale(.small)
+							}
+							.sharedBackgroundVisibility(.hidden)
+						}
 				}
 			}
 		}
