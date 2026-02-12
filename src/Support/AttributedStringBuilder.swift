@@ -74,7 +74,7 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 
 	let result = NSMutableAttributedString()
 	var renderedToRaw: [Int] = []
-	renderedToRaw.reserveCapacity(text.count + 1)
+	renderedToRaw.reserveCapacity(text.utf16.count + 1)
 
 	let context = RenderContext(sourceText: text, rawStartOffset: 0, attributes: baseAttributes, font: font, inheritedTraits: [])
 	for span in spans {
@@ -82,7 +82,7 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 	}
 
 	// Add final position (for cursor at end)
-	renderedToRaw.append(text.count)
+	renderedToRaw.append(text.utf16.count)
 
 	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: result)
 }
@@ -264,21 +264,28 @@ private extension RenderContext {
 
 		let rawSpanText = String(sourceText[span.range])
 		let bracketOffset = ref.kind.bracketOffset(for: rawSpanText)
-		appendRawOffsets(count: ref.prefix.count, from: spanRawStart, into: &renderedToRaw)
-		appendRawOffsets(count: span.content.count, from: spanRawStart + bracketOffset, into: &renderedToRaw)
+		appendRawOffsets(for: ref.prefix, from: spanRawStart, into: &renderedToRaw)
+		appendRawOffsets(for: span.content, from: spanRawStart + bracketOffset, into: &renderedToRaw)
 	}
 
 	func append(text string: String, with attributes: [NSAttributedString.Key: Any], rawStart: Int, into result: NSMutableAttributedString, renderedToRaw: inout [Int]) {
 		result.append(NSAttributedString(string: string, attributes: attributes))
-		appendRawOffsets(count: string.count, from: rawStart, into: &renderedToRaw)
+		appendRawOffsets(for: string, from: rawStart, into: &renderedToRaw)
 	}
 
-	func appendRawOffsets(count: Int, from start: Int, into renderedToRaw: inout [Int]) {
-		renderedToRaw.append(contentsOf: start..<(start + count))
+	func appendRawOffsets(for renderedSegment: String, from rawStart: Int, into renderedToRaw: inout [Int]) {
+		var rawOffset = rawStart
+		for char in renderedSegment {
+			let width = char.utf16.count
+			for i in 0..<width {
+				renderedToRaw.append(rawOffset + i)
+			}
+			rawOffset += width
+		}
 	}
 
 	func rawStart(for span: InlineSpan) -> Int {
-		rawStartOffset + sourceText.distance(from: sourceText.startIndex, to: span.range.lowerBound)
+		rawStartOffset + sourceText.utf16.distance(from: sourceText.startIndex, to: span.range.lowerBound)
 	}
 }
 

@@ -175,7 +175,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: NSTextView) {
-			let safeOffset = min(max(0, offset), textView.string.count)
+			let safeOffset = min(max(0, offset), (textView.string as NSString).length)
 			textView.setSelectedRange(NSRange(location: safeOffset, length: 0))
 		}
 
@@ -183,13 +183,13 @@ extension EditableTextView {
 			let cursorLocation = textView.selectedRange().location
 
 			if cursorLocation == 0 { return -.infinity }
-			if cursorLocation == textView.string.count { return .infinity }
+			if cursorLocation == (textView.string as NSString).length { return .infinity }
 
 			guard let layoutManager = textView.layoutManager else {
 				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
 			}
 
-			let textLength = textView.string.count
+			let textLength = (textView.string as NSString).length
 			guard textLength > 0 else {
 				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
 			}
@@ -218,7 +218,7 @@ extension EditableTextView {
 
 			layoutManager.ensureLayout(for: textContainer)
 
-			let textLength = textView.string.count
+			let textLength = (textView.string as NSString).length
 			guard textLength > 0 else {
 				textView.setSelectedRange(NSRange(location: 0, length: 0))
 				return
@@ -256,7 +256,7 @@ extension EditableTextView {
 
 			setText(.raw, text: lastKnownText, textView: textView)
 
-			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.count) ?? selectedRange)
+			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.utf16.count) ?? selectedRange)
 
 			if let pendingAction = parent.blockCoordinator.popAction(for: parent.blockId) {
 				switch pendingAction {
@@ -274,9 +274,9 @@ extension EditableTextView {
 		}
 
 		fileprivate func newBlockRequested(textView: NSTextView, range: NSRange) {
-			let currentText = textView.attributedString().string
-			let newText = String(currentText.prefix(range.location))
-			let remainingText = String(currentText.dropFirst(range.location))
+			let currentText = textView.attributedString().string as NSString
+			let newText = currentText.substring(to: range.location)
+			let remainingText = currentText.substring(from: range.location)
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textDidEndEditing will read the rendered text (without [[...]] syntax)

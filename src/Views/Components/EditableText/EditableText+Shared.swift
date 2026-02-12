@@ -26,9 +26,9 @@ extension EditableTextView.Coordinator {
 
 	/// Returns the range to delete if the cursor is between a matching bracket pair.
 	func shouldAutoDelete(in currentText: String, at offset: Int) -> NSRange? {
-		guard offset > 0, offset < currentText.count else { return nil }
+		guard offset > 0, offset < (currentText as NSString).length else { return nil }
 
-		let index = currentText.index(currentText.startIndex, offsetBy: offset)
+		let index = String.Index(utf16Offset: offset, in: currentText)
 		let charBefore = currentText[currentText.index(before: index)]
 		let charAfter = currentText[index]
 
@@ -41,9 +41,9 @@ extension EditableTextView.Coordinator {
 
 	/// Returns true if the typed character is a closing bracket that matches the character at cursor.
 	func shouldSkipClosingBracket(for typedText: String, in currentText: String, at offset: Int) -> Bool {
-		guard typedText.count == 1, let typedChar = typedText.first, offset < currentText.count else { return false }
+		guard typedText.count == 1, let typedChar = typedText.first, offset < (currentText as NSString).length else { return false }
 
-		let index = currentText.index(currentText.startIndex, offsetBy: offset)
+		let index = String.Index(utf16Offset: offset, in: currentText)
 		let charAtCursor = currentText[index]
 
 		return bracketPairs.contains { $0.close == typedChar && charAtCursor == typedChar }

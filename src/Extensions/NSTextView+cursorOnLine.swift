@@ -5,7 +5,7 @@ extension NSTextView {
 	func isCursorOnFirstLine() -> Bool {
 		guard let layoutManager else { return true }
 
-		let textLength = string.count
+		let textLength = (string as NSString).length
 		guard textLength > 0 else { return true }
 
 		let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(selectedRange().location, textLength - 1))
@@ -20,7 +20,7 @@ extension NSTextView {
 	func isCursorOnLastLine() -> Bool {
 		guard let layoutManager else { return true }
 
-		let textLength = string.count
+		let textLength = (string as NSString).length
 		guard textLength > 0 else { return true }
 
 		let cursorGlyphIndex = layoutManager.glyphIndexForCharacter(at: min(selectedRange().location, textLength - 1))

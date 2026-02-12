@@ -165,7 +165,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: UITextView) {
-			if let position = textView.position(from: textView.beginningOfDocument, offset: min(max(0, offset), textView.attributedText.string.count)) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: min(max(0, offset), textView.attributedText.length)) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
 			}
 		}
@@ -177,14 +177,14 @@ extension EditableTextView {
 			}
 
 			if textView.selectedRange.location == 0 { return -.infinity }
-			if textView.selectedRange.location == textView.attributedText.string.count { return .infinity }
+			if textView.selectedRange.location == textView.attributedText.length { return .infinity }
 
 			let caretRect = textView.caretRect(for: selectedRange.start)
 			return textView.convert(CGPoint(x: caretRect.origin.x, y: 0), to: nil).x
 		}
 
 		func moveCursorToVisualX(_ windowX: CGFloat, edge: BlockCoordinator.LineEdge, textView: UITextView) {
-			let textLength = textView.attributedText.string.count
+			let textLength = textView.attributedText.length
 			guard textLength > 0 else {
 				moveCursorTo(offset: 0, textView: textView)
 				return
@@ -258,7 +258,7 @@ extension EditableTextView {
 			setText(.raw, text: lastKnownText, textView: textView)
 
 			if let cursorOffset {
-				moveCursorTo(offset: min(indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset, lastKnownText.count), textView: textView)
+				moveCursorTo(offset: min(indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset, lastKnownText.utf16.count), textView: textView)
 			}
 		}
 
@@ -270,9 +270,9 @@ extension EditableTextView {
 		}
 
 		private func newBlockRequested(textView: UITextView, range: NSRange) {
-			let currentText = textView.attributedText.string
-			let newText = String(currentText.prefix(range.location))
-			let remainingText = String(currentText.dropFirst(range.location))
+			let currentText = textView.attributedText.string as NSString
+			let newText = currentText.substring(to: range.location)
+			let remainingText = currentText.substring(from: range.location)
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textViewDidEndEditing will read the rendered text (without [[...]] syntax)

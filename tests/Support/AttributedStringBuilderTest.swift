@@ -156,7 +156,7 @@ extension Tests.AttributedStringBuilderTest {
 		var renderedSearchStart = rendered.startIndex
 		for ref in text.extractRefs() {
 			let rawRefText = String(text[ref.range])
-			let rawTargetRange = rawRefText.range(of: ref.target) 
+			let rawTargetRange = rawRefText.range(of: ref.target)
 			#expect(rawTargetRange != nil)
 
 			let rawRefStart = text.distance(from: text.startIndex, to: ref.range.lowerBound)
@@ -1024,6 +1024,66 @@ extension Tests.AttributedStringBuilderTest {
 			if value is URL { hasLink = true }
 		}
 		#expect(hasLink)
+	}
+
+	@Test("buildAttributedString maps cursor positions in UTF-16 when text contains emoji and references")
+	func buildAttributedStringMapsUTF16WithEmoji() throws {
+		// Raw: "Hello 🎉 [[World]]!"
+		//       UTF-16 offsets:
+		//       H=0 e=1 l=2 l=3 o=4 ' '=5 🎉=6,7 ' '=8 [=9 [=10 W=11 o=12 r=13 l=14 d=15 ]=16 ]=17 !=18  end=19
+		// Rendered: "Hello 🎉 World!"
+		//       H=0 e=1 l=2 l=3 o=4 ' '=5 🎉=6,7 ' '=8 W=9 o=10 r=11 l=12 d=13 !=14  end=15
+
+		let text = "Hello 🎉 [[World]]!"
+		let result = buildAttributedString(from: text, font: testFont)
+
+		expectNoDifference(result.attributedString.string, "Hello 🎉 World!")
+
+		let mapping = try #require(result.indexMapping)
+		assertInlineSnapshot(of: mapping, as: .customDump) {
+			"""
+			AttributedStringResult.IndexMapping(
+			  renderedToRaw: [
+			    [0]: 0,
+			    [1]: 1,
+			    [2]: 2,
+			    [3]: 3,
+			    [4]: 4,
+			    [5]: 5,
+			    [6]: 6,
+			    [7]: 7,
+			    [8]: 8,
+			    [9]: 11,
+			    [10]: 12,
+			    [11]: 13,
+			    [12]: 14,
+			    [13]: 15,
+			    [14]: 18,
+			    [15]: 19
+			  ]
+			)
+			"""
+		}
+
+		// Before emoji: identity mapping
+		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5)
+		// Emoji occupies two UTF-16 code units in both rendered and raw
+		expectNoDifference(mapping.rawIndex(fromRendered: 6), 6)
+		expectNoDifference(mapping.rawIndex(fromRendered: 7), 7)
+		// Space after emoji
+		expectNoDifference(mapping.rawIndex(fromRendered: 8), 8)
+		// 'W' in rendered (UTF-16 pos 9) maps to raw UTF-16 pos 11 (after "[[")
+		expectNoDifference(mapping.rawIndex(fromRendered: 9), 11)
+		// 'd' at rendered 13 maps to raw 15
+		expectNoDifference(mapping.rawIndex(fromRendered: 13), 15)
+		// '!' at rendered 14 maps to raw 18 (after "]]")
+		expectNoDifference(mapping.rawIndex(fromRendered: 14), 18)
+		// End position (rendered UTF-16 length 15) maps to raw UTF-16 length 19
+		expectNoDifference(mapping.rawIndex(fromRendered: 15), 19)
+		// Verify these are UTF-16 counts, not Swift Character counts
+		#expect(text.count == 18, "raw text has 18 Swift chars but 19 UTF-16 code units")
+		#expect(text.utf16.count == 19)
+		#expect(result.attributedString.string.utf16.count == 15)
 	}
 
 	@Test("buildAttributedString correctly maps cursor for bracketed tags inside formatting")

@@ -212,7 +212,7 @@ struct ParagraphView: View {
 
 		blockCoordinator.request(
 			for: previousParagraphID,
-			at: previousParagraph.string.count,
+			at: previousParagraph.string.utf16.count,
 			expectsNewText: true,
 			startingInMode: .raw
 		)

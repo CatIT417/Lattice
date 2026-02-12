@@ -266,6 +266,10 @@ Raw:      "Hello [[World]]!" (cursor should be at 10 = 'r')
 
 `AttributedStringBuilder` produces both the NSAttributedString and an `IndexMapping` that maps each rendered character position to its raw position.
 
+### UTF-16 Indexing
+
+All cursor positions, text offsets, and index mappings in EditableText use **UTF-16 code units** (matching `NSRange`, `NSString.length`, and UIKit/AppKit layout APIs). Never use Swift `String.count` or `String.index(_:offsetBy:)` with offsets from `NSRange.location` — use `(string as NSString).length`, `String.Index(utf16Offset:in:)`, or `string.utf16.count` instead.
+
 ### Link Tap Handling
 
 Links use deep URLs (`lattice://page/Title`) that NavigationKit handles:
