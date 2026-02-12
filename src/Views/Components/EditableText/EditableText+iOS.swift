@@ -435,6 +435,8 @@ final class AutosizingTextView: UITextView {
 		[
 			UIKeyCommand(title: "Indent Block", action: #selector(handleTab), input: "\t"),
 			UIKeyCommand(title: "Outdent Block", action: #selector(handleBacktab), input: "\t", modifierFlags: .shift),
+			UIKeyCommand(title: "Move Block Up", action: #selector(handleMoveUp), input: UIKeyCommand.inputUpArrow, modifierFlags: [.control, .command]),
+			UIKeyCommand(title: "Move Block Down", action: #selector(handleMoveDown), input: UIKeyCommand.inputDownArrow, modifierFlags: [.control, .command]),
 		]
 	}
 
@@ -448,6 +450,18 @@ final class AutosizingTextView: UITextView {
 		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
 
 		coordinator.outdent(textView: self)
+	}
+
+	@objc private func handleMoveUp() {
+		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
+
+		coordinator.moveBlock(textView: self, delta: -1)
+	}
+
+	@objc private func handleMoveDown() {
+		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
+
+		coordinator.moveBlock(textView: self, delta: 1)
 	}
 
 	@available(*, unavailable)
