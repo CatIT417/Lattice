@@ -60,10 +60,9 @@ struct ParagraphView: View {
 			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			#if os(iOS)
 			case let .moveBlock(delta, cursorPosition, text): changeOrder(cursorPosition: cursorPosition, delta: delta, currentText: text)
-			#elseif os(macOS)
-			case let .moveCursorDown(cursor): moveToNextBlock(fromCursorPosition: cursor)
-			case let .moveCursorUp(cursor): moveToPreviousBlock(fromCursorPosition: cursor)
 			#endif
+			case let .moveCursorDown(visualX): moveToNextBlock(visualX: visualX)
+			case let .moveCursorUp(visualX): moveToPreviousBlock(visualX: visualX)
 		}
 	}
 
@@ -221,33 +220,23 @@ struct ParagraphView: View {
 		return true
 	}
 
-	private func moveToPreviousBlock(fromCursorPosition position: Int) -> Bool {
-		guard let previousBlockId = blockTree.previousBlockOnScreen(for: paragraph), let previousParagraph = withErrorReporting(catching: {
-			try database.read { db in
-				try Paragraph.find(previousBlockId).fetchOne(db)
-			}
-		}) else { return false }
+	private func moveToPreviousBlock(visualX: CGFloat) -> Bool {
+		guard let previousBlockId = blockTree.previousBlockOnScreen(for: paragraph) else { return false }
 
-		blockCoordinator.request(
-			for: previousBlockId,
-			at: position >= paragraph.string.count ? previousParagraph.string.count : min(position, previousParagraph.string.count),
-			startingInMode: .raw
-		)
+		if visualX == .infinity { blockCoordinator.request(for: previousBlockId, at: Int.max, startingInMode: .raw) }
+		else if visualX == -.infinity { blockCoordinator.request(for: previousBlockId, at: 0, startingInMode: .raw) }
+		else { blockCoordinator.request(for: previousBlockId, visualX: visualX, edge: .last, startingInMode: .raw) }
+
 		return true
 	}
 
-	private func moveToNextBlock(fromCursorPosition position: Int) -> Bool {
-		guard let nextBlockId = blockTree.nextBlockOnScreen(for: paragraph), let nextParagraph = withErrorReporting(catching: {
-			try database.read { db in
-				try Paragraph.find(nextBlockId).fetchOne(db)
-			}
-		}) else { return false }
+	private func moveToNextBlock(visualX: CGFloat) -> Bool {
+		guard let nextBlockId = blockTree.nextBlockOnScreen(for: paragraph) else { return false }
 
-		blockCoordinator.request(
-			for: nextBlockId,
-			at: position >= paragraph.string.count ? nextParagraph.string.count : min(position, nextParagraph.string.count),
-			startingInMode: .raw
-		)
+		if visualX == .infinity { blockCoordinator.request(for: nextBlockId, at: Int.max, startingInMode: .raw) }
+		else if visualX == -.infinity { blockCoordinator.request(for: nextBlockId, at: 0, startingInMode: .raw) }
+		else { blockCoordinator.request(for: nextBlockId, visualX: visualX, edge: .first, startingInMode: .raw) }
+
 		return true
 	}
 

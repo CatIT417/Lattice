@@ -70,15 +70,17 @@ struct EditableTextView: UIViewRepresentable {
 		context.coordinator.parent = self
 
 		if blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
-			let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId)
+			let placement = blockCoordinator.cursorPlacementFor(blockId: blockId)
 
 			// Becoming the first responder synchronously triggers an AttributeGraph cycle
 			// when calling BlockCoordinator.request in ParagraphView.moveCursorTo.
 			DispatchQueue.main.async {
 				guard textView.becomeFirstResponder() else { return }
 
-				if let cursorPosition {
-					context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+				switch placement {
+					case let .offset(position): context.coordinator.moveCursorTo(offset: position, textView: textView)
+					case let .visualX(x, edge): context.coordinator.moveCursorToVisualX(x, edge: edge, textView: textView)
+					case nil: break
 				}
 
 				@Dependency(\.blockCoordinator) var blockCoordinator
@@ -168,6 +170,46 @@ extension EditableTextView {
 			}
 		}
 
+		func cursorXInWindow(textView: UITextView) -> CGFloat {
+			guard let selectedRange = textView.selectedTextRange else {
+				let xInView = textView.textContainerInset.left + textView.textContainer.lineFragmentPadding
+				return textView.convert(CGPoint(x: xInView, y: 0), to: nil).x
+			}
+
+			if textView.selectedRange.location == 0 { return -.infinity }
+			if textView.selectedRange.location == textView.attributedText.string.count { return .infinity }
+
+			let caretRect = textView.caretRect(for: selectedRange.start)
+			return textView.convert(CGPoint(x: caretRect.origin.x, y: 0), to: nil).x
+		}
+
+		func moveCursorToVisualX(_ windowX: CGFloat, edge: BlockCoordinator.LineEdge, textView: UITextView) {
+			let textLength = textView.attributedText.string.count
+			guard textLength > 0 else {
+				moveCursorTo(offset: 0, textView: textView)
+				return
+			}
+
+			textView.layoutManager.ensureLayout(for: textView.textContainer)
+
+			// Find the target line's Y center
+			let targetGlyphIndex: Int = switch edge {
+				case .first: 0
+				case .last: textView.layoutManager.glyphIndexForCharacter(at: textLength - 1)
+			}
+
+			let lineRect = textView.layoutManager.lineFragmentRect(forGlyphAt: targetGlyphIndex, effectiveRange: nil)
+			let lineY = lineRect.midY + textView.textContainerInset.top
+
+			// Convert window X to text view coordinates
+			let pointInView = textView.convert(CGPoint(x: windowX, y: 0), from: nil)
+			let targetPoint = CGPoint(x: pointInView.x, y: lineY)
+
+			if let closestPos = textView.closestPosition(to: targetPoint) {
+				textView.selectedTextRange = textView.textRange(from: closestPos, to: closestPos)
+			}
+		}
+
 		func indent(textView: UITextView) {
 			lastKnownText = textView.attributedText.string
 			_ = parent.handleAction(.indent(cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
@@ -181,6 +223,14 @@ extension EditableTextView {
 		func moveBlock(textView: UITextView, delta: Int) {
 			lastKnownText = textView.attributedText.string
 			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
+		}
+
+		func moveCursorUp(textView: UITextView) -> Bool {
+			return parent.handleAction(.moveCursorUp(visualX: cursorXInWindow(textView: textView)))
+		}
+
+		func moveCursorDown(textView: UITextView) -> Bool {
+			return parent.handleAction(.moveCursorDown(visualX: cursorXInWindow(textView: textView)))
 		}
 
 		func insertBrackets(textView: UITextView) {
@@ -419,6 +469,29 @@ final class AutosizingTextView: UITextView {
 			lastLayoutWidth = bounds.width
 			invalidateIntrinsicContentSize()
 		}
+	}
+
+	override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		guard let key = presses.first?.key, let coordinator = delegate as? EditableTextView.Coordinator else {
+			super.pressesBegan(presses, with: event)
+			return
+		}
+
+		let modifiers: UIKeyModifierFlags = [.shift, .control, .alternate, .command]
+
+		if key.keyCode == .keyboardUpArrow, key.modifierFlags.intersection(modifiers).isEmpty,
+		   isCursorOnFirstLine(), coordinator.moveCursorUp(textView: self)
+		{
+			return
+		}
+
+		if key.keyCode == .keyboardDownArrow, key.modifierFlags.intersection(modifiers).isEmpty,
+		   isCursorOnLastLine(), coordinator.moveCursorDown(textView: self)
+		{
+			return
+		}
+
+		super.pressesBegan(presses, with: event)
 	}
 }
 #endif

@@ -35,4 +35,35 @@ extension NSTextView {
 		return cursorLineRange.location == lastLineRange.location
 	}
 }
+#elseif os(iOS) || os(visionOS)
+import UIKit
+
+extension UITextView {
+	func isCursorOnFirstLine() -> Bool {
+		let textLength = (text as NSString?)?.length ?? 0
+		guard textLength > 0 else { return true }
+
+		let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(selectedRange.location, textLength - 1))
+
+		var lineRange = NSRange()
+		layoutManager.lineFragmentRect(forGlyphAt: max(0, glyphIndex), effectiveRange: &lineRange)
+
+		return lineRange.location == 0
+	}
+
+	func isCursorOnLastLine() -> Bool {
+		let textLength = (text as NSString?)?.length ?? 0
+		guard textLength > 0 else { return true }
+
+		let cursorGlyphIndex = layoutManager.glyphIndexForCharacter(at: min(selectedRange.location, textLength - 1))
+		let lastGlyphIndex = layoutManager.glyphIndexForCharacter(at: textLength - 1)
+
+		var lastLineRange = NSRange()
+		var cursorLineRange = NSRange()
+		layoutManager.lineFragmentRect(forGlyphAt: lastGlyphIndex, effectiveRange: &lastLineRange)
+		layoutManager.lineFragmentRect(forGlyphAt: cursorGlyphIndex, effectiveRange: &cursorLineRange)
+
+		return cursorLineRange.location == lastLineRange.location
+	}
+}
 #endif

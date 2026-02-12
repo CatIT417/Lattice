@@ -6,9 +6,21 @@ final class BlockCoordinator {
 	enum RenderMode: Equatable, Hashable { case raw, rendered }
 	enum PendingAction: Equatable, Hashable { case indent, outdent }
 
+	enum CursorPlacement: Equatable, Hashable {
+		/// Place cursor at a specific character offset
+		case offset(Int)
+		/// Place cursor at the visual X position (window coordinates) on the first or last line
+		case visualX(CGFloat, edge: LineEdge)
+	}
+
+	enum LineEdge: Equatable, Hashable {
+		case first // moving DOWN into this block
+		case last // moving UP into this block
+	}
+
 	private var focusedBlock: Block.ID?
 
-	private var cursorPosition: Int?
+	private var cursorPlacement: CursorPlacement?
 	private var isExpectingText: Bool = false
 	private var pendingAction: PendingAction?
 	private var renderMode: RenderMode = .rendered
@@ -18,8 +30,17 @@ final class BlockCoordinator {
 
 		renderMode = mode
 		focusedBlock = blockId
-		cursorPosition = position
+		cursorPlacement = position.map { .offset($0) }
 		isExpectingText = expectsNewText
+	}
+
+	func request(for blockId: Block.ID?, visualX: CGFloat, edge: LineEdge, startingInMode mode: RenderMode = .rendered) {
+		guard let blockId else { return }
+
+		renderMode = mode
+		focusedBlock = blockId
+		isExpectingText = false
+		cursorPlacement = .visualX(visualX, edge: edge)
 	}
 
 	func shouldFocus(blockId: Block.ID?) -> Bool {
@@ -37,10 +58,16 @@ final class BlockCoordinator {
 		return focusedBlock != blockId
 	}
 
-	func cursorPositionFor(blockId: Block.ID?) -> Int? {
+	func cursorPlacementFor(blockId: Block.ID?) -> CursorPlacement? {
 		guard let blockId, focusedBlock == blockId else { return nil }
 
-		return cursorPosition
+		return cursorPlacement
+	}
+
+	func cursorPositionFor(blockId: Block.ID?) -> Int? {
+		guard let blockId, focusedBlock == blockId, case let .offset(pos) = cursorPlacement else { return nil }
+
+		return pos
 	}
 
 	func modeFor(blockId: Block.ID?) -> RenderMode? {
@@ -53,7 +80,7 @@ final class BlockCoordinator {
 		guard let blockId, focusedBlock == blockId, !isExpectingText else { return }
 
 		focusedBlock = nil
-		cursorPosition = nil
+		cursorPlacement = nil
 		renderMode = .rendered
 	}
 

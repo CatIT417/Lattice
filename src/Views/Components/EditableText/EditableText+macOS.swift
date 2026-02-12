@@ -67,7 +67,7 @@ struct EditableTextView: NSViewRepresentable {
 		context.coordinator.parent = self
 
 		if blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
-			let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId)
+			let placement = blockCoordinator.cursorPlacementFor(blockId: blockId)
 
 			// View might not be in window yet (e.g., newly created from PlaceholderBlock).
 			// Only clear focus after successfully becoming first responder.
@@ -75,8 +75,10 @@ struct EditableTextView: NSViewRepresentable {
 				guard let window = textView.window else { return }
 				window.makeFirstResponder(textView)
 
-				if let cursorPosition {
-					context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
+				switch placement {
+					case let .offset(position): context.coordinator.moveCursorTo(offset: position, textView: textView)
+					case let .visualX(x, edge): context.coordinator.moveCursorToVisualX(x, edge: edge, textView: textView)
+					case nil: break
 				}
 
 				blockCoordinator?.clearFocus(for: self.blockId)
@@ -175,6 +177,76 @@ extension EditableTextView {
 		func moveCursorTo(offset: Int, textView: NSTextView) {
 			let safeOffset = min(max(0, offset), textView.string.count)
 			textView.setSelectedRange(NSRange(location: safeOffset, length: 0))
+		}
+
+		func cursorXInWindow(textView: NSTextView) -> CGFloat {
+			let cursorLocation = textView.selectedRange().location
+
+			if cursorLocation == 0 { return -.infinity }
+			if cursorLocation == textView.string.count { return .infinity }
+
+			guard let layoutManager = textView.layoutManager else {
+				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
+			}
+
+			let textLength = textView.string.count
+			guard textLength > 0 else {
+				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
+			}
+
+			let charIndex = min(cursorLocation, textLength - 1)
+			let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
+
+			let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+			let glyphLocation = layoutManager.location(forGlyphAt: glyphIndex)
+
+			var xInTextContainer = lineRect.origin.x + glyphLocation.x
+
+			// If cursor is past the character (at end of text or after the glyph), add the glyph advance
+			if cursorLocation > charIndex {
+				let glyphRange = NSRange(location: glyphIndex, length: 1)
+				let glyphRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textView.textContainer!)
+				xInTextContainer = glyphRect.maxX
+			}
+
+			let xInView = xInTextContainer + textView.textContainerOrigin.x
+			return textView.convert(NSPoint(x: xInView, y: 0), to: nil).x
+		}
+
+		func moveCursorToVisualX(_ windowX: CGFloat, edge: BlockCoordinator.LineEdge, textView: NSTextView) {
+			guard let layoutManager = textView.layoutManager, let textContainer = textView.textContainer else { return }
+
+			layoutManager.ensureLayout(for: textContainer)
+
+			let textLength = textView.string.count
+			guard textLength > 0 else {
+				textView.setSelectedRange(NSRange(location: 0, length: 0))
+				return
+			}
+
+			// Find the target line
+			let targetGlyphIndex: Int = switch edge {
+				case .first: 0
+				case .last: layoutManager.glyphIndexForCharacter(at: textLength - 1)
+			}
+
+			let lineRect = layoutManager.lineFragmentRect(forGlyphAt: targetGlyphIndex, effectiveRange: nil)
+
+			// Convert window X to text container coordinates
+			let pointInView = textView.convert(NSPoint(x: windowX, y: 0), from: nil)
+			let xInTextContainer = pointInView.x - textView.textContainerOrigin.x
+			let pointInTextContainer = NSPoint(x: xInTextContainer, y: lineRect.midY)
+
+			// Hit-test to find character
+			var fraction: CGFloat = 0
+			let glyphIndex = layoutManager.glyphIndex(for: pointInTextContainer, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
+			var charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+
+			if fraction > 0.5 {
+				charIndex = min(charIndex + 1, textLength)
+			}
+
+			textView.setSelectedRange(NSRange(location: charIndex, length: 0))
 		}
 
 		fileprivate func transitionToEditMode(textView: NSTextView) {
@@ -327,11 +399,11 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			}
 		}
 
-		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), parent.handleAction(.moveCursorUp(cursorPosition: textView.selectedRange().location)) {
+		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), parent.handleAction(.moveCursorUp(visualX: cursorXInWindow(textView: textView))) {
 			return true
 		}
 
-		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), parent.handleAction(.moveCursorDown(cursorPosition: textView.selectedRange().location)) {
+		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), parent.handleAction(.moveCursorDown(visualX: cursorXInWindow(textView: textView))) {
 			return true
 		}
 

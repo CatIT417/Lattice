@@ -22,10 +22,8 @@ struct EditableText: View {
 		case moveBlock(delta: Int, cursorPosition: Int, currentText: String)
 		#endif
 
-		#if os(macOS)
-		case moveCursorUp(cursorPosition: Int)
-		case moveCursorDown(cursorPosition: Int)
-		#endif
+		case moveCursorUp(visualX: CGFloat)
+		case moveCursorDown(visualX: CGFloat)
 	}
 
 	var blockId: Block.ID? = nil
