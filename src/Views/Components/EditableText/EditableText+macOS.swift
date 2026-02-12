@@ -114,8 +114,11 @@ struct EditableTextView: NSViewRepresentable {
 	}
 
 	static func dismantleNSView(_ nsView: AutosizingTextView, coordinator: Coordinator) {
-		// When SwiftUI tears down the view, force end editing to ensure text is saved
-		if coordinator.isEditing {
+		guard coordinator.isEditing else { return }
+
+		if coordinator.parent.blockCoordinator.shouldFocus(blockId: coordinator.parent.blockId) {
+			coordinator.saveIfEditing()
+		} else {
 			nsView.window?.makeFirstResponder(nil)
 		}
 	}
@@ -178,17 +181,15 @@ extension EditableTextView {
 			isEditing = true
 
 			let selectedRange = textView.selectedRange()
-			
 
 			setText(.raw, text: lastKnownText, textView: textView)
-
 
 			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.count) ?? selectedRange)
 
 			if let pendingAction = parent.blockCoordinator.popAction(for: parent.blockId) {
 				switch pendingAction {
-					case .indent: _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location))
-					case .outdent: _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location))
+					case .indent: _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location, currentText: lastKnownText))
+					case .outdent: _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location, currentText: lastKnownText))
 				}
 			}
 		}
@@ -336,14 +337,14 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 		if selector == #selector(NSResponder.insertTab(_:)) {
 			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.indent) }
-			else { _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location)) }
+			else { _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location, currentText: textView.attributedString().string)) }
 
 			return true
 		}
 
 		if selector == #selector(NSResponder.insertBacktab(_:)) {
 			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.outdent) }
-			else { _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location)) }
+			else { _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location, currentText: textView.attributedString().string)) }
 
 			return true
 		}

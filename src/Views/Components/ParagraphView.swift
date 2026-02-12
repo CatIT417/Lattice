@@ -54,12 +54,12 @@ struct ParagraphView: View {
 	private func handleAction(_ action: EditableText.Action) -> Bool {
 		switch action {
 			case let .textChanged(text): saveChanges(text)
-			case let .indent(cursor): indentBlock(cursorPosition: cursor)
-			case let .outdent(cursor): outdentBlock(cursorPosition: cursor)
+			case let .indent(cursor, text): indentBlock(cursorPosition: cursor, currentText: text)
+			case let .outdent(cursor, text): outdentBlock(cursorPosition: cursor, currentText: text)
 			case let .blockBreak(remainingText): createNewBlock(withText: remainingText)
 			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			#if os(iOS)
-			case let .moveBlock(delta, cursorPosition): changeOrder(cursorPosition: cursorPosition, delta: delta)
+			case let .moveBlock(delta, cursorPosition, text): changeOrder(cursorPosition: cursorPosition, delta: delta, currentText: text)
 			#elseif os(macOS)
 			case let .moveCursorDown(cursor): moveToNextBlock(fromCursorPosition: cursor)
 			case let .moveCursorUp(cursor): moveToPreviousBlock(fromCursorPosition: cursor)
@@ -79,7 +79,7 @@ struct ParagraphView: View {
 		return true
 	}
 
-	private func changeOrder(cursorPosition: Int, delta: Int) -> Bool {
+	private func changeOrder(cursorPosition: Int, delta: Int, currentText: String) -> Bool {
 		let siblings = blockTree.children(of: paragraph.parentId)
 		guard paragraph.order + delta >= 0, paragraph.order + delta < siblings.count else {
 			return false
@@ -88,12 +88,18 @@ struct ParagraphView: View {
 		withErrorReporting {
 			try database.write { db in
 				try Block.find(paragraph.id)
-					.update { $0.order += delta }
+					.update {
+						$0.order += delta
+
+						if currentText != paragraph.string {
+							$0.string = currentText
+						}
+					}
 					.execute(db)
 			}
 		}
 
-		blockCoordinator.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition, expectsNewText: currentText != paragraph.string, startingInMode: .raw)
 		return true
 	}
 
@@ -128,7 +134,7 @@ struct ParagraphView: View {
 	}
 
 	@discardableResult
-	private func outdentBlock(cursorPosition: Int? = nil) -> Bool {
+	private func outdentBlock(cursorPosition: Int? = nil, currentText: String? = nil) -> Bool {
 		guard !blockTree.isRoot(paragraph.id), !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) else {
 			return false
 		}
@@ -143,42 +149,46 @@ struct ParagraphView: View {
 					.update {
 						$0.order = parentBlock.order + 1
 						$0.parentId = parentBlock.parentId
+
+						if let currentText, currentText != paragraph.string {
+							$0.string = currentText
+						}
 					}
 					.execute(db)
 			}
 		}
 
-		blockCoordinator.request(for: paragraph.id, at: cursorPosition ?? 0, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition ?? 0, expectsNewText: currentText != paragraph.string, startingInMode: .raw)
 		return true
 	}
 
-	private func indentBlock(cursorPosition: Int) -> Bool {
+	private func indentBlock(cursorPosition: Int, currentText: String) -> Bool {
 		guard let previousSibling = blockTree.previousSibling(for: paragraph) else {
 			return false
 		}
 
-		let maxOrder = withErrorReporting(catching: {
-			try database.read { db in
-				try Paragraph
+		withErrorReporting {
+			try database.write { db in
+				let maxOrder = try Paragraph
 					.where { $0.parentId == previousSibling.id }
 					.order { $0.order.desc() }
 					.fetchOne(db)?
 					.order
-			}
-		}) ?? nil
 
-		withErrorReporting {
-			try database.write { db in
 				try Block.find(paragraph.id)
 					.update {
 						$0.order = (maxOrder ?? -1) + 1
 						$0.parentId = previousSibling.id
+
+						if currentText != paragraph.string {
+							$0.string = currentText
+						}
 					}
 					.execute(db)
 			}
 		}
 
-		blockCoordinator.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition, expectsNewText: currentText != paragraph.string, startingInMode: .raw)
 		return true
 	}
 

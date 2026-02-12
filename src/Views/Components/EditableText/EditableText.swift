@@ -13,13 +13,13 @@ struct EditableText: View {
 		case mergeIntoPrevious(appendingContent: String)
 
 		/// Turn this block into a child of the previous block
-		case indent(cursorPosition: Int)
+		case indent(cursorPosition: Int, currentText: String)
 
 		/// Turn this block into a sibling of its parent
-		case outdent(cursorPosition: Int)
+		case outdent(cursorPosition: Int, currentText: String)
 
 		#if os(iOS)
-		case moveBlock(delta: Int, cursorPosition: Int)
+		case moveBlock(delta: Int, cursorPosition: Int, currentText: String)
 		#endif
 
 		#if os(macOS)

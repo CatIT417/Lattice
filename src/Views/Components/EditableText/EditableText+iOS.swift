@@ -169,15 +169,18 @@ extension EditableTextView {
 		}
 
 		func indent(textView: UITextView) {
-			_ = parent.handleAction(.indent(cursorPosition: textView.selectedRange.location))
+			lastKnownText = textView.attributedText.string
+			_ = parent.handleAction(.indent(cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
 		}
 
 		func outdent(textView: UITextView) {
-			_ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange.location))
+			lastKnownText = textView.attributedText.string
+			_ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
 		}
 
 		func moveBlock(textView: UITextView, delta: Int) {
-			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location))
+			lastKnownText = textView.attributedText.string
+			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
 		}
 
 		func insertBrackets(textView: UITextView) {
@@ -376,6 +379,25 @@ final class AutosizingTextView: UITextView {
 	init() {
 		// Force TextKit 1
 		super.init(frame: .zero, textContainer: nil)
+	}
+
+	override var keyCommands: [UIKeyCommand]? {
+		[
+			UIKeyCommand(title: "Indent Block", action: #selector(handleTab), input: "\t"),
+			UIKeyCommand(title: "Outdent Block", action: #selector(handleBacktab), input: "\t", modifierFlags: .shift),
+		]
+	}
+
+	@objc private func handleTab() {
+		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
+
+		coordinator.indent(textView: self)
+	}
+
+	@objc private func handleBacktab() {
+		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
+
+		coordinator.outdent(textView: self)
 	}
 
 	@available(*, unavailable)
