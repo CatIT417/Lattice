@@ -3,7 +3,6 @@ import SQLiteData
 
 struct PageView: View {
 	@FetchOne var pageWithContent: Page.WithChildren? = nil
-	@State private var blockCoordinator = BlockCoordinator()
 
 	init(pageId: Page.ID) {
 		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
@@ -35,7 +34,6 @@ struct PageView: View {
 			}
 			.safeAreaPadding()
 			.environment(\.blockTree, tree)
-			.environment(\.blockCoordinator, blockCoordinator)
 		}
 	}
 }

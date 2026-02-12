@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import Dependencies
 
 extension NSTextView {
 	// TODO: Figure out if this is still needed
@@ -19,7 +20,7 @@ struct EditableTextView: NSViewRepresentable {
 	let onLinkClicked: (URL) -> Void
 	let handleAction: (EditableText.Action) -> Bool
 
-	@Environment(\.blockCoordinator) var blockCoordinator
+	@Dependency(\.blockCoordinator) var blockCoordinator
 
 	private var nsFont: NSFont {
 		ctFont as NSFont
@@ -57,7 +58,7 @@ struct EditableTextView: NSViewRepresentable {
 		textView.setContentCompressionResistancePriority(.required, for: .vertical)
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-		context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
+		context.coordinator.setText(blockCoordinator.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 
 		return textView
 	}
@@ -65,7 +66,7 @@ struct EditableTextView: NSViewRepresentable {
 	func updateNSView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
 
-		if let blockCoordinator, blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
+		if blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
 			let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId)
 
 			// View might not be in window yet (e.g., newly created from PlaceholderBlock).
@@ -82,13 +83,13 @@ struct EditableTextView: NSViewRepresentable {
 			}
 		}
 
-		if context.coordinator.lastKnownText != text, let expectsNewText = blockCoordinator?.expectsNewText(for: blockId), expectsNewText || !context.coordinator.isEditing {
+		if context.coordinator.lastKnownText != text, blockCoordinator.expectsNewText(for: blockId) || !context.coordinator.isEditing {
 			context.coordinator.lastKnownText = text
-			context.coordinator.setText(blockCoordinator?.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
-			if let cursorPosition = blockCoordinator?.cursorPositionFor(blockId: blockId) {
+			context.coordinator.setText(blockCoordinator.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
+			if let cursorPosition = blockCoordinator.cursorPositionFor(blockId: blockId) {
 				context.coordinator.moveCursorTo(offset: cursorPosition, textView: textView)
 			}
-			blockCoordinator?.textReceived(for: blockId)
+			blockCoordinator.textReceived(for: blockId)
 		}
 	}
 
@@ -99,10 +100,7 @@ struct EditableTextView: NSViewRepresentable {
 	func sizeThatFits(_ proposal: ProposedViewSize, nsView: AutosizingTextView, context _: Context) -> CGSize? {
 		let width = proposal.width ?? 300
 
-		if nsView.proposedWidth != width {
-			nsView.proposedWidth = width
-			nsView.invalidateIntrinsicContentSize()
-		}
+		nsView.proposedWidth = width
 
 		guard let textContainer = nsView.textContainer, let layoutManager = nsView.layoutManager else {
 			return nil
@@ -186,7 +184,7 @@ extension EditableTextView {
 			let mappedOffset = indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset
 			moveCursorTo(offset: min(mappedOffset, parent.text.count), textView: textView)
 
-			if let pendingAction = parent.blockCoordinator?.popAction(for: parent.blockId) {
+			if let pendingAction = parent.blockCoordinator.popAction(for: parent.blockId) {
 				switch pendingAction {
 					case .indent: _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location))
 					case .outdent: _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location))
@@ -336,14 +334,14 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		}
 
 		if selector == #selector(NSResponder.insertTab(_:)) {
-			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.indent) }
+			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.indent) }
 			else { _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location)) }
 
 			return true
 		}
 
 		if selector == #selector(NSResponder.insertBacktab(_:)) {
-			if parent.blockCoordinator?.shouldQueueActions(blockId: parent.blockId) ?? false { parent.blockCoordinator?.queueAction(.outdent) }
+			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.outdent) }
 			else { _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location)) }
 
 			return true
@@ -355,7 +353,6 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 final class AutosizingTextView: NSTextView {
 	var proposedWidth: CGFloat = 0
-	private var lastLayoutWidth: CGFloat = 0
 
 	override var intrinsicContentSize: NSSize {
 		guard let textContainer = textContainer, let layoutManager = layoutManager else {
@@ -368,14 +365,6 @@ final class AutosizingTextView: NSTextView {
 
 		let usedRect = layoutManager.usedRect(for: textContainer)
 		return NSSize(width: NSView.noIntrinsicMetric, height: max(usedRect.height, 22))
-	}
-
-	override func layout() {
-		super.layout()
-		if bounds.width != lastLayoutWidth {
-			lastLayoutWidth = bounds.width
-			invalidateIntrinsicContentSize()
-		}
 	}
 }
 #endif

@@ -8,7 +8,7 @@ struct ParagraphView: View {
 	@Dependency(\.uuid) var uuid
 	@Environment(\.blockTree) var blockTree
 	@Dependency(\.defaultDatabase) var database
-	@Environment(\.blockCoordinator) var blockCoordinator
+	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 
 	var fontForHeading: Font {
@@ -44,7 +44,7 @@ struct ParagraphView: View {
 					handleAction: handleAction
 				)
 				.font(fontForHeading)
-				.frame(minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
+				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
 			}
 
 			ChildrenRenderer(parentID: paragraph.id)
@@ -93,7 +93,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		blockCoordinator?.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
 		return true
 	}
 
@@ -123,7 +123,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
+		blockCoordinator.request(for: newBlockId, at: 0, startingInMode: .raw)
 		return true
 	}
 
@@ -148,7 +148,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		blockCoordinator?.request(for: paragraph.id, at: cursorPosition ?? 0, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition ?? 0, startingInMode: .raw)
 		return true
 	}
 
@@ -178,7 +178,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		blockCoordinator?.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
+		blockCoordinator.request(for: paragraph.id, at: cursorPosition, startingInMode: .raw)
 		return true
 	}
 
@@ -201,7 +201,7 @@ struct ParagraphView: View {
 			}
 		}
 
-		blockCoordinator?.request(
+		blockCoordinator.request(
 			for: previousParagraphID,
 			at: previousParagraph.string.count,
 			expectsNewText: true,
@@ -218,7 +218,7 @@ struct ParagraphView: View {
 			}
 		}) else { return false }
 
-		blockCoordinator?.request(
+		blockCoordinator.request(
 			for: previousBlockId,
 			at: position >= paragraph.string.count ? previousParagraph.string.count : min(position, previousParagraph.string.count),
 			startingInMode: .raw
@@ -233,7 +233,7 @@ struct ParagraphView: View {
 			}
 		}) else { return false }
 
-		blockCoordinator?.request(
+		blockCoordinator.request(
 			for: nextBlockId,
 			at: position >= paragraph.string.count ? nextParagraph.string.count : min(position, nextParagraph.string.count),
 			startingInMode: .raw

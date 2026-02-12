@@ -1,4 +1,5 @@
 import SwiftUI
+import Dependencies
 
 @MainActor @Observable
 final class BlockCoordinator {
@@ -75,6 +76,13 @@ final class BlockCoordinator {
 	}
 }
 
-extension EnvironmentValues {
-	@Entry var blockCoordinator: BlockCoordinator?
+extension BlockCoordinator: DependencyKey {
+	static var liveValue = BlockCoordinator()
+}
+
+extension DependencyValues {
+	var blockCoordinator: BlockCoordinator {
+		get { self[BlockCoordinator.self] }
+		set { self[BlockCoordinator.self] = newValue }
+	}
 }

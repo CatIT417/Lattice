@@ -6,7 +6,7 @@ struct PlaceholderBlock: View {
 
 	@Dependency(\.uuid) var uuid
 	@Dependency(\.defaultDatabase) var database
-	@Environment(\.blockCoordinator) var blockCoordinator
+	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 
 	var body: some View {
@@ -47,7 +47,7 @@ struct PlaceholderBlock: View {
 			}
 		}
 
-		blockCoordinator?.request(for: newBlockId, at: 0, startingInMode: .raw)
+		blockCoordinator.request(for: newBlockId, at: 0, startingInMode: .raw)
 	}
 }
 

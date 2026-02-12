@@ -3,7 +3,6 @@ import SQLiteData
 
 struct PageScreen: View {
 	@FetchOne var pageWithContent: Page.WithChildren!
-	@State private var blockCoordinator = BlockCoordinator()
 
 	var hasNoChildren: Bool {
 		pageWithContent.tree.children(of: page.id).isEmpty
@@ -26,14 +25,22 @@ struct PageScreen: View {
 				}
 
 				ChildrenRenderer(parentID: page.id)
+
+				LinkedReferencesSection(forBlockID: page.id)
+					.padding(.top, 12)
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
+		.task {
+			_ = await withErrorReporting {
+				try await $pageWithContent.load(Page.withChildren(id: page.id))
+			}
+		}
+		.syncStatusOnToolbar()
 		.doneButtonOnToolbar()
 		.navigationTitle(page.title)
 		.environment(\.blockTree, pageWithContent.tree)
-		.environment(\.blockCoordinator, blockCoordinator)
 	}
 }
 
@@ -41,12 +48,11 @@ extension PageScreen {
 	struct ByTitle: View {
 		var title: String
 
-		@FetchOne var page: Page?
+		@State var page: Page?
 		@Dependency(\.defaultDatabase) var database
 
 		init(title: String) {
 			self.title = title
-			_page = FetchOne(Page.where { $0.title.eq(title) })
 		}
 
 		var body: some View {
@@ -54,16 +60,14 @@ extension PageScreen {
 				PageScreen(pageId: page.id)
 			} else {
 				ProgressView()
-					.onAppear { createPage() }
+					.onAppear { findOrCreate() }
 			}
 		}
 
-		func createPage() {
-			guard page == nil else { return }
-
-			withErrorReporting {
+		func findOrCreate() {
+			page = withErrorReporting {
 				try database.write { db in
-					try Page.insert { Page(title: title) }.execute(db)
+					try Page.findOrCreate(title: title, in: db)
 				}
 			}
 		}

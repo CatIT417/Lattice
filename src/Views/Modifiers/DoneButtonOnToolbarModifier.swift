@@ -9,7 +9,7 @@ struct DoneButtonOnToolbarModifier: ViewModifier {
 		.focused($isFocused)
 		.toolbar {
 			if isFocused {
-				ToolbarItem {
+				ToolbarItem(placement: .confirmationAction) {
 					Button(role: .confirm) {
 						UIApplication.shared.resignFirstResponder()
 					}

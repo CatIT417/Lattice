@@ -11,6 +11,20 @@ struct BlockTree {
 		childrenByParentId = grouped
 	}
 
+	private init(childrenByParentId: [Block.ID: [Paragraph]]) {
+		self.childrenByParentId = childrenByParentId
+	}
+
+	func subset(only blocks: Set<Block.ID>) -> BlockTree {
+		var result: [Block.ID: [Paragraph]] = [:]
+
+		for blockId in blocks {
+			copySubtree(of: blockId, into: &result)
+		}
+
+		return BlockTree(childrenByParentId: result)
+	}
+
 	func children(of parentId: Block.ID) -> [Paragraph] {
 		childrenByParentId[parentId]?.sorted(using: KeyPathComparator(\.order, order: .forward)) ?? []
 	}
@@ -36,12 +50,25 @@ struct BlockTree {
 		return paragraph.parentId
 	}
 
+	func get(byID id: Block.ID) -> Paragraph? {
+		childrenByParentId.values.lazy.flatMap { $0 }.first(where: { $0.id == id })
+	}
+
 	func nextBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
 		if let firstChild = children(of: paragraph.id).first {
 			return firstChild.id
 		}
 
 		return nextSiblingOrAncestorSibling(for: paragraph)
+	}
+
+	private func copySubtree(of parentId: Block.ID, into result: inout [Block.ID: [Paragraph]]) {
+		guard let children = childrenByParentId[parentId] else { return }
+
+		result[parentId] = children
+		for child in children {
+			copySubtree(of: child.id, into: &result)
+		}
 	}
 
 	private func deepestLastChild(of parentId: Block.ID) -> Block.ID? {
@@ -56,7 +83,7 @@ struct BlockTree {
 
 		guard paragraph.parentId != paragraph.pageId else { return nil }
 
-		if let parentParagraph = childrenByParentId.values.lazy.flatMap({ $0 }).first(where: { $0.id == paragraph.parentId }) {
+		if let parentParagraph = get(byID: paragraph.parentId) {
 			return nextSiblingOrAncestorSibling(for: parentParagraph)
 		}
 

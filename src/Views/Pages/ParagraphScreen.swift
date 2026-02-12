@@ -2,7 +2,6 @@ import SwiftUI
 import SQLiteData
 
 struct ParagraphScreen: View {
-	@State private var blockCoordinator = BlockCoordinator()
 	@FetchOne var paragraphWithContent: Paragraph.WithChildren!
 
 	var paragraph: Paragraph {
@@ -19,13 +18,21 @@ struct ParagraphScreen: View {
 				BreadcrumbsView(blockId: paragraph.id)
 
 				ParagraphView(paragraph: paragraph)
+
+				LinkedReferencesSection(forBlockID: paragraph.id)
+					.padding(.top, 12)
 			}
 			.frame(maxWidth: .infinity, alignment: .leading)
 			.safeAreaPadding()
 		}
+		.task {
+			_ = await withErrorReporting {
+				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraph.id))
+			}
+		}
+		.syncStatusOnToolbar()
 		.doneButtonOnToolbar()
 		.toolbar(removing: .title)
-		.environment(\.blockCoordinator, blockCoordinator)
 		.environment(\.blockTree, paragraphWithContent.tree)
 		.navigationTitle(removeReferences(from: paragraph.string))
 		#if os(iOS)
