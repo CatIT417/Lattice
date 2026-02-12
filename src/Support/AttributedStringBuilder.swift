@@ -20,6 +20,13 @@ struct AttributedStringResult {
 			}
 			return renderedToRaw[renderedIndex]
 		}
+
+		func transform(range: NSRange, maxLength: Int) -> NSRange {
+			let start = min(rawIndex(fromRendered: range.location), maxLength)
+			let end = min(rawIndex(fromRendered: range.location + range.length), maxLength)
+
+			return NSRange(location: start, length: end - start)
+		}
 	}
 
 	let indexMapping: IndexMapping?

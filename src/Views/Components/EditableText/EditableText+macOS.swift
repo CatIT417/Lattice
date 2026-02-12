@@ -177,12 +177,13 @@ extension EditableTextView {
 		fileprivate func transitionToEditMode(textView: NSTextView) {
 			isEditing = true
 
-			let cursorOffset = textView.selectedRange().location
+			let selectedRange = textView.selectedRange()
+			
 
 			setText(.raw, text: lastKnownText, textView: textView)
 
-			let mappedOffset = indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset
-			moveCursorTo(offset: min(mappedOffset, parent.text.count), textView: textView)
+
+			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.count) ?? selectedRange)
 
 			if let pendingAction = parent.blockCoordinator.popAction(for: parent.blockId) {
 				switch pendingAction {
