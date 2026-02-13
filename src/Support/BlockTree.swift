@@ -29,10 +29,6 @@ struct BlockTree {
 		childrenByParentId[parentId]?.sorted(using: KeyPathComparator(\.order, order: .forward)) ?? []
 	}
 
-	func isRoot(_ id: Block.ID) -> Bool {
-		!childrenByParentId.values.contains { $0.contains { $0.id == id } }
-	}
-
 	func hasChildren(_ parentId: Block.ID) -> Bool {
 		childrenByParentId[parentId]?.isEmpty == false
 	}

@@ -8,6 +8,7 @@ struct ParagraphView: View {
 	@Dependency(\.uuid) var uuid
 	@Environment(\.blockTree) var blockTree
 	@Dependency(\.defaultDatabase) var database
+	@Environment(\.rootBlockID) var rootBlockID
 	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 
@@ -104,12 +105,12 @@ struct ParagraphView: View {
 
 	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)
 	private func createNewBlock(withText text: String? = nil) -> Bool {
-		let isRootParagraph = blockTree.isRoot(paragraph.id)
+		let isRootParagraph = paragraph.id == rootBlockID
 
 		// IF we press return on an empty block with no children,
 		// AND the parent is not at the top level in the current page,
 		// THEN we move it up a level instead of creating a new block.
-		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) {
+		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, paragraph.parentId != rootBlockID {
 			_ = outdentBlock()
 			return false
 		}
@@ -134,7 +135,7 @@ struct ParagraphView: View {
 
 	@discardableResult
 	private func outdentBlock(cursorPosition: Int? = nil, currentText: String? = nil) -> Bool {
-		guard !blockTree.isRoot(paragraph.id), !paragraph.parentIsPage, !blockTree.isRoot(paragraph.parentId) else {
+		guard paragraph.id != rootBlockID, !paragraph.parentIsPage, paragraph.parentId != rootBlockID else {
 			return false
 		}
 

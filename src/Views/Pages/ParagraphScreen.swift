@@ -33,6 +33,7 @@ struct ParagraphScreen: View {
 		.syncStatusOnToolbar()
 		.doneButtonOnToolbar()
 		.toolbar(removing: .title)
+		.environment(\.rootBlockID, paragraph.id)
 		.environment(\.blockTree, paragraphWithContent.tree)
 		.navigationTitle(removeReferences(from: paragraph.string))
 		#if os(iOS)

@@ -60,6 +60,7 @@ private struct PageWithBacklinks: View {
 							ForEach(paragraphs) { paragraph in
 								ParagraphView(paragraph: paragraph)
 									.padding(12)
+									.environment(\.rootBlockID, paragraph.id)
 									.background(.thinMaterial, in: .rect(cornerRadius: 12))
 							}
 						}
@@ -77,7 +78,7 @@ private struct PageWithBacklinks: View {
 				}
 				.buttonStyle(.plain)
 				#if os(macOS)
-				.pointerStyle(.link)
+					.pointerStyle(.link)
 				#endif
 			}
 			.disclosureGroupStyle(LeftLabelSectionDisclosureStyle(hidesArrowOnHover: false))

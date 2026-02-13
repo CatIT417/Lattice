@@ -40,6 +40,7 @@ struct PageScreen: View {
 		.syncStatusOnToolbar()
 		.doneButtonOnToolbar()
 		.navigationTitle(page.title)
+		.environment(\.rootBlockID, page.id)
 		.environment(\.blockTree, pageWithContent.tree)
 	}
 }

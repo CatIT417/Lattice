@@ -34,6 +34,7 @@ struct PageView: View {
 			}
 			.safeAreaPadding()
 			.environment(\.blockTree, tree)
+			.environment(\.rootBlockID, page.id)
 		}
 	}
 }
