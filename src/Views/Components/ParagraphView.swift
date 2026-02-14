@@ -48,7 +48,7 @@ struct ParagraphView: View {
 				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
 			}
 
-			ChildrenRenderer(parentID: paragraph.id)
+			ChildrenRenderer(parentID: paragraph.id, showIndentLine: true)
 		}
 	}
 

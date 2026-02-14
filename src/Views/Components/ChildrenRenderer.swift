@@ -3,6 +3,7 @@ import SQLiteData
 
 struct ChildrenRenderer: View {
 	var parentID: Block.ID
+	var showIndentLine: Bool = false
 
 	@Environment(\.blockTree) var tree
 
@@ -14,6 +15,13 @@ struct ChildrenRenderer: View {
 				}
 			}
 			.padding(.leading, 24)
+			.background(alignment: .topLeading) {
+				if showIndentLine {
+					Color(separatorColor)
+						.frame(width: 1)
+						.padding(.leading, 2.5)
+				}
+			}
 		}
 	}
 }

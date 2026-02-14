@@ -21,7 +21,9 @@ typealias PlatformFontDescriptor = NSFontDescriptor
 #if canImport(UIKit)
 let labelColor: PlatformColor = .label
 let tintColor: PlatformColor = .tintColor
+let separatorColor: PlatformColor = .separator
 #else
 let tintColor: PlatformColor = .systemBlue
 let labelColor: PlatformColor = .labelColor
+let separatorColor: PlatformColor = .separatorColor
 #endif
