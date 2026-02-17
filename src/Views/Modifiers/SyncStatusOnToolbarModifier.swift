@@ -9,9 +9,7 @@ struct SyncStatusOnToolbarModifier: ViewModifier {
 			.toolbar {
 				ToolbarItem {
 					Image(systemName: syncEngine.isSynchronizing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud")
-					#if os(iOS)
-						.imageScale(.small)
-					#elseif os(macOS)
+					#if os(macOS)
 						.imageScale(.large)
 					#endif
 						.contentTransition(.symbolEffect)

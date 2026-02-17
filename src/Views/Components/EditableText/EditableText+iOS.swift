@@ -6,6 +6,7 @@ import Dependencies
 struct EditableTextView: UIViewRepresentable {
 	let blockId: Block.ID?
 	let text: String
+	let alignment: Block.TextAlignment
 	let ctFont: CTFont
 	let onLinkClicked: (URL) -> Void
 	let handleAction: (EditableText.Action) -> Bool
@@ -29,6 +30,7 @@ struct EditableTextView: UIViewRepresentable {
 		textView.delegate = context.coordinator
 		context.coordinator.textView = textView
 		textView.textContainer.lineFragmentPadding = 0
+		textView.textAlignment = NSTextAlignment(alignment)
 		textView.linkTextAttributes = [.foregroundColor: UIColor.tintColor]
 
 		textView.setContentHuggingPriority(.required, for: .vertical)
@@ -68,6 +70,9 @@ struct EditableTextView: UIViewRepresentable {
 
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
+
+		let alignment = NSTextAlignment(alignment)
+		if alignment != textView.textAlignment { textView.textAlignment = alignment }
 
 		if blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
 			let placement = blockCoordinator.cursorPlacementFor(blockId: blockId)

@@ -44,12 +44,33 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 }
 
 extension Page {
-	static func createDailyNote(for date: Date) -> Page {
-		let formatter = tap(DateFormatter()) { $0.dateFormat = "MMMM '<dth>', yyyy" }
+	static func newDailyNote(for date: Date) -> Page {
+		let date = Calendar.current.startOfDay(for: date)
+
+		let formatter = tap(DateFormatter()) {
+			$0.dateFormat = "MMMM '<dth>', yyyy"
+		}
 		var pageTitle = formatter.string(from: date)
 		if pageTitle.contains("<dth>") { pageTitle.replace("<dth>", with: date.ordinal) }
 
 		return Page(title: pageTitle, dailyNoteDate: date)
+	}
+
+	static func createDailyNote(for date: Date, in db: Database) throws -> Page {
+		let page = newDailyNote(for: date)
+
+		let newlyCreatedBlock = try #sql("""
+		INSERT INTO \(Block.self) (title, dailyNoteDate)
+		SELECT \(bind: page.title), \(#bind(page.dailyNoteDate!, as: Date.DayRepresentation.self))
+		WHERE NOT EXISTS (
+		 SELECT 1 FROM \(Block.self)
+		 WHERE \(Block.dailyNoteDate) = \(#bind(page.dailyNoteDate!, as: Date.DayRepresentation.self))
+		)
+		RETURNING *;
+		""", as: Block.self).fetchOne(db)
+
+		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
+		return try Page.where { $0.dailyNoteDate == #bind(page.dailyNoteDate, as: Date?.DayRepresentation.self) }.fetchOne(db)!
 	}
 }
 

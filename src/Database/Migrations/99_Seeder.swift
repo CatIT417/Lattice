@@ -8,12 +8,12 @@ final class SeedDatabase: Seeder {
 	}
 
 	@SeedsBuilder private static func seedDailies() -> Records {
-		let firstDaily = Page.createDailyNote(for: try! Date("1/1/2024 1:12AM", strategy: .dateTime))
+		let firstDaily = Page.newDailyNote(for: try! Date("1/1/2024 1:12AM", strategy: .dateTime))
 
 		firstDaily
 		Paragraph(string: "This is my first daily note! 🎉", parentId: firstDaily.id, pageId: firstDaily.id, order: 0)
 
-		let currentDaily = Page.createDailyNote(for: Date())
+		let currentDaily = Page.newDailyNote(for: Date())
 
 		currentDaily
 		Paragraph(string: "See the [[Lattice Quick Start]] page to get started!", parentId: currentDaily.id, pageId: currentDaily.id, order: 0)

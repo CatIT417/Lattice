@@ -1,22 +1,30 @@
+#if os(iOS)
 import SwiftUI
+import Dependencies
 
 struct DoneButtonOnToolbarModifier: ViewModifier {
 	@FocusState private var isFocused: Bool
+	@Dependency(\.blockSelectionCoordinator) private var selectionCoordinator
 
 	func body(content: Content) -> some View {
 		content
-		#if os(iOS)
-		.focused($isFocused)
-		.toolbar {
-			if isFocused {
-				ToolbarItem(placement: .confirmationAction) {
-					Button(role: .confirm) {
-						UIApplication.shared.resignFirstResponder()
+			.focused($isFocused)
+			.transaction({ $0.animation = nil }) {
+				$0.toolbar {
+					if isFocused || selectionCoordinator.hasSelection {
+						ToolbarItem(placement: .confirmationAction) {
+							Button(role: .confirm, action: markAsDone)
+						}
 					}
 				}
 			}
-		}
-		#endif
+	}
+
+	func markAsDone() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+		if selectionCoordinator.hasSelection { selectionCoordinator.clearSelection() }
+		else { UIApplication.shared.dismissKeyboard() }
 	}
 }
 
@@ -31,3 +39,4 @@ extension View {
 		.doneButtonOnToolbar()
 		.preview()
 }
+#endif

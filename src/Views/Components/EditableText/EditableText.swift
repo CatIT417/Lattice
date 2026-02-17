@@ -28,6 +28,7 @@ struct EditableText: View {
 
 	var blockId: Block.ID? = nil
 	var text: String
+	var alignment: Block.TextAlignment = .left
 	var handleAction: (Action) -> Bool
 
 	@Environment(\.font) private var font
@@ -40,6 +41,7 @@ struct EditableText: View {
 		EditableTextView(
 			blockId: blockId,
 			text: text,
+			alignment: alignment,
 			ctFont: ctFont,
 			onLinkClicked: openLink,
 			handleAction: handleAction

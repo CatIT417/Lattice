@@ -46,9 +46,7 @@ struct RootContainer: View {
 				try Values(Page.where { $0.dailyNoteDate.eq(#bind(now)) }.exists()).fetchOne(db)
 			}), !hasPage else { return }
 
-			try database.write { db in
-				try Page.insert { Page.createDailyNote(for: now) }.execute(db)
-			}
+			_ = try database.write { try Page.createDailyNote(for: now, in: $0) }
 		}
 	}
 }

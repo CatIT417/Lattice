@@ -90,12 +90,7 @@ struct FatalErrorScreen: View {
 	}
 
 	private func copyDiagnostics() {
-		#if os(iOS)
-		UIPasteboard.general.string = diagnostics
-		#elseif os(macOS)
-		NSPasteboard.general.clearContents()
-		NSPasteboard.general.setString(diagnostics, forType: .string)
-		#endif
+		copyToClipboard(diagnostics)
 
 		didCopyDiagnostics = true
 		DispatchQueue.main.asyncAfter(deadline: .now() + 2) {

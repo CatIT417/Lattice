@@ -7,12 +7,21 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		case bullet, document, numbered
 	}
 
-	enum HeadingLevel: Int, Equatable, Hashable, Codable, Sendable, QueryBindable {
+	enum HeadingLevel: Int, CaseIterable, Equatable, Hashable, Codable, Sendable, QueryBindable {
 		case h1 = 1, h2 = 2, h3 = 3
 	}
 
-	enum TextAlignment: String, Equatable, Hashable, Codable, Sendable, QueryBindable {
+	enum TextAlignment: String, CaseIterable, Equatable, Hashable, Codable, Sendable, QueryBindable {
 		case left, center, right, justify
+
+		var icon: String {
+			switch self {
+				case .left: "text.alignleft"
+				case .justify: "text.justify"
+				case .right: "text.alignright"
+				case .center: "text.aligncenter"
+			}
+		}
 	}
 
 	enum Kind: Equatable, Hashable, Sendable {

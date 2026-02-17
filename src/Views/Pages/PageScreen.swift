@@ -2,46 +2,62 @@ import SwiftUI
 import SQLiteData
 
 struct PageScreen: View {
-	@FetchOne var pageWithContent: Page.WithChildren!
+	let pageId: Page.ID
+
+	@Environment(Router.self) var router
+	@FetchOne var pageWithContent: Page.WithChildren?
 
 	var hasNoChildren: Bool {
-		pageWithContent.tree.children(of: page.id).isEmpty
-	}
-
-	var page: Page {
-		pageWithContent.block
+		pageWithContent?.tree.children(of: pageId).isEmpty ?? true
 	}
 
 	init(pageId: Page.ID) {
+		self.pageId = pageId
 		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
 	}
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 12) {
-				if hasNoChildren {
-					PlaceholderBlock(pageId: page.id)
-						.padding(.leading, 24)
+		Group {
+			if let page = pageWithContent?.block, let pageWithContent {
+				ScrollView {
+					VStack(alignment: .leading, spacing: 12) {
+						if hasNoChildren {
+							PlaceholderBlock(pageId: page.id)
+								.padding(.leading, 24)
+						}
+
+						ChildrenRenderer(parentID: page.id)
+
+						LinkedReferencesSection(forBlockID: page.id)
+							.padding(.top, 12)
+					}
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.safeAreaPadding()
 				}
-
-				ChildrenRenderer(parentID: page.id)
-
-				LinkedReferencesSection(forBlockID: page.id)
-					.padding(.top, 12)
+				#if os(iOS)
+				.doneButtonOnToolbar()
+				.toolbar {
+					if let dailyNoteDate = page.dailyNoteDate {
+						ToolbarItem {
+							GoToDailyPageButton(currentDate: dailyNoteDate)
+						}
+					}
+				}
+				#endif
+				.syncStatusOnToolbar()
+				.navigationTitle(page.title)
+				.environment(\.rootBlockID, page.id)
+				.environment(\.blockTree, pageWithContent.tree)
+			} else {
+				ProgressView()
+					.onAppear { router.pop() }
 			}
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.safeAreaPadding()
 		}
 		.task {
 			_ = await withErrorReporting {
-				try await $pageWithContent.load(Page.withChildren(id: page.id))
+				try await $pageWithContent.load(Page.withChildren(id: pageId))
 			}
 		}
-		.syncStatusOnToolbar()
-		.doneButtonOnToolbar()
-		.navigationTitle(page.title)
-		.environment(\.rootBlockID, page.id)
-		.environment(\.blockTree, pageWithContent.tree)
 	}
 }
 

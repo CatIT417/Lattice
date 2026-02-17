@@ -16,7 +16,7 @@ extension Tests.PageTest {
 	@Test("Creating a daily note page sets the correct title and date")
 	func dailyNoteCreation() throws {
 		let page = try #require(database.write { db in
-			try Page.insert { Page.createDailyNote(for: Date(timeIntervalSince1970: 1_770_098_996)) }.returning(\.self).fetchOne(db)
+			try Page.insert { Page.newDailyNote(for: Date(timeIntervalSince1970: 1_770_098_996)) }.returning(\.self).fetchOne(db)
 		})
 
 		expectNoDifference("February 3rd, 2026", page.title)

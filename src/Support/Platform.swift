@@ -22,8 +22,21 @@ typealias PlatformFontDescriptor = NSFontDescriptor
 let labelColor: PlatformColor = .label
 let tintColor: PlatformColor = .tintColor
 let separatorColor: PlatformColor = .separator
+let backgroundColor: PlatformColor = .systemBackground
 #else
 let tintColor: PlatformColor = .systemBlue
 let labelColor: PlatformColor = .labelColor
 let separatorColor: PlatformColor = .separatorColor
+let backgroundColor: PlatformColor = .windowBackgroundColor
 #endif
+
+// MARK: - Actions
+
+func copyToClipboard(_ string: String) {
+	#if os(iOS)
+	UIPasteboard.general.string = string
+	#elseif os(macOS)
+	NSPasteboard.general.clearContents()
+	NSPasteboard.general.setString(string, forType: .string)
+	#endif
+}

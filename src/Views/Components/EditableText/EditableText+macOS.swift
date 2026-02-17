@@ -16,6 +16,7 @@ extension NSTextView {
 struct EditableTextView: NSViewRepresentable {
 	let blockId: Block.ID?
 	let text: String
+	let alignment: Block.TextAlignment
 	let ctFont: CTFont
 	let onLinkClicked: (URL) -> Void
 	let handleAction: (EditableText.Action) -> Bool
@@ -38,6 +39,7 @@ struct EditableTextView: NSViewRepresentable {
 		textView.textContainerInset = .zero
 		textView.delegate = context.coordinator
 		context.coordinator.textView = textView
+		textView.alignment = NSTextAlignment(alignment)
 		textView.isAutomaticLinkDetectionEnabled = false
 		textView.isAutomaticTextReplacementEnabled = true
 		textView.isAutomaticDashSubstitutionEnabled = true
@@ -65,6 +67,9 @@ struct EditableTextView: NSViewRepresentable {
 
 	func updateNSView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
+
+		let alignment = NSTextAlignment(alignment)
+		if textView.alignment != alignment { textView.alignment = alignment }
 
 		if blockCoordinator.shouldFocus(blockId: blockId), textView.window?.firstResponder != textView {
 			let placement = blockCoordinator.cursorPlacementFor(blockId: blockId)

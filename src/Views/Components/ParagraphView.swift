@@ -36,17 +36,26 @@ struct ParagraphView: View {
 					}
 					#if os(macOS)
 					.pointerStyle(.link)
+					.contextMenu { ParagraphMenu(paragraph: paragraph) }
 					#endif
 				}
 
 				EditableText(
 					blockId: paragraph.id,
 					text: paragraph.string,
+					alignment: paragraph.textAlign,
 					handleAction: handleAction
 				)
 				.font(fontForHeading)
 				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
 			}
+			#if os(iOS)
+			.padding(.vertical, 2)
+			.padding(.horizontal, 10)
+			.contextMenu { ParagraphMenu(paragraph: paragraph) }
+			.padding(.vertical, -2)
+			.padding(.horizontal, -10)
+			#endif
 
 			ChildrenRenderer(parentID: paragraph.id, showIndentLine: true)
 		}

@@ -3,10 +3,13 @@ import SQLiteData
 
 public extension Date {
 	fileprivate static var formatter: ISO8601DateFormatter {
-		tap(ISO8601DateFormatter()) { $0.formatOptions = [.withFullDate] }
+		tap(ISO8601DateFormatter()) {
+			$0.formatOptions = [.withFullDate]
+			$0.timeZone = .autoupdatingCurrent
+		}
 	}
 
-	var asDayRepresentation: String {
+	private var asDayRepresentation: String {
 		Self.formatter.string(from: self)
 	}
 
