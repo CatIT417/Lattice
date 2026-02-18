@@ -39,8 +39,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var title: String?
 
 	/// If this page is a daily note, the date in "YYYY-MM-DD" format
-	@Column(as: Date?.DayRepresentation.self)
-	var dailyNoteDate: Date? = nil
+	var dailyNoteDate: DayOfYear?
 
 	/// ID of parent block (NULL for root pages)
 	var parentId: Block.ID?
@@ -83,7 +82,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		}
 	}
 
-	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: Date? = nil, parentId: Block.ID? = nil, pageId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: DayOfYear? = nil, parentId: Block.ID? = nil, pageId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
 		@Dependency(\.uuid) var uuid
 		@Dependency(\.date.now) var now
 

@@ -10,8 +10,7 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var title: String
 
 	/// If this page is a daily note, the date in "YYYY-MM-DD" format
-	@Column(as: Date?.DayRepresentation.self)
-	var dailyNoteDate: Date?
+	var dailyNoteDate: DayOfYear?
 
 	/// JSON blob for extensible data
 	var props: String?
@@ -19,7 +18,7 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var createdAt: Date
 	var updatedAt: Date
 
-	init(id: UUID? = nil, title: String, dailyNoteDate: Date? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+	init(id: UUID? = nil, title: String, dailyNoteDate: DayOfYear? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
 		@Dependency(\.uuid) var uuid
 		@Dependency(\.date.now) var now
 
@@ -44,33 +43,25 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 }
 
 extension Page {
-	static func newDailyNote(for date: Date) -> Page {
-		let date = Calendar.current.startOfDay(for: date)
-
-		let formatter = tap(DateFormatter()) {
-			$0.dateFormat = "MMMM '<dth>', yyyy"
-		}
-		var pageTitle = formatter.string(from: date)
-		if pageTitle.contains("<dth>") { pageTitle.replace("<dth>", with: date.ordinal) }
-
-		return Page(title: pageTitle, dailyNoteDate: date)
+	static func newDailyNote(for day: DayOfYear) -> Page {
+		return Page(title: day.title(), dailyNoteDate: day)
 	}
 
-	static func createDailyNote(for date: Date, in db: Database) throws -> Page {
-		let page = newDailyNote(for: date)
+	static func createDailyNote(for day: DayOfYear, in db: Database) throws -> Page {
+		let page = newDailyNote(for: day)
 
 		let newlyCreatedBlock = try #sql("""
 		INSERT INTO \(Block.self) (title, dailyNoteDate)
-		SELECT \(bind: page.title), \(#bind(page.dailyNoteDate!, as: Date.DayRepresentation.self))
+		SELECT \(bind: page.title), \(bind: page.dailyNoteDate!)
 		WHERE NOT EXISTS (
 		 SELECT 1 FROM \(Block.self)
-		 WHERE \(Block.dailyNoteDate) = \(#bind(page.dailyNoteDate!, as: Date.DayRepresentation.self))
+		 WHERE \(Block.dailyNoteDate) = \(bind: page.dailyNoteDate!)
 		)
 		RETURNING *;
 		""", as: Block.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.dailyNoteDate == #bind(page.dailyNoteDate, as: Date?.DayRepresentation.self) }.fetchOne(db)!
+		return try Page.where { $0.dailyNoteDate == #bind(page.dailyNoteDate) }.fetchOne(db)!
 	}
 }
 

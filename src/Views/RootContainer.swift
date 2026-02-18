@@ -39,14 +39,14 @@ struct RootContainer: View {
 	}
 
 	func createDailyNoteIfNeeded() {
-		@Dependency(\.date.now) var now
+		let date = DayOfYear.today
 
 		withErrorReporting {
 			guard let hasPage = try database.read({ db in
-				try Values(Page.where { $0.dailyNoteDate.eq(#bind(now)) }.exists()).fetchOne(db)
+				try Values(Page.where { $0.dailyNoteDate.eq(date) }.exists()).fetchOne(db)
 			}), !hasPage else { return }
 
-			_ = try database.write { try Page.createDailyNote(for: now, in: $0) }
+			_ = try database.write { try Page.createDailyNote(for: date, in: $0) }
 		}
 	}
 }

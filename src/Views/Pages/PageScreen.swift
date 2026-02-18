@@ -35,16 +35,16 @@ struct PageScreen: View {
 					.safeAreaPadding()
 				}
 				#if os(iOS)
-				.blockSelectionMenu()
-				.doneButtonOnToolbar()
-				.toolbar {
-					if let dailyNoteDate = page.dailyNoteDate {
-						ToolbarItem {
-							GoToDailyPageButton(currentDate: dailyNoteDate)
+					.blockSelectionMenu()
+					.doneButtonOnToolbar()
+					.toolbar {
+						if let dailyNoteDate = page.dailyNoteDate {
+							ToolbarItem {
+								GoToDailyPageButton(currentDate: dailyNoteDate.date())
+							}
 						}
 					}
-				}
-				#endif
+					#endif
 				.syncStatusOnToolbar()
 				.navigationTitle(page.title)
 				.environment(\.rootBlockID, page.id)

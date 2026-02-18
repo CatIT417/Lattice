@@ -33,19 +33,15 @@ struct GoToDailyPageButton: View {
 		.onChange(of: selection) { _, selection in
 			guard selection != currentDate else { return }
 
-			navigateToDailyPage(for: selection)
+			navigateToDailyPage(for: DayOfYear(selection))
 		}
 	}
 
-	func navigateToDailyPage(for date: Date) {
-		print("Navigating to daily page for date \(date)")
-
+	func navigateToDailyPage(for day: DayOfYear) {
 		withErrorReporting {
 			let page = try database.write { db in
-				try Page.createDailyNote(for: date, in: db)
+				try Page.createDailyNote(for: day, in: db)
 			}
-
-			print(page)
 
 			router.push(.page(id: page.id))
 		}

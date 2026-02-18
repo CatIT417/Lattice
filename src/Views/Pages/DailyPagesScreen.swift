@@ -3,8 +3,10 @@ import Combine
 import SQLiteData
 
 fileprivate func query(for date: Date) -> SelectOf<Page> {
-	Page
-		.where { $0.dailyNoteDate.isNot(nil) && $0.dailyNoteDate <= #bind(date, as: Date?.DayRepresentation.self) }
+	let day: DayOfYear? = DayOfYear(date)
+
+	return Page
+		.where { $0.dailyNoteDate.isNot(nil) && $0.dailyNoteDate <= day }
 		.order(by: { $0.dailyNoteDate.desc() })
 }
 
@@ -50,7 +52,7 @@ struct DailyPagesScreen: View {
 		.toolbarTitleDisplayMode(.inline)
 		.toolbar {
 			#if os(iOS)
-			ToolbarItem {
+			ToolbarItem(placement: .topBarTrailing) {
 				GoToDailyPageButton()
 			}
 			#endif

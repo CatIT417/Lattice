@@ -16,11 +16,12 @@ extension Tests.MakePagesViewWritableTest {
 	@Test("Inserting into the Pages view creates the corresponding Block")
 	func canInsertIntoPages() throws {
 		let props = "{\"color\":\"blue\"}"
-		let date = Calendar.current.startOfDay(for: Date())
+		let date = Date(timeIntervalSince1970: 1_770_076_800)
+		let dailyNoteDate = DayOfYear(day: 3, month: 2, year: 2026)
 
 		let page = try #require(database.write { db in
 			try Page.insert {
-				Page(title: "Test Page", dailyNoteDate: date, props: props, createdAt: date, updatedAt: date)
+				Page(title: "Test Page", dailyNoteDate: dailyNoteDate, props: props, createdAt: date, updatedAt: date)
 			}.returning(\.self).fetchOne(db)
 		})
 
@@ -31,7 +32,7 @@ extension Tests.MakePagesViewWritableTest {
 		expectNoDifference(page.props, props)
 		expectNoDifference(page.createdAt, date)
 		expectNoDifference(page.updatedAt, date)
-		expectNoDifference(page.dailyNoteDate, date)
+		expectNoDifference(page.dailyNoteDate, dailyNoteDate)
 
 		expectNoDifference(page.id, block.id)
 		expectNoDifference(page.title, block.title)
