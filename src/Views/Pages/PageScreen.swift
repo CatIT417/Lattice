@@ -35,6 +35,7 @@ struct PageScreen: View {
 					.safeAreaPadding()
 				}
 				#if os(iOS)
+				.blockSelectionMenu()
 				.doneButtonOnToolbar()
 				.toolbar {
 					if let dailyNoteDate = page.dailyNoteDate {

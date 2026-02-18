@@ -11,6 +11,9 @@ struct ParagraphView: View {
 	@Environment(\.rootBlockID) var rootBlockID
 	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
+	#if os(iOS)
+	@Dependency(\.blockSelectionCoordinator) var selectionCoordinator
+	#endif
 
 	var fontForHeading: Font {
 		switch paragraph.heading {
@@ -50,11 +53,19 @@ struct ParagraphView: View {
 				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
 			}
 			#if os(iOS)
-			.padding(.vertical, 2)
 			.padding(.horizontal, 10)
 			.contextMenu { ParagraphMenu(paragraph: paragraph) }
-			.padding(.vertical, -2)
+			.background(
+				RoundedRectangle(cornerRadius: 6)
+					.fill(selectionCoordinator.isHighlighted(paragraph.id) ? Color.blue.opacity(0.2) : .clear)
+			)
 			.padding(.horizontal, -10)
+			.onSwipeLeft {
+				let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
+				withAnimation(selectionCoordinator.animation) {
+					selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
+				}
+			}
 			#endif
 
 			ChildrenRenderer(parentID: paragraph.id, showIndentLine: true)

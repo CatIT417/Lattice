@@ -78,4 +78,30 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 	}
 }
 
-enum ParagraphAlias: AliasName {}
+extension Paragraph {
+	static func fetchInOrder(_ blockIDs: Set<Paragraph.ID>) throws -> [Paragraph] {
+		@Dependency(\.defaultDatabase) var database
+
+		return try database.read { db in
+			try Paragraph
+				.group(by: \.id)
+				.where { $0.id.in(blockIDs) }
+				.join(Page.all) { $0.pageId.eq($1.id) }
+				.leftJoin(Ancestor.all) { $0.id.eq($2.blockId) }
+				.leftJoin(Block.all) { $2.ancestorId.eq($3.id) }
+				.order { paragraphs, pages, ancestors, blocks in
+					(
+						pages.createdAt.desc(),
+						#sql("""
+						COALESCE(
+						 GROUP_CONCAT(printf('%08d', \(blocks.order)), '/' ORDER BY \(ancestors.depth) DESC),
+						 ''
+						) || '/' || printf('%08d', \(paragraphs.order))
+						""")
+					)
+				}
+				.select { paragraphs, _, _, _ in paragraphs }
+				.fetchAll(db)
+		}
+	}
+}

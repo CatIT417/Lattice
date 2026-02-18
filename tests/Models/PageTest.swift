@@ -19,8 +19,8 @@ extension Tests.PageTest {
 			try Page.insert { Page.newDailyNote(for: Date(timeIntervalSince1970: 1_770_098_996)) }.returning(\.self).fetchOne(db)
 		})
 
-		expectNoDifference("February 3rd, 2026", page.title)
-		expectNoDifference(Date(timeIntervalSince1970: 1_770_076_800), page.dailyNoteDate)
+		expectNoDifference("February 2nd, 2026", page.title)
+		expectNoDifference(Date(timeIntervalSince1970: 1_770_019_200), page.dailyNoteDate)
 	}
 
 	@Test("Page.findOrCreate returns an existing page if one exists, otherwise creates it")

@@ -42,6 +42,7 @@ struct DailyPagesScreen: View {
 			currentDate = newDate
 		}
 		#if os(iOS)
+		.blockSelectionMenu()
 		.doneButtonOnToolbar()
 		#endif
 		.syncStatusOnToolbar()

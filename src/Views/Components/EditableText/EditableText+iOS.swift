@@ -1,4 +1,4 @@
-#if os(iOS) || os(visionOS)
+#if os(iOS)
 import UIKit
 import SwiftUI
 import Dependencies
@@ -12,6 +12,7 @@ struct EditableTextView: UIViewRepresentable {
 	let handleAction: (EditableText.Action) -> Bool
 
 	@Dependency(\.blockCoordinator) var blockCoordinator
+	@Dependency(\.blockSelectionCoordinator) var selectionCoordinator
 
 	private var uiFont: UIFont {
 		ctFont as UIFont
@@ -20,9 +21,7 @@ struct EditableTextView: UIViewRepresentable {
 	func makeUIView(context: Context) -> AutosizingTextView {
 		let textView = AutosizingTextView()
 		textView.font = uiFont
-		textView.isEditable = true
 		textView.textColor = .label
-		textView.isSelectable = true
 		textView.dataDetectorTypes = []
 		textView.isScrollEnabled = false
 		textView.backgroundColor = .clear
@@ -31,6 +30,8 @@ struct EditableTextView: UIViewRepresentable {
 		context.coordinator.textView = textView
 		textView.textContainer.lineFragmentPadding = 0
 		textView.textAlignment = NSTextAlignment(alignment)
+		textView.isEditable = !selectionCoordinator.hasSelection
+		textView.isSelectable = !selectionCoordinator.hasSelection
 		textView.linkTextAttributes = [.foregroundColor: UIColor.tintColor]
 
 		textView.setContentHuggingPriority(.required, for: .vertical)
@@ -65,6 +66,14 @@ struct EditableTextView: UIViewRepresentable {
 
 		context.coordinator.setText(blockCoordinator.modeFor(blockId: blockId) ?? .rendered, text: text, textView: textView)
 
+		let tapHandler = tap(UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleBlockSelected))) {
+			$0.delegate = context.coordinator
+			$0.isEnabled = selectionCoordinator.hasSelection
+		}
+
+		textView.addGestureRecognizer(tapHandler)
+		context.coordinator.tapHandler = tapHandler
+
 		return textView
 	}
 
@@ -73,6 +82,14 @@ struct EditableTextView: UIViewRepresentable {
 
 		let alignment = NSTextAlignment(alignment)
 		if alignment != textView.textAlignment { textView.textAlignment = alignment }
+
+		if selectionCoordinator.hasSelection == textView.isEditable {
+			DispatchQueue.main.async {
+				textView.isEditable = !selectionCoordinator.hasSelection
+				textView.isSelectable = !selectionCoordinator.hasSelection
+				context.coordinator.tapHandler?.isEnabled = selectionCoordinator.hasSelection
+			}
+		}
 
 		if blockCoordinator.shouldFocus(blockId: blockId), !textView.isFirstResponder {
 			let placement = blockCoordinator.cursorPlacementFor(blockId: blockId)
@@ -132,6 +149,7 @@ extension EditableTextView {
 		var parent: EditableTextView
 		weak var textView: UITextView?
 		var willSwitchToEditing = false
+		weak var tapHandler: UITapGestureRecognizer?
 		var indexMapping: AttributedStringResult.IndexMapping?
 
 		init(parent: EditableTextView) {
@@ -251,6 +269,15 @@ extension EditableTextView {
 			moveCursorTo(offset: range.location + 2, textView: textView)
 		}
 
+		@objc func handleBlockSelected() {
+			guard let blockId = parent.blockId else { return }
+
+			UIImpactFeedbackGenerator(style: .light).impactOccurred()
+			withAnimation(parent.selectionCoordinator.animation) {
+				parent.selectionCoordinator.toggleSelection(on: blockId)
+			}
+		}
+
 		private func transitionToEditMode(textView: UITextView) {
 			isEditing = true
 			willSwitchToEditing = false
@@ -305,7 +332,7 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			return
 		}
 
-		guard !isEditing else { return }
+		guard !isEditing, !parent.selectionCoordinator.hasSelection else { return }
 
 		willSwitchToEditing = true
 
@@ -421,6 +448,27 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 		}
 
 		return true
+	}
+}
+
+extension EditableTextView.Coordinator: UIGestureRecognizerDelegate {
+	func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+		guard let textView, let attributedText = textView.attributedText, attributedText.length > 0 else { return true }
+
+		let characterIndex = textView.layoutManager.characterIndex(
+			for: recognizer.location(in: textView),
+			in: textView.textContainer,
+			fractionOfDistanceBetweenInsertionPoints: nil
+		)
+		guard characterIndex >= 0, characterIndex < attributedText.length else { return true }
+
+		let tappedLink = attributedText.attribute(
+			.link,
+			at: characterIndex,
+			effectiveRange: nil
+		) as? NSURL
+
+		return tappedLink == nil
 	}
 }
 

@@ -28,6 +28,7 @@ struct ParagraphScreen: View {
 					.safeAreaPadding()
 				}
 				#if os(iOS)
+				.blockSelectionMenu()
 				.doneButtonOnToolbar()
 				.navigationBarTitleDisplayMode(.inline)
 				#endif

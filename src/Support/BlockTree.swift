@@ -58,6 +58,21 @@ struct BlockTree {
 		return nextSiblingOrAncestorSibling(for: paragraph)
 	}
 
+	func descendantIDs(of parentId: Block.ID) -> Set<Block.ID> {
+		var result = Set<Block.ID>()
+		collectDescendantIDs(of: parentId, into: &result)
+		return result
+	}
+
+	private func collectDescendantIDs(of parentId: Block.ID, into result: inout Set<Block.ID>) {
+		guard let children = childrenByParentId[parentId] else { return }
+
+		for child in children {
+			result.insert(child.id)
+			collectDescendantIDs(of: child.id, into: &result)
+		}
+	}
+
 	private func copySubtree(of parentId: Block.ID, into result: inout [Block.ID: [Paragraph]]) {
 		guard let children = childrenByParentId[parentId] else { return }
 

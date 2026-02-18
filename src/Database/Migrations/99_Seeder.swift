@@ -3,8 +3,8 @@ import SQLiteData
 
 final class SeedDatabase: Seeder {
 	static func seed() -> Records {
-		seedDailies()
 		seedQuickStart()
+		seedDailies()
 	}
 
 	@SeedsBuilder private static func seedDailies() -> Records {
@@ -65,15 +65,23 @@ final class SeedDatabase: Seeder {
 	}
 }
 
-fileprivate func buildParagraphs(_ tree: [String: Any], parentId: Block.ID, pageId: Page.ID) -> [any Table] {
+fileprivate struct Outline: ExpressibleByDictionaryLiteral {
+	let entries: [(key: String, value: Outline)]
+
+	init(dictionaryLiteral elements: (String, Outline)...) {
+		entries = elements
+	}
+}
+
+fileprivate func buildParagraphs(_ tree: Outline, parentId: Block.ID, pageId: Page.ID) -> [any Table] {
 	var records = [any Table]()
 
-	for (order, (content, children)) in tree.enumerated() {
-		let paragraph = Paragraph(string: content, parentId: parentId, pageId: pageId, order: order)
+	for (order, entry) in tree.entries.enumerated() {
+		let paragraph = Paragraph(string: entry.key, parentId: parentId, pageId: pageId, order: order)
 		records.append(paragraph)
 
-		if let children = children as? [String: Any] {
-			records.append(contentsOf: buildParagraphs(children, parentId: paragraph.id, pageId: pageId))
+		if !entry.value.entries.isEmpty {
+			records.append(contentsOf: buildParagraphs(entry.value, parentId: paragraph.id, pageId: pageId))
 		}
 	}
 

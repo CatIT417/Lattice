@@ -30,3 +30,11 @@ func with<T, E, R>(_ value: T, _ block: (inout T) async throws(E) -> R) async th
 	var copy = value
 	return try await block(&copy)
 }
+
+/// Applies a rubber band effect to an offset value.
+func rubberBand(_ offset: CGFloat, limit: CGFloat) -> CGFloat {
+	let sign: CGFloat = offset < 0 ? -1 : 1
+	let absOffset = abs(offset)
+
+	return sign * limit * (1 - 1 / (absOffset / limit + 1))
+}

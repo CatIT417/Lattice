@@ -1,6 +1,8 @@
 import SQLiteData
 import Foundation
 
+enum ParagraphAlias: AliasName {}
+
 protocol HasChildren: Table & PrimaryKeyedTable<UUID> where Self.QueryOutput == Self {}
 
 struct _WithChildren<Model: Table> where Model.QueryOutput == Model {
@@ -14,7 +16,7 @@ struct _WithChildren<Model: Table> where Model.QueryOutput == Model {
 extension HasChildren {
 	typealias WithChildren = _WithChildren<Self>
 
-	static func withChildren(id: Self.PrimaryKey) -> Select<WithChildren, Self, (Ancestor?, TableAlias<Paragraph, ParagraphAlias>?)> {
+	static func withChildren(id: Self.PrimaryKey) -> some SelectStatement<WithChildren, Self, (Ancestor?, TableAlias<Paragraph, ParagraphAlias>?)> {
 		find(id)
 			.group(by: \.primaryKey)
 			.leftJoin(Ancestor.all) { $0.primaryKey.eq($1.ancestorId) }
@@ -22,7 +24,6 @@ extension HasChildren {
 			.select { block, _, paragraph in
 				WithChildren.Columns(block: block, content: paragraph.optionalJSONGroupArray(filter: paragraph.id.isNot(nil)))
 			}
-			.asSelect()
 	}
 }
 
@@ -50,7 +51,9 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 		Model._columnWidth + [TableAlias<Paragraph, ParagraphAlias>].JSONRepresentation._columnWidth
 	}
 
-	static var tableName: String { "" }
+	static var tableName: String {
+		""
+	}
 
 	struct TableColumns: TableDefinition {
 		typealias QueryValue = _WithChildren
@@ -76,7 +79,9 @@ extension _WithChildren: Table, _Selection, PartialSelectStatement {
 			return writableColumns
 		}
 
-		var queryFragment: QueryFragment { "\(block), \(content)" }
+		var queryFragment: QueryFragment {
+			"\(block), \(content)"
+		}
 	}
 
 	struct Selection: StructuredQueriesCore.TableExpression {

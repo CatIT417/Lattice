@@ -35,7 +35,8 @@ extension NSTextView {
 		return cursorLineRange.location == lastLineRange.location
 	}
 }
-#elseif os(iOS) || os(visionOS)
+
+#elseif os(iOS)
 import UIKit
 
 extension UITextView {
