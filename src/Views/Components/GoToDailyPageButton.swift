@@ -21,11 +21,11 @@ struct GoToDailyPageButton: View {
 		}
 		.allowsHitTesting(false)
 		.onGeometryChange(for: CGSize.self, of: { $0.size }, action: { buttonSize = $0 })
-		.background(Color(backgroundColor).allowsHitTesting(false))
 		.background {
 			DatePicker("Go to Date", selection: $selection, displayedComponents: .date)
 				.datePickerStyle(.compact)
 				.labelsHidden()
+				.colorMultiply(.clear)
 				.frame(width: buttonSize.width, height: buttonSize.height)
 				.clipped()
 		}
