@@ -13,7 +13,7 @@ struct PageScreen: View {
 
 	init(pageId: Page.ID) {
 		self.pageId = pageId
-		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
+		_pageWithContent = FetchOne(Page.withChildren(id: pageId), animation: .default)
 	}
 
 	var body: some View {
@@ -35,16 +35,16 @@ struct PageScreen: View {
 					.safeAreaPadding()
 				}
 				#if os(iOS)
-					.blockSelectionMenu()
-					.doneButtonOnToolbar()
-					.toolbar {
-						if let dailyNoteDate = page.dailyNoteDate {
-							ToolbarItem {
-								GoToDailyPageButton(currentDate: dailyNoteDate.date())
-							}
+				.blockSelectionMenu()
+				.doneButtonOnToolbar()
+				.toolbar {
+					if let dailyNoteDate = page.dailyNoteDate {
+						ToolbarItem {
+							GoToDailyPageButton(currentDate: dailyNoteDate.date())
 						}
 					}
-					#endif
+				}
+				#endif
 				.syncStatusOnToolbar()
 				.navigationTitle(page.title)
 				.environment(\.rootBlockID, page.id)
@@ -56,7 +56,7 @@ struct PageScreen: View {
 		}
 		.task {
 			_ = await withErrorReporting {
-				try await $pageWithContent.load(Page.withChildren(id: pageId))
+				try await $pageWithContent.load(Page.withChildren(id: pageId), animation: .default)
 			}
 		}
 	}

@@ -30,7 +30,7 @@ struct LeftLabelSectionDisclosureStyle: DisclosureGroupStyle {
 
 				Spacer()
 			}
-			.onHover { isHovering = $0 }
+			.hovering($isHovering)
 
 			if configuration.isExpanded {
 				configuration.content

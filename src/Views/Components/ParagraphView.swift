@@ -5,10 +5,13 @@ import Dependencies
 struct ParagraphView: View {
 	var paragraph: Paragraph
 
+	@State private var isHovering = false
+
 	@Dependency(\.uuid) var uuid
+	@Dependency(\.platform) var platform
 	@Environment(\.blockTree) var blockTree
-	@Dependency(\.defaultDatabase) var database
 	@Environment(\.rootBlockID) var rootBlockID
+	@Dependency(\.defaultDatabase) var database
 	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Environment(\.fontResolutionContext) var fontContext
 	#if os(iOS)
@@ -29,19 +32,42 @@ struct ParagraphView: View {
 
 		VStack(alignment: .leading, spacing: 4) {
 			HStack(alignment: .firstTextBaseline, spacing: 8) {
-				if paragraph.viewType != .document {
-					NavigationButton(push: .paragraph(id: paragraph.id)) {
-						bulletView
-					}
-					.buttonStyle(.plain)
-					.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
-						xHeight
-					}
-					#if os(macOS)
-					.pointerStyle(.link)
-					.contextMenu { ParagraphMenu(paragraph: paragraph) }
-					#endif
+				NavigationButton(push: .paragraph(id: paragraph.id)) {
+					ParagraphBullet(paragraph: paragraph)
 				}
+				.buttonStyle(.plain)
+				.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
+					xHeight
+				}
+				.overlay(alignment: .leadingFirstTextBaseline) {
+					if platform.hasPointer, blockTree.hasChildren(paragraph.id), paragraph.id != rootBlockID {
+						Button(action: toggleIsOpen) {
+							Image(systemName: "triangle.fill")
+								.resizable()
+								.frame(width: 8, height: 8)
+								.rotationEffect(.degrees(paragraph.isOpen ? 180 : 90))
+						}
+						.buttonStyle(.plain)
+						.foregroundStyle(.primary)
+						.animation(.easeOut(duration: 0.2)) {
+							$0.opacity(isHovering ? 1 : 0)
+						}
+						.transition(.opacity)
+						.offset(x: -16)
+						.allowsHitTesting(isHovering)
+						#if os(macOS)
+							.pointerStyle(.link)
+						#else
+							.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
+								xHeight
+							}
+						#endif
+					}
+				}
+				#if os(macOS)
+				.pointerStyle(.link)
+				.contextMenu { ParagraphMenu(paragraph: paragraph) }
+				#endif
 
 				EditableText(
 					blockId: paragraph.id,
@@ -51,24 +77,44 @@ struct ParagraphView: View {
 				)
 				.font(fontForHeading)
 				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
-			}
-			#if os(iOS)
-			.padding(.horizontal, 10)
-			.contextMenu { ParagraphMenu(paragraph: paragraph) }
-			.background(
-				RoundedRectangle(cornerRadius: 6)
-					.fill(selectionCoordinator.isHighlighted(paragraph.id) ? Color.blue.opacity(0.2) : .clear)
-			)
-			.padding(.horizontal, -10)
-			.onSwipeLeft {
-				let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
-				withAnimation(selectionCoordinator.animation) {
-					selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
+
+				if !paragraph.isOpen, paragraph.id != rootBlockID, !platform.hasPointer {
+					Spacer(minLength: 2)
+
+					Button(action: toggleIsOpen) {
+						Image(systemName: "arrowtriangle.right.fill")
+							.imageScale(.small)
+					}
+					.foregroundStyle(.primary)
+					.transition(
+						.asymmetric(
+							insertion: .rotate(angle: .degrees(90)).combined(with: .opacity).animation(.easeOut(duration: 0.2)),
+							removal: .rotate(angle: .degrees(90)).combined(with: .opacity).animation(.easeIn(duration: 0.2))
+						)
+					)
 				}
 			}
+			.contentShape(Rectangle().inset(.leading, by: -15))
+			.hovering($isHovering.animation())
+			#if os(iOS)
+				.padding(.horizontal, 10)
+				.contextMenu { ParagraphMenu(paragraph: paragraph) }
+				.background(
+					RoundedRectangle(cornerRadius: 6)
+						.fill(selectionCoordinator.isHighlighted(paragraph.id) ? Color.blue.opacity(0.2) : .clear)
+				)
+				.padding(.horizontal, -10)
+				.onSwipeLeft {
+					let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
+					withAnimation(selectionCoordinator.animation) {
+						selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
+					}
+				}
 			#endif
 
-			ChildrenRenderer(parentID: paragraph.id, showIndentLine: true)
+			if paragraph.isOpen || paragraph.id == rootBlockID {
+				ChildrenRenderer(parentID: paragraph.id, showIndentLine: true, onIndentLineTapped: toggleIsOpen)
+			}
 		}
 	}
 
@@ -97,6 +143,16 @@ struct ParagraphView: View {
 		}
 
 		return true
+	}
+
+	private func toggleIsOpen() {
+		withErrorReporting {
+			try database.write { db in
+				try Block.find(paragraph.id)
+					.update { $0.isOpen = !$0.isOpen }
+					.execute(db)
+			}
+		}
 	}
 
 	private func changeOrder(cursorPosition: Int, delta: Int, currentText: String) -> Bool {
@@ -259,19 +315,6 @@ struct ParagraphView: View {
 		else { blockCoordinator.request(for: nextBlockId, visualX: visualX, edge: .first, startingInMode: .raw) }
 
 		return true
-	}
-
-	@ViewBuilder private var bulletView: some View {
-		switch paragraph.viewType {
-			case .bullet:
-				Circle()
-					.fill(Color.primary)
-					.frame(width: 6, height: 6)
-			case .numbered:
-				Text("\(paragraph.order + 1).")
-					.foregroundStyle(.secondary)
-			case .document: EmptyView()
-		}
 	}
 }
 

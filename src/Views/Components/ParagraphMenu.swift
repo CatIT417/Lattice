@@ -27,9 +27,9 @@ struct ParagraphMenu: View {
 		//		Button("Open in sidebar", action: openInSidebar)
 
 		if paragraph.isOpen {
-			Button("Collapse", systemImage: "arrow.down.and.line.horizontal.and.arrow.up") { setIsOpen(to: false) }
+			Button("Collapse", systemImage: "arrow.down.and.line.horizontal.and.arrow.up") { toggleIsOpen() }
 		} else {
-			Button("Expand", systemImage: "arrow.up.and.line.horizontal.and.arrow.down") { setIsOpen(to: true) }
+			Button("Expand", systemImage: "arrow.up.and.line.horizontal.and.arrow.down") { toggleIsOpen() }
 		}
 
 		Button("Make TODO", systemImage: "checkmark.square") { /* set TODO */ }
@@ -73,12 +73,12 @@ struct ParagraphMenu: View {
 		router.push(.paragraph(id: paragraph.id))
 	}
 
-	private func setIsOpen(to isOpen: Bool) {
+	private func toggleIsOpen() {
 		withErrorReporting {
 			try database.write { db in
 				try Block
 					.find(paragraph.id)
-					.update { $0.isOpen = isOpen }
+					.update { $0.isOpen = !$0.isOpen }
 					.execute(db)
 			}
 		}

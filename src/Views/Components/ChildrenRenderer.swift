@@ -4,6 +4,7 @@ import SQLiteData
 struct ChildrenRenderer: View {
 	var parentID: Block.ID
 	var showIndentLine: Bool = false
+	var onIndentLineTapped: (() -> Void)?
 
 	@Environment(\.blockTree) var tree
 
@@ -14,12 +15,10 @@ struct ChildrenRenderer: View {
 					ParagraphView(paragraph: child)
 				}
 			}
-			.padding(.leading, 24)
-			.background(alignment: .topLeading) {
+			.padding(.leading, 28)
+			.overlay(alignment: .topLeading) {
 				if showIndentLine {
-					Color(separatorColor)
-						.frame(width: 1)
-						.padding(.leading, 2.5)
+					IndentLine(onTap: onIndentLineTapped)
 				}
 			}
 		}

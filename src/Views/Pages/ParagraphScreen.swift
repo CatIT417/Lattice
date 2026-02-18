@@ -9,14 +9,14 @@ struct ParagraphScreen: View {
 
 	init(paragraphId: Paragraph.ID) {
 		self.paragraphId = paragraphId
-		_paragraphWithContent = FetchOne(Paragraph.withChildren(id: paragraphId))
+		_paragraphWithContent = FetchOne(Paragraph.withChildren(id: paragraphId), animation: .default)
 	}
 
 	var body: some View {
 		Group {
 			if let paragraph = paragraphWithContent?.block, let tree = paragraphWithContent?.tree {
 				ScrollView {
-					VStack(alignment: .leading, spacing: 12) {
+					LazyVStack(alignment: .leading, spacing: 12) {
 						BreadcrumbsView(blockId: paragraph.id)
 
 						ParagraphView(paragraph: paragraph)
@@ -43,7 +43,7 @@ struct ParagraphScreen: View {
 			}
 		}.task {
 			_ = await withErrorReporting {
-				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraphId))
+				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraphId), animation: .default)
 			}
 		}
 	}
