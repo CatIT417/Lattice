@@ -289,7 +289,7 @@ extension EditableTextView {
 			_ = parent.handleAction(.textChanged(newText))
 			lastKnownText = newText
 
-			let createdNewBlock = parent.handleAction(.blockBreak(remainingText: remainingText.isEmpty ? nil : remainingText))
+			let createdNewBlock = parent.handleAction(.blockBreak(currentText: newText, remainingText: remainingText.isEmpty ? nil : remainingText))
 
 			// Only switch to rendered mode if focus moved to a new block
 			if createdNewBlock {

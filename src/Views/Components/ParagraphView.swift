@@ -123,7 +123,7 @@ struct ParagraphView: View {
 			case let .textChanged(text): saveChanges(text)
 			case let .indent(cursor, text): indentBlock(cursorPosition: cursor, currentText: text)
 			case let .outdent(cursor, text): outdentBlock(cursorPosition: cursor, currentText: text)
-			case let .blockBreak(remainingText): createNewBlock(withText: remainingText)
+			case let .blockBreak(currentText, remainingText): createNewBlock(currentText: currentText, withText: remainingText)
 			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			#if os(iOS)
 			case let .moveBlock(delta, cursorPosition, text): changeOrder(cursorPosition: cursorPosition, delta: delta, currentText: text)
@@ -180,13 +180,13 @@ struct ParagraphView: View {
 	}
 
 	/// Returns true if a new block was created, false if focus stays on this block (e.g., outdent)
-	private func createNewBlock(withText text: String? = nil) -> Bool {
+	private func createNewBlock(currentText: String, withText text: String? = nil) -> Bool {
 		let isRootParagraph = paragraph.id == rootBlockID
 
 		// IF we press return on an empty block with no children,
 		// AND the parent is not at the top level in the current page,
 		// THEN we move it up a level instead of creating a new block.
-		if paragraph.string.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, paragraph.parentId != rootBlockID {
+		if currentText.isEmpty, text?.isEmpty ?? true, !isRootParagraph, !paragraph.parentIsPage, paragraph.parentId != rootBlockID {
 			_ = outdentBlock()
 			return false
 		}

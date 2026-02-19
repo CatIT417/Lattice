@@ -313,7 +313,7 @@ extension EditableTextView {
 			lastKnownText = newText
 
 			// Only switch to rendered mode if focus moved to a new block
-			if parent.handleAction(.blockBreak(remainingText: remainingText.isEmpty ? nil : remainingText)) {
+			if parent.handleAction(.blockBreak(currentText: newText, remainingText: remainingText.isEmpty ? nil : remainingText)) {
 				isEditing = false
 				textView.resignFirstResponder()
 				setText(.rendered, text: newText, textView: textView)

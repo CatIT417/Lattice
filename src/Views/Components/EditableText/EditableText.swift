@@ -7,7 +7,7 @@ struct EditableText: View {
 		case textChanged(String)
 
 		/// Return pressed - break block at cursor. May create new block or outdent.
-		case blockBreak(remainingText: String?)
+		case blockBreak(currentText: String, remainingText: String?)
 
 		/// Backspace at start - merge into previous block, appending this content
 		case mergeIntoPrevious(appendingContent: String)
