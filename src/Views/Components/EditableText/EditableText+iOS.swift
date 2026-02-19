@@ -258,18 +258,21 @@ extension EditableTextView {
 
 		func insertBrackets(textView: UITextView) {
 			let range = textView.selectedRange
-			let selectedText = range.length > 0 ? (textView.text as NSString).substring(with: range) : nil
-			let replacement = selectedText.map { "[[\($0)]]" } ?? "[[]]"
+			let text = textView.text as NSString
 
-			textView.replace(
-				textView.textRange(
-					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
-					to: textView.position(from: textView.beginningOfDocument, offset: range.location + range.length)!
-				)!,
-				withText: replacement
-			)
+			if range.location >= 2, range.location + range.length + 2 <= text.length,
+			   text.substring(with: NSRange(location: range.location - 2, length: 2)) == "[[",
+			   text.substring(with: NSRange(location: range.location + range.length, length: 2)) == "]]"
+			{
+				textView.selectedRange = NSRange(location: range.location - 2, length: range.length + 4)
+				textView.insertText(text.substring(with: range))
+				textView.selectedRange = NSRange(location: range.location - 2, length: range.length)
+				return
+			}
 
-			moveCursorTo(offset: range.location + (replacement as NSString).length - 2, textView: textView)
+			let inner = range.length > 0 ? text.substring(with: range) : ""
+			textView.insertText("[[\(inner)]]")
+			textView.selectedRange = NSRange(location: range.location + 2, length: range.length)
 		}
 
 		@objc func handleBlockSelected() {
