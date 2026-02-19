@@ -49,7 +49,7 @@ struct DailyPagesScreen: View {
 		#endif
 		.syncStatusOnToolbar()
 		.navigationTitle("Daily Notes")
-		.toolbarTitleDisplayMode(.inline)
+		.toolbarTitleDisplayMode(.inlineLarge)
 		.toolbar {
 			#if os(iOS)
 			ToolbarItem(placement: .topBarTrailing) {

@@ -3,6 +3,7 @@ import SQLiteData
 
 struct ChildrenRenderer: View {
 	var parentID: Block.ID
+	var skipPadding: Bool = false
 	var showIndentLine: Bool = false
 	var onIndentLineTapped: (() -> Void)?
 
@@ -15,7 +16,7 @@ struct ChildrenRenderer: View {
 					ParagraphView(paragraph: child)
 				}
 			}
-			.padding(.leading, 28)
+			.safeAreaPadding(.leading, skipPadding ? 0 : 28)
 			.overlay(alignment: .topLeading) {
 				if showIndentLine {
 					IndentLine(onTap: onIndentLineTapped)

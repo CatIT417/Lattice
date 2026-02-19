@@ -1,5 +1,7 @@
 import SQLiteData
 import Foundation
+import CoreTransferable
+import UniformTypeIdentifiers
 
 @Table
 struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
@@ -17,6 +19,10 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 
 	var createdAt: Date
 	var updatedAt: Date
+
+	var isDailyNote: Bool {
+		dailyNoteDate != nil
+	}
 
 	init(id: UUID? = nil, title: String, dailyNoteDate: DayOfYear? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
 		@Dependency(\.uuid) var uuid
@@ -42,6 +48,8 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	}
 }
 
+// MARK: - Daily Notes
+
 extension Page {
 	static func newDailyNote(for day: DayOfYear) -> Page {
 		return Page(title: day.title(), dailyNoteDate: day)
@@ -65,6 +73,8 @@ extension Page {
 	}
 }
 
+// MARK: - Query Helpers
+
 extension Page {
 	static func findOrCreate(title: String, in db: Database) throws -> Page {
 		let newlyCreatedBlock = try #sql("""
@@ -79,5 +89,24 @@ extension Page {
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
 		return try Page.where { $0.title == title }.fetchOne(db)!
+	}
+}
+
+// MARK: - Transferrable
+
+extension Page: Transferable {
+	static var transferRepresentation: some TransferRepresentation {
+		ProxyRepresentation { page in
+			try MarkdownExporter.exportPage(id: page.id)
+		}
+
+		FileRepresentation(exportedContentType: .text) { page in
+			let markdown = try MarkdownExporter.exportPage(id: page.id)
+			let url = URL.temporaryDirectory.appending(path: "\(page.title).md")
+
+			try markdown.write(to: url, atomically: true, encoding: .utf8)
+
+			return .init(url)
+		}
 	}
 }

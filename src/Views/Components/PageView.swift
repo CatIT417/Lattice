@@ -28,7 +28,7 @@ struct PageView: View {
 							.padding(.leading, 24)
 					}
 
-					ChildrenRenderer(parentID: page.id)
+					ChildrenRenderer(parentID: page.id, skipPadding: true)
 				}
 				.frame(maxWidth: .infinity, alignment: .leading)
 			}
