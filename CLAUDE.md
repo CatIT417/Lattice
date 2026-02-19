@@ -38,60 +38,31 @@ blocks (table)
 
 ### Tables
 
-**blocks** - The unified storage for all content
-
-- `id: UUID` - Primary key
-- `string: String?` - Text content (NULL for pages)
-- `title: String?` - Page title (NULL for paragraphs)
-- `dailyNoteDate: Date?` - Date in "YYYY-MM-DD" format for daily notes (NULL unless page is a daily note)
-- `parentId: Block.ID?` - Parent block (NULL for root pages)
-- `pageId: Block.ID?` - Root page this block belongs to
-- `order: Int` - Position among siblings
-- `heading: HeadingLevel?` - H1, H2, H3
-- `viewType: ViewType` - bullet, document, numbered
-- `textAlign: TextAlignment` - left, center, right, justify
-- `isOpen: Bool` - Collapsed state
-- `props: String?` - JSON blob for extensibility
-- `createdAt: Date` - Unix timestamp of creation
-- `updatedAt: Date` - Unix timestamp of last modification
-
-**blockReferences** - Links between blocks
-
-- `sourceBlockId` - Block containing the reference
-- `targetBlockId` - Block being referenced
-- `kind` - tag, page_link, block_ref, block_embed
-
-**blockAncestors** - Pre-computed ancestor relationships for O(1) tree queries
-
-- `blockId` - The descendant
-- `ancestorId` - An ancestor
-- `depth` - 1 = parent, 2 = grandparent, etc.
-
-**\_trigger_guard** - Temporary table for preventing cascading triggers
-
-- `id: Int` - Must equal 0 (only one row allowed)
-- `depth: Int` - Trigger recursion depth counter
-
-Used by triggers like `UpdateParagraphOrder` to prevent infinite loops when triggers modify blocks that would otherwise re-trigger.
+**blocks** - The unified storage for all content (`src/Models/Block.swift`)
+**blockReferences** - Links between blocks (`src/Models/Reference.swift`)
+**blockAncestors** - Pre-computed ancestor relationships for O(1) tree queries (`src/Models/Ancestor.swift`)
+**\_trigger_guard** - Temporary table for preventing cascading triggers (`src/Models/TriggerGuard.swift`)
 
 ### Views (Temporary, created on each connection)
 
-- **pages** - Filters blocks with titles, projects to Page model
-- **paragraphs** - Filters blocks with strings, projects to Paragraph model
-- **backlinks** - Joins references with source block and page info
+- **pages** - Filters blocks with titles (`src/Models/Page.swift`)
+- **paragraphs** - Filters blocks with strings (`src/Models/Paragraph.swift`)
+- **backlinks** - Joins references with source block and page info (`src/Models/Backlink.swift`)
 
 ### Triggers
 
 - **TouchTimestamps** - Auto-updates `updatedAt` on block modifications and parent page's `updatedAt` when a paragraph is modified
 - **SyncAncestorsTable** - Automatically maintains ancestor table on block insert/update
-- **MakePagesViewWritable** / **MakeParagraphsViewWritable** - INSTEAD OF triggers that redirect INSERT/DELETE on views to the blocks table (no UPDATE redirects for performance reasons, use `blocks` directly)
-- **SyncReferencesTable** - Extracts references from block text and syncs to blockReferences table; auto-creates pages for newly mentioned `[[Page Links]]`; also updates blocks when a referenced page's title changes (uses `@DatabaseFunction` for async processing)
+- **Make{Pages/Paragraphs}ViewWritable** - INSTEAD OF triggers that redirect INSERT/DELETE on views to the blocks table (no UPDATE redirects for performance reasons, use `blocks` directly)
+- **SyncReferencesTable** - Extracts references from block text and syncs to blockReferences table; auto-creates pages for newly mentioned `[[Page Links]]`; also updates blocks when a referenced page's title changes
 - **UpdateParagraphOrder** - Maintains correct ordering of sibling blocks when inserting, moving, or deleting; uses `TriggerGuard` to prevent cascading trigger issues
 - **AvoidDuplicatePages** - Prevents duplicate pages with the same title; when duplicates are detected (on INSERT or UPDATE), merges them by keeping the oldest page and moving all blocks to it
 
 ## Key Patterns
 
 ### Type-Safe Queries with SQLiteData
+
+> Use the `pfw-structured-queries` skill when you need to write type-safe queries.
 
 ```swift
 // Fetch children of a block
@@ -104,6 +75,8 @@ Ancestor.where { $0.blockId == blockId }
 ```
 
 ### @FetchAll / @FetchOne Property Wrappers
+
+> Use the `pfw-sqlite-data` skill when you need help with data fetching
 
 ```swift
 struct BlockView: View {
@@ -122,7 +95,7 @@ struct BlockView: View {
 Models conforming to `HasChildren` get efficient child-loading:
 
 ```swift
-Page.withChildren(id: pageId) // Returns `Page.WithChildren` (see `Table+withChildren.swift`)
+Page.withChildren(id: pageId) // (see `Table+withChildren.swift`)
 ```
 
 ### Reference Extraction
@@ -146,31 +119,6 @@ Each `TextRef` includes a `.url` property for deep linking and a `.resolved()` m
 coordinator.isActive(blockId:)  // Currently focused block ID
 coordinator.cursorPositionFor(blockId:)
 coordinator.modeFor(blockId:)   // .raw (editing) or .rendered (viewing)
-```
-
-## File Structure
-
-```
-src/
-├── App.swift                      # Entry point, bootstraps database
-├── Database/
-│   ├── Database.swift            # DB setup: migrations, views, triggers, seeding
-│   ├── Migration.swift           # Protocols for migrations/seeders/views/triggers
-│   ├── Migrations/               # Schema migrations (numbered)
-│   ├── Views/                    # SQL view definitions
-│   └── Triggers/                 # SQL trigger definitions
-├── Models/                       # @Table models (Block, Page, Paragraph, Ancestor, Reference, etc.)
-├── ViewModels/                   # View models and coordinators
-├── Extensions/                   # Swift extensions
-├── Support/                      # Shared utilities (AttributedStringBuilder, BlockTree, Navigation, etc.)
-└── Views/
-    ├── Pages/                    # Full-screen views (PageScreen, ParagraphScreen, etc.)
-    ├── Modifiers/                # View modifiers
-    └── Components/               # Reusable UI components
-        └── EditableText/         # Text editor (platform-specific files)
-tests/
-├── Database                      # Database-related tests
-└── Tests.swift                   # Base Test Case & helpers
 ```
 
 ## Navigation
@@ -298,22 +246,13 @@ func textView(_: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
 
 The `linkWasTapped` flag prevents the text view from entering edit mode when a link is tapped.
 
-### Platform Differences
-
-| Aspect      | iOS/visionOS                                   | macOS                     |
-| ----------- | ---------------------------------------------- | ------------------------- |
-| Text view   | `UITextView` (wrapped in `AutosizingTextView`) | `NSTextView`              |
-| Focus start | `textViewDidBeginEditing(_:)`                  | `textDidBeginEditing(_:)` |
-| Link click  | `primaryActionFor textItem:`                   | `clickedOnLink:at:`       |
-| Return key  | `shouldChangeTextIn:replacementText:`          | `doCommandBy:`            |
-
 ## Database Initialization Order
 
 1. Configure SQLite (foreign keys, disable recursive triggers)
 2. Create temporary views (in `prepareDatabase` callback)
 3. Run migrations (blocks → references → ancestors → trigger guard)
 4. Install triggers
-5. Seed data (only on `build.miguel.Lattice.dev` target)
+5. Seed data (only on `LatticeDev` target)
 
 ## Verifying Changes
 
@@ -330,19 +269,11 @@ mcp__xcode__BuildProject(tabIdentifier: tabId)
 mcp__xcode__XcodeListNavigatorIssues(tabIdentifier: tabId) # or mcp__xcode__XcodeRefreshCodeIssuesInFile(tabIdentifier: tabId, filePath:) for a specific file
 ```
 
-If Xcode isn't open (there is no tabIdentifier), fall back to xcodebuildmcp:
-
-```
-mcp__xcodebuildmcp__build_sim(scheme: "LatticeDev") # Build for iOS
-mcp__xcodebuildmcp__build_macos(scheme: "LatticeDev") # Build for macOS
-```
-
 Ensure the app is in building order before finishing your work.
 
 ### Running Tests
 
 Use `mcp__xcode__RunAllTests` to run all tests, or `mcp__xcode__RunSomeTests` to run specific tests.
-If Xcode isn't open, you can use `mcp__xcodebuildmcp__test_sim(scheme: "LatticeDev")` or `mcp__xcodebuildmcp__test_macos(scheme: "LatticeDev")` to run all tests, depending on which OS you're targeting.
 Ensure all tests pass before finishing your work.
 
 ### Executing Snippets
