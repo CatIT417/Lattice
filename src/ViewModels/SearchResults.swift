@@ -14,6 +14,10 @@ final class SearchResults {
 		}
 	}
 
+	var hasEmptyQuery: Bool {
+		searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+	}
+
 	var hasResults: Bool {
 		!results.isEmpty
 	}
@@ -34,7 +38,7 @@ final class SearchResults {
 			try await clock.sleep(for: .seconds(0.3))
 
 			_ = await withErrorReporting {
-				guard searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+				guard !hasEmptyQuery else {
 					return try await $results.load(Block.none, animation: .default)
 				}
 

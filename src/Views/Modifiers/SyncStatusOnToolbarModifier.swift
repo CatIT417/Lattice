@@ -7,16 +7,18 @@ struct SyncStatusOnToolbarModifier: ViewModifier {
 	func body(content: Content) -> some View {
 		content
 			.toolbar {
-				ToolbarItem {
-					Image(systemName: syncEngine.isSynchronizing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud")
-					#if os(macOS)
-						.imageScale(.large)
-					#endif
-						.contentTransition(.symbolEffect)
-						.symbolEffect(.rotate, options: .repeat(.periodic), isActive: syncEngine.isSynchronizing)
-						.help(syncEngine.isSynchronizing ? "Syncing..." : "Up to date")
+				if syncEngine.isRunning {
+					ToolbarItem {
+						Image(systemName: syncEngine.isSynchronizing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud")
+						#if os(macOS)
+							.imageScale(.large)
+						#endif
+							.contentTransition(.symbolEffect)
+							.symbolEffect(.rotate, options: .repeat(.periodic), isActive: syncEngine.isSynchronizing)
+							.help(syncEngine.isSynchronizing ? "Syncing..." : "Up to date")
+					}
+					.sharedBackgroundVisibility(.hidden)
 				}
-				.sharedBackgroundVisibility(.hidden)
 			}
 	}
 }
