@@ -53,7 +53,7 @@ func removeReferences(from text: String) -> String {
 private let inlineMarkupCharacters: Set<Character> = ["*", "_", "`", "=", "[", "(", "#"]
 
 /// Build an NSAttributedString from text with refs and formatting
-func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body)) -> AttributedStringResult {
+func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body), using parser: InlineParser = .default) -> AttributedStringResult {
 	let baseAttributes: [NSAttributedString.Key: Any] = [
 		.font: font,
 		.foregroundColor: labelColor,
@@ -64,7 +64,7 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 		return plainAttributedResult(for: text, attributes: baseAttributes)
 	}
 
-	let spans = InlineParser.default.parse(text)
+	let spans = parser.parse(text)
 
 	// Check if there's any non-text content (markers were present but didn't form valid syntax)
 	let hasFormatting = spans.contains { $0.kind != .text }

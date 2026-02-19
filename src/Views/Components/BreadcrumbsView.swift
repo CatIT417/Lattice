@@ -2,7 +2,9 @@ import SwiftUI
 import SQLiteData
 
 struct BreadcrumbsView: View {
-	@FetchAll var breadcrumbs: [Breadcrumb]
+	@FetchAll(Breadcrumb.none) var breadcrumbs: [Breadcrumb]
+
+	@Environment(\.isNavigationEnabled) private var isNavigationEnabled
 
 	init(blockId: Block.ID) {
 		_breadcrumbs = FetchAll(Breadcrumb.forBlock(id: blockId))
@@ -15,8 +17,9 @@ struct BreadcrumbsView: View {
 					NavigationButton(push: ancestor.page) {
 						Text(ancestor.text)
 							.lineLimit(1)
-							.foregroundStyle(.secondary)
+							.foregroundStyle(isNavigationEnabled ? .secondary : .primary)
 					}
+					.foregroundStyle(.primary)
 					.buttonStyle(.plain)
 					#if os(macOS)
 						.pointerStyle(.link)
@@ -36,9 +39,9 @@ struct BreadcrumbsView: View {
 
 struct BreadcrumbsView_Previews: PreviewProvider {
 	static var previews: some View {
-		let ancestor = previewData { try Ancestor.order { $0.depth.desc() }.fetchOne($0)! }
+		let ancestor = previewData { try Ancestor.order { $0.depth.desc() }.fetchOne($0) }
 
-		BreadcrumbsView(blockId: ancestor.blockId)
+		BreadcrumbsView(blockId: ancestor!.blockId)
 			.preview()
 	}
 }
