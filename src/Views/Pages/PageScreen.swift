@@ -26,7 +26,7 @@ struct PageScreen: View {
 								.padding(.leading, 24)
 						}
 
-						ChildrenRenderer(parentID: page.id)
+						ChildrenRenderer(parentID: page.id, skipPadding: true)
 
 						LinkedReferencesSection(forBlockID: page.id)
 							.padding(.top, 12)
@@ -47,6 +47,9 @@ struct PageScreen: View {
 				#endif
 				.syncStatusOnToolbar()
 				.navigationTitle(page.title)
+				.navigationDocument(page, preview: SharePreview(page.title))
+				.toolbarTitleDisplayMode(.inline)
+				.toolbarRole(.editor)
 				.environment(\.rootBlockID, page.id)
 				.environment(\.blockTree, pageWithContent.tree)
 			} else {
