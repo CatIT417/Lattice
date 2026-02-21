@@ -5,7 +5,7 @@ import Foundation
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/triggers/TouchTimestamps")
+	@Suite("Database/Triggers/TouchTimestamps")
 	struct TouchTimestampsTest {
 		@Dependency(\.defaultDatabase) var database
 	}

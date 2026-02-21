@@ -34,6 +34,7 @@ func unifyPagesWithSameTitle(title: String) throws {
 
 				for duplicatePage in pages {
 					let affectedRecords = try Paragraph.where { $0.pageId.eq(duplicatePage.id) || $0.parentId.eq(duplicatePage.id) }.fetchAll(db)
+					let affectedReferences = try Reference.where { $0.targetBlockId.eq(duplicatePage.id) }.fetchAll(db)
 
 					for block in affectedRecords {
 						try Block.find(block.id).update {
@@ -43,6 +44,10 @@ func unifyPagesWithSameTitle(title: String) throws {
 								$0.parentId = keeper.id
 							}
 						}.execute(db)
+					}
+
+					for reference in affectedReferences {
+						try Reference.find(reference.id).update { $0.targetBlockId = keeper.id }.execute(db)
 					}
 
 					try Page.find(duplicatePage.id).delete().execute(db)

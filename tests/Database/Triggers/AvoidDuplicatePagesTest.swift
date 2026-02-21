@@ -105,8 +105,7 @@ extension Tests.AvoidDuplicatePagesTest {
 	private func waitForPages(
 		title: String,
 		expectedCount: Int,
-		timeout: TimeInterval = 1.0,
-		pollInterval _: TimeInterval = 0.02
+		timeout: TimeInterval = 1.0
 	) async throws -> [Page] {
 		let deadline = Date().addingTimeInterval(timeout)
 		var pages: [Page] = []

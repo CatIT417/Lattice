@@ -19,7 +19,7 @@ final class CreateBlocksTable: Migration {
 			table.column("heading", .integer) // 1, 2, or 3 (NULL = normal)
 			table.column("viewType", .text).notNull().defaults(to: "bullet") // bullet', 'document', 'numbered'
 			table.column("textAlign", .text).notNull().defaults(to: "left") // 'left', 'center', 'right', 'justify'
-			table.column("isOpen", .boolean).notNull().defaults(to: false) // Collapsed state
+			table.column("isOpen", .boolean).notNull().defaults(to: true) // Collapsed state
 
 			// Flexible properties (images, embeds, sliders, etc.)
 			table.column("props", .jsonText) // JSON blob for extensible data
