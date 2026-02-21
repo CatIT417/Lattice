@@ -5,16 +5,26 @@ import GameController
 @MainActor @Observable
 final class PlatformInfo {
 	var hasPointer: Bool
+	var hasKeyboard: Bool
 
 	private init() {
 		hasPointer = GCMouse.current != nil
+		hasKeyboard = GCKeyboard.coalesced != nil
 
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(mouseDidConnect), name: .GCMouseDidConnect, object: nil
 		)
 
 		NotificationCenter.default.addObserver(
+			self, selector: #selector(keyboardDidConnect), name: .GCKeyboardDidConnect, object: nil
+		)
+
+		NotificationCenter.default.addObserver(
 			self, selector: #selector(mouseDidDisconnect), name: .GCMouseDidDisconnect, object: nil
+		)
+
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(keyboardDidDisconnect), name: .GCKeyboardDidDisconnect, object: nil
 		)
 	}
 
@@ -22,8 +32,16 @@ final class PlatformInfo {
 		hasPointer = true
 	}
 
+	@objc private func keyboardDidConnect() {
+		hasKeyboard = true
+	}
+
 	@objc private func mouseDidDisconnect() {
 		hasPointer = false
+	}
+
+	@objc private func keyboardDidDisconnect() {
+		hasKeyboard = false
 	}
 }
 
