@@ -19,11 +19,28 @@ final class BlockCoordinator {
 	}
 
 	private var focusedBlock: Block.ID?
+	private(set) var activelyEditingBlock: Block.ID?
 
-	private var cursorPlacement: CursorPlacement?
-	private var isExpectingText: Bool = false
 	private var pendingAction: PendingAction?
+	private var isExpectingText: Bool = false
+	private var cursorPlacement: CursorPlacement?
 	private var renderMode: RenderMode = .rendered
+	private let logger = Logger(category: "BlockCoordinator")
+
+	func editingStarted(for blockId: Block.ID?) {
+		guard let blockId else { return }
+		activelyEditingBlock = blockId
+	}
+
+	func editingEnded(for blockId: Block.ID?) {
+		guard let blockId else { return }
+		guard activelyEditingBlock == blockId else {
+			logger.warning("Received editingEnded for block \(blockId) but actively editing block is \(String(describing: activelyEditingBlock))")
+			return
+		}
+
+		activelyEditingBlock = nil
+	}
 
 	func request(for blockId: Block.ID?, at position: Int? = nil, expectsNewText: Bool = false, startingInMode mode: RenderMode = .rendered) {
 		guard let blockId else { return }

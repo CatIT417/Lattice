@@ -36,7 +36,7 @@ struct ParagraphScreen: View {
 				.toolbar(removing: .title)
 				.environment(\.blockTree, tree)
 				.environment(\.rootBlockID, paragraph.id)
-				.navigationTitle(removeReferences(from: paragraph.string))
+				.navigationTitle(removeReferences(from: paragraph.string.strippingTodoPrefix()))
 			} else {
 				ProgressView()
 					.onAppear { router.pop() }

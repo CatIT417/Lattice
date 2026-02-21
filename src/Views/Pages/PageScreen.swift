@@ -23,7 +23,7 @@ struct PageScreen: View {
 					VStack(alignment: .leading, spacing: 12) {
 						if hasNoChildren {
 							PlaceholderBlock(pageId: page.id)
-								.padding(.leading, 24)
+								.padding(.leading, 6)
 						}
 
 						ChildrenRenderer(parentID: page.id, skipPadding: true)

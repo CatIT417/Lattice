@@ -125,6 +125,7 @@ struct EditableTextView: NSViewRepresentable {
 
 		if coordinator.parent.blockCoordinator.shouldFocus(blockId: coordinator.parent.blockId) {
 			coordinator.saveIfEditing()
+			coordinator.parent.blockCoordinator.editingEnded(for: coordinator.parent.blockId)
 		} else {
 			nsView.window?.makeFirstResponder(nil)
 		}
@@ -171,7 +172,7 @@ extension EditableTextView {
 						.foregroundColor: NSColor.labelColor,
 					]))
 				case .rendered:
-					let result = buildAttributedString(from: text, font: parent.nsFont)
+					let result = buildAttributedString(from: text.strippingTodoPrefix(), font: parent.nsFont, rawStartOffset: text.todoPrefixUTF16Length)
 					indexMapping = result.indexMapping
 					textView.setAttributedText(result.attributedString)
 			}
@@ -256,6 +257,7 @@ extension EditableTextView {
 
 		fileprivate func transitionToEditMode(textView: NSTextView) {
 			isEditing = true
+			parent.blockCoordinator.editingStarted(for: parent.blockId)
 
 			let selectedRange = textView.selectedRange()
 
@@ -321,6 +323,7 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 		guard let textView = notification.object as? NSTextView else { return }
 		guard isEditing else { return }
 		isEditing = false
+		parent.blockCoordinator.editingEnded(for: parent.blockId)
 
 		let newText = textView.attributedString().string
 		if newText != parent.text {

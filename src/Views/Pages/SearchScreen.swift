@@ -36,9 +36,15 @@ struct SearchScreen: View {
 								BreadcrumbsView(blockId: paragraph.id)
 									.environment(\.isNavigationEnabled, false)
 
-								RenderAsLabel(
-									text: buildAttributedString(from: paragraph.string).attributedString
-								)
+								HStack(alignment: .firstTextBaseline) {
+									if let todoState = paragraph.string.todoState {
+										Image(systemName: todoState == .done ? "checkmark.square.fill" : "square")
+									}
+
+									RenderAsLabel(
+										text: buildAttributedString(from: paragraph.string.strippingTodoPrefix()).attributedString
+									)
+								}
 							}
 					}
 				}

@@ -13,6 +13,7 @@ struct RenderAsLabel: UIViewRepresentable {
 		let textView = AutosizingTextView()
 		textView.isEditable = false
 		textView.isSelectable = false
+		textView.backgroundColor = .clear
 		textView.textContainerInset = .zero
 		textView.delegate = context.coordinator
 		textView.textContainer.lineFragmentPadding = .zero
@@ -42,6 +43,7 @@ struct RenderAsLabel: NSViewRepresentable {
 		let textView = NSTextView()
 		textView.isEditable = false
 		textView.isSelectable = false
+		textView.backgroundColor = .clear
 		textView.delegate = context.coordinator
 
 		return textView

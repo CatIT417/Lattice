@@ -53,7 +53,7 @@ func removeReferences(from text: String) -> String {
 private let inlineMarkupCharacters: Set<Character> = ["*", "_", "`", "=", "[", "(", "#"]
 
 /// Build an NSAttributedString from text with refs and formatting
-func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body), using parser: InlineParser = .default) -> AttributedStringResult {
+func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body), using parser: InlineParser = .default, rawStartOffset: Int = 0) -> AttributedStringResult {
 	let baseAttributes: [NSAttributedString.Key: Any] = [
 		.font: font,
 		.foregroundColor: labelColor,
@@ -61,7 +61,7 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 
 	// Fast path: skip parsing when no inline markup markers are present
 	guard text.contains(where: { inlineMarkupCharacters.contains($0) }) else {
-		return plainAttributedResult(for: text, attributes: baseAttributes)
+		return plainAttributedResult(for: text, attributes: baseAttributes, rawStartOffset: rawStartOffset)
 	}
 
 	let spans = parser.parse(text)
@@ -69,26 +69,36 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 	// Check if there's any non-text content (markers were present but didn't form valid syntax)
 	let hasFormatting = spans.contains { $0.kind != .text }
 	if !hasFormatting {
-		return plainAttributedResult(for: text, attributes: baseAttributes)
+		return plainAttributedResult(for: text, attributes: baseAttributes, rawStartOffset: rawStartOffset)
 	}
 
 	let result = NSMutableAttributedString()
 	var renderedToRaw: [Int] = []
 	renderedToRaw.reserveCapacity(text.utf16.count + 1)
 
-	let context = RenderContext(sourceText: text, rawStartOffset: 0, attributes: baseAttributes, font: font, inheritedTraits: [])
+	let context = RenderContext(sourceText: text, rawStartOffset: rawStartOffset, attributes: baseAttributes, font: font, inheritedTraits: [])
 	for span in spans {
 		context.render(span: span, into: result, renderedToRaw: &renderedToRaw)
 	}
 
 	// Add final position (for cursor at end)
-	renderedToRaw.append(text.utf16.count)
+	renderedToRaw.append(text.utf16.count + rawStartOffset)
 
 	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: result)
 }
 
-private func plainAttributedResult(for text: String, attributes: [NSAttributedString.Key: Any]) -> AttributedStringResult {
-	AttributedStringResult(attributedString: NSAttributedString(string: text, attributes: attributes))
+private func plainAttributedResult(for text: String, attributes: [NSAttributedString.Key: Any], rawStartOffset: Int = 0) -> AttributedStringResult {
+	guard rawStartOffset > 0 else {
+		return AttributedStringResult(attributedString: NSAttributedString(string: text, attributes: attributes))
+	}
+
+	// Build a simple identity mapping shifted by rawStartOffset
+	var renderedToRaw: [Int] = []
+	renderedToRaw.reserveCapacity(text.utf16.count + 1)
+	for i in 0...text.utf16.count {
+		renderedToRaw.append(i + rawStartOffset)
+	}
+	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: NSAttributedString(string: text, attributes: attributes))
 }
 
 private struct RenderContext {

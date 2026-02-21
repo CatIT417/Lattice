@@ -56,7 +56,7 @@ struct EditableTextView: UIViewRepresentable {
 				context.coordinator.moveBlock(textView: textView, delta: 1)
 			}),
 			UIBarButtonItem(image: UIImage(systemName: "checkmark.square"), primaryAction: UIAction { _ in
-				// TODO: Add checkmark button
+				context.coordinator.toggleTodo(textView: textView)
 			}),
 			UIBarButtonItem(image: UIImage(systemName: "photo"), primaryAction: UIAction { _ in
 				// TODO: Add photo button
@@ -179,7 +179,7 @@ extension EditableTextView {
 				case .raw:
 					textView.attributedText = NSAttributedString(string: text, attributes: [.font: parent.uiFont, .foregroundColor: UIColor.label])
 				case .rendered:
-					let result = buildAttributedString(from: text, font: parent.uiFont)
+					let result = buildAttributedString(from: text.strippingTodoPrefix(), font: parent.uiFont, rawStartOffset: text.todoPrefixUTF16Length)
 					indexMapping = result.indexMapping
 					textView.attributedText = result.attributedString
 			}
@@ -248,6 +248,24 @@ extension EditableTextView {
 			_ = parent.handleAction(.moveBlock(delta: delta, cursorPosition: textView.selectedRange.location, currentText: lastKnownText))
 		}
 
+		func toggleTodo(textView: UITextView) {
+			guard isEditing else { return }
+
+			let oldText = textView.attributedText.string
+			let cursorPosition = textView.selectedRange.location
+
+			let newState = oldText.todoState.next
+			let newText = oldText.withTodoState(newState)
+
+			_ = parent.handleAction(.textChanged(newText))
+			lastKnownText = newText
+			setText(.raw, text: newText, textView: textView)
+
+			let oldPrefixLen = oldText.todoPrefixUTF16Length
+			let newPrefixLen = newState?.prefixUTF16Length ?? 0
+			moveCursorTo(offset: max(0, cursorPosition + newPrefixLen - oldPrefixLen), textView: textView)
+		}
+
 		func moveCursorUp(textView: UITextView) -> Bool {
 			return parent.handleAction(.moveCursorUp(visualX: cursorXInWindow(textView: textView)))
 		}
@@ -287,6 +305,7 @@ extension EditableTextView {
 		private func transitionToEditMode(textView: UITextView) {
 			isEditing = true
 			willSwitchToEditing = false
+			parent.blockCoordinator.editingStarted(for: parent.blockId)
 
 			var cursorOffset: Int?
 			if let selectedRange = textView.selectedTextRange {
@@ -359,6 +378,7 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 	func textViewDidEndEditing(_ textView: UITextView) {
 		guard isEditing else { return }
 		isEditing = false
+		parent.blockCoordinator.editingEnded(for: parent.blockId)
 
 		let newText = textView.attributedText.string
 		if newText != parent.text {

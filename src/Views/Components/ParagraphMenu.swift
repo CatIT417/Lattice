@@ -16,6 +16,7 @@ struct ParagraphMenu: View {
 	@Environment(Router.self) var router
 	@Environment(\.blockTree) var blockTree
 	@Dependency(\.defaultDatabase) var database
+	@Dependency(\.blockCoordinator) var blockCoordinator
 
 	var body: some View {
 		Button("Copy block ref", systemImage: "parentheses", action: copyBlockRef)
@@ -32,7 +33,13 @@ struct ParagraphMenu: View {
 			Button("Expand", systemImage: "arrow.up.and.line.horizontal.and.arrow.down") { toggleIsOpen() }
 		}
 
-		Button("Make TODO", systemImage: "checkmark.square") { /* set TODO */ }
+		if blockCoordinator.activelyEditingBlock != paragraph.id {
+			if paragraph.string.todoState == nil {
+				Button("Convert TODO", systemImage: "checkmark.square") { setTodoState(.todo) }
+			} else {
+				Button("Remove TODO", systemImage: "xmark.square") { setTodoState(nil) }
+			}
+		}
 
 		Picker("", selection: $blockAlignment) {
 			ForEach(Block.TextAlignment.allCases, id: \.rawValue) { alignment in
@@ -60,6 +67,16 @@ struct ParagraphMenu: View {
 		.pickerStyle(.palette)
 		.onChange(of: blockHeading) { updateHeading(to: $1) }
 		.onChange(of: paragraph.heading) { blockHeading = $1 }
+	}
+
+	private func setTodoState(_ state: TodoState?) {
+		withErrorReporting {
+			try database.write { db in
+				try Block.find(paragraph.id)
+					.update { $0.string = $0.string.withTodoState(state) }
+					.execute(db)
+			}
+		}
 	}
 
 	private func copyBlockRef() {

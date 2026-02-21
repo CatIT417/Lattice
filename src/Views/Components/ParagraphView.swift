@@ -69,6 +69,21 @@ struct ParagraphView: View {
 				.contextMenu { ParagraphMenu(paragraph: paragraph) }
 				#endif
 
+				if let todoState = paragraph.string.todoState, blockCoordinator.activelyEditingBlock != paragraph.id {
+					Button(action: { toggleTodoState(todoState) }) {
+						Image(systemName: todoState == .done ? "checkmark.square.fill" : "square")
+							.foregroundStyle(.primary)
+							.contentTransition(.symbolEffect(.replace))
+					}
+					#if os(macOS)
+					.pointerStyle(.link)
+					#else
+					.hoverEffect(.lift)
+					#endif
+					.buttonStyle(.plain)
+					.padding(.trailing, -4)
+				}
+
 				EditableText(
 					blockId: paragraph.id,
 					text: paragraph.string,
@@ -130,6 +145,16 @@ struct ParagraphView: View {
 			#endif
 			case let .moveCursorDown(visualX): moveToNextBlock(visualX: visualX)
 			case let .moveCursorUp(visualX): moveToPreviousBlock(visualX: visualX)
+		}
+	}
+
+	private func toggleTodoState(_ current: TodoState) {
+		withErrorReporting {
+			try database.write { db in
+				try Block.find(paragraph.id)
+					.update { $0.string = $0.string.withTodoState(current.toggled) }
+					.execute(db)
+			}
 		}
 	}
 
@@ -279,7 +304,7 @@ struct ParagraphView: View {
 			try database.write { db in
 				try Block.find(previousParagraphID)
 					.update {
-						$0.string = $0.string.map({ $0 + content }, or: content).asOptional
+						$0.string = $0.string.map({ $0 + content.strippingTodoPrefix() }, or: content.strippingTodoPrefix()).asOptional
 					}
 					.execute(db)
 

@@ -1145,4 +1145,94 @@ extension Tests.AttributedStringBuilderTest {
 		// 'g' at rendered index 11 (last char of "My Tag") should map to raw index 15
 		expectNoDifference(mapping.rawIndex(fromRendered: 11), 15)
 	}
+
+	@Test("buildAttributedString with rawStartOffset shifts index mapping for plain text")
+	func buildAttributedStringWithRawStartOffsetPlainText() throws {
+		// Plain text (no markup characters) — exercises the fast path in plainAttributedResult
+		let text = "Plain text"
+		let offset = 42
+		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
+
+		expectNoDifference(result.attributedString.string, "Plain text")
+
+		// With offset > 0, we should get an index mapping (unlike offset == 0 which returns nil)
+		let mapping = try #require(result.indexMapping)
+
+		// Each rendered position should map to itself + offset
+		expectNoDifference(mapping.rawIndex(fromRendered: 0), offset)
+		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5 + offset)
+		// End position
+		expectNoDifference(mapping.rawIndex(fromRendered: text.utf16.count), text.utf16.count + offset)
+	}
+
+	@Test("buildAttributedString with rawStartOffset shifts index mapping when markup chars present but no valid syntax")
+	func buildAttributedStringWithRawStartOffsetInvalidMarkup() throws {
+		// Contains markup characters (*) but they don't form valid syntax — still takes the plain path
+		let text = "A single * star"
+		let offset = 10
+		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
+
+		expectNoDifference(result.attributedString.string, "A single * star")
+
+		let mapping = try #require(result.indexMapping)
+		expectNoDifference(mapping.rawIndex(fromRendered: 0), offset)
+		expectNoDifference(mapping.rawIndex(fromRendered: 9), 9 + offset)
+		expectNoDifference(mapping.rawIndex(fromRendered: text.utf16.count), text.utf16.count + offset)
+	}
+
+	@Test("buildAttributedString with rawStartOffset shifts index mapping for formatted text")
+	func buildAttributedStringWithRawStartOffsetFormatted() throws {
+		// Text with actual formatting — exercises the main render path with offset
+		// Raw: "Hello **world**!"
+		//       0     67     1314 15
+		// Rendered: "Hello world!"
+		//           0     6     11
+		let text = "Hello **world**!"
+		let offset = 20
+		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
+
+		expectNoDifference(result.attributedString.string, "Hello world!")
+
+		let mapping = try #require(result.indexMapping)
+		// 'H' at rendered 0 -> raw 0 + offset = 20
+		expectNoDifference(mapping.rawIndex(fromRendered: 0), 0 + offset)
+		// ' ' at rendered 5 -> raw 5 + offset = 25
+		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5 + offset)
+		// 'w' at rendered 6 -> raw 8 + offset = 28 (after "Hello **")
+		expectNoDifference(mapping.rawIndex(fromRendered: 6), 8 + offset)
+		// 'd' at rendered 10 -> raw 12 + offset = 32
+		expectNoDifference(mapping.rawIndex(fromRendered: 10), 12 + offset)
+		// '!' at rendered 11 -> raw 15 + offset = 35 (after "**")
+		expectNoDifference(mapping.rawIndex(fromRendered: 11), 15 + offset)
+		// End position: rendered length 12 -> raw length 16 + offset = 36
+		expectNoDifference(mapping.rawIndex(fromRendered: 12), 16 + offset)
+	}
+
+	@Test("buildAttributedString with rawStartOffset shifts index mapping for references")
+	func buildAttributedStringWithRawStartOffsetReferences() throws {
+		// Text with a page link — exercises reference rendering with offset
+		// Raw: "Go [[Home]]!"
+		//       01 234    910 11
+		// Rendered: "Go Home!"
+		//           01 2345 67
+		let text = "Go [[Home]]!"
+		let offset = 50
+		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
+
+		expectNoDifference(result.attributedString.string, "Go Home!")
+
+		let mapping = try #require(result.indexMapping)
+		// 'G' at rendered 0 -> raw 0 + offset = 50
+		expectNoDifference(mapping.rawIndex(fromRendered: 0), 0 + offset)
+		// ' ' at rendered 2 -> raw 2 + offset = 52
+		expectNoDifference(mapping.rawIndex(fromRendered: 2), 2 + offset)
+		// 'H' at rendered 3 -> raw 5 + offset = 55 (after "Go [[")
+		expectNoDifference(mapping.rawIndex(fromRendered: 3), 5 + offset)
+		// 'e' at rendered 6 -> raw 8 + offset = 58
+		expectNoDifference(mapping.rawIndex(fromRendered: 6), 8 + offset)
+		// '!' at rendered 7 -> raw 11 + offset = 61 (after "]]")
+		expectNoDifference(mapping.rawIndex(fromRendered: 7), 11 + offset)
+		// End position
+		expectNoDifference(mapping.rawIndex(fromRendered: 8), 12 + offset)
+	}
 }

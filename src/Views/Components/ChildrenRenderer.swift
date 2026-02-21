@@ -16,7 +16,7 @@ struct ChildrenRenderer: View {
 					ParagraphView(paragraph: child)
 				}
 			}
-			.safeAreaPadding(.leading, skipPadding ? 0 : 28)
+			.safeAreaPadding(.leading, skipPadding ? 6 : 28)
 			.overlay(alignment: .topLeading) {
 				if showIndentLine {
 					IndentLine(onTap: onIndentLineTapped)

@@ -25,7 +25,7 @@ struct PageView: View {
 				VStack(alignment: .leading, spacing: 12) {
 					if tree.children(of: page.id).isEmpty {
 						PlaceholderBlock(pageId: page.id)
-							.padding(.leading, 24)
+							.padding(.leading, 6)
 					}
 
 					ChildrenRenderer(parentID: page.id, skipPadding: true)
