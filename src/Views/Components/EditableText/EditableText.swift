@@ -1,5 +1,4 @@
 import SwiftUI
-import Dependencies
 
 struct EditableText: View {
 	enum Action {

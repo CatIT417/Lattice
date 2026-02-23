@@ -181,7 +181,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: NSTextView) {
-			let safeOffset = min(max(0, offset), (textView.string as NSString).length)
+			let safeOffset = min(max(0, offset), textView.string.utf16Length)
 			textView.setSelectedRange(NSRange(location: safeOffset, length: 0))
 		}
 
@@ -189,13 +189,13 @@ extension EditableTextView {
 			let cursorLocation = textView.selectedRange().location
 
 			if cursorLocation == 0 { return -.infinity }
-			if cursorLocation == (textView.string as NSString).length { return .infinity }
+			if cursorLocation == textView.string.utf16Length { return .infinity }
 
 			guard let layoutManager = textView.layoutManager else {
 				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
 			}
 
-			let textLength = (textView.string as NSString).length
+			let textLength = textView.string.utf16Length
 			guard textLength > 0 else {
 				return textView.convert(NSPoint(x: textView.textContainerOrigin.x, y: 0), to: nil).x
 			}
@@ -224,7 +224,7 @@ extension EditableTextView {
 
 			layoutManager.ensureLayout(for: textContainer)
 
-			let textLength = (textView.string as NSString).length
+			let textLength = textView.string.utf16Length
 			guard textLength > 0 else {
 				textView.setSelectedRange(NSRange(location: 0, length: 0))
 				return
@@ -263,7 +263,7 @@ extension EditableTextView {
 
 			setText(.raw, text: lastKnownText, textView: textView)
 
-			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.utf16.count) ?? selectedRange)
+			textView.setSelectedRange(indexMapping?.transform(range: selectedRange, maxLength: parent.text.utf16Length) ?? selectedRange)
 
 			if let pendingAction = parent.blockCoordinator.popAction(for: parent.blockId) {
 				switch pendingAction {

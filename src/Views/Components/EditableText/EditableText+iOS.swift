@@ -315,7 +315,7 @@ extension EditableTextView {
 			setText(.raw, text: lastKnownText, textView: textView)
 
 			if let cursorOffset {
-				moveCursorTo(offset: min(indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset, lastKnownText.utf16.count), textView: textView)
+				moveCursorTo(offset: min(indexMapping?.rawIndex(fromRendered: cursorOffset) ?? cursorOffset, lastKnownText.utf16Length), textView: textView)
 			}
 		}
 
@@ -438,16 +438,19 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			}
 		}
 
+		// create new block
 		if text == "\n" {
 			newBlockRequested(textView: textView, range: range)
 			return false
 		}
 
+		// move through character instead of inserting (for auto-closing characters)
 		if shouldSkipClosingBracket(for: text, in: textView.text ?? "", at: range.location) {
 			moveCursorTo(offset: range.location + 1, textView: textView)
 			return false
 		}
 
+		// wrap text with brackets instead of replacing it
 		if range.length > 0, let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.text as NSString).substring(with: range)) {
 			textView.replace(
 				textView.textRange(
@@ -461,6 +464,7 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			return false
 		}
 
+		// auto-close brackets
 		if let textToInsert = shouldAutoComplete(for: text) {
 			textView.replace(
 				textView.textRange(
@@ -571,16 +575,15 @@ final class AutosizingTextView: UITextView {
 		}
 
 		let modifiers: UIKeyModifierFlags = [.shift, .control, .alternate, .command]
+		let noModifiers = key.modifierFlags.intersection(modifiers).isEmpty
 
-		if key.keyCode == .keyboardUpArrow, key.modifierFlags.intersection(modifiers).isEmpty,
-		   isCursorOnFirstLine(), coordinator.moveCursorUp(textView: self)
-		{
+		// move to previous block
+		if key.keyCode == .keyboardUpArrow, noModifiers, isCursorOnFirstLine(), coordinator.moveCursorUp(textView: self) {
 			return
 		}
 
-		if key.keyCode == .keyboardDownArrow, key.modifierFlags.intersection(modifiers).isEmpty,
-		   isCursorOnLastLine(), coordinator.moveCursorDown(textView: self)
-		{
+		// move to next block
+		if key.keyCode == .keyboardDownArrow, noModifiers, isCursorOnLastLine(), coordinator.moveCursorDown(textView: self) {
 			return
 		}
 
