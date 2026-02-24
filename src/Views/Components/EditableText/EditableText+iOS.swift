@@ -10,6 +10,8 @@ struct EditableTextView: UIViewRepresentable {
 	let ctFont: CTFont
 	let onLinkClicked: (URL) -> Void
 	let handleAction: (EditableText.Action) -> Bool
+	let onReferenceSuggestionCommand: (ReferenceSuggestions.Command) -> Bool
+	let onReferenceSuggestionContextChange: (ReferenceSuggestions.Context?, CGRect?) -> Void
 
 	@Dependency(\.blockCoordinator) var blockCoordinator
 	@Dependency(\.blockSelectionCoordinator) var selectionCoordinator
@@ -150,6 +152,8 @@ extension EditableTextView {
 		weak var textView: UITextView?
 		var willSwitchToEditing = false
 		weak var tapHandler: UITapGestureRecognizer?
+		var isReferenceSuggestionSessionActive = false
+		var activateSuggestionsOnNextTextChange = false
 		var indexMapping: AttributedStringResult.IndexMapping?
 
 		init(parent: EditableTextView) {
@@ -188,8 +192,26 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: UITextView) {
-			if let position = textView.position(from: textView.beginningOfDocument, offset: min(max(0, offset), textView.attributedText.length)) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: clamp(offset, to: 0...textView.attributedText.length)) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
+			}
+		}
+
+		func updateReferenceSuggestions(textView: UITextView, trigger: ReferenceSuggestions.Trigger, activatingSession: Bool = false) {
+			if activatingSession { isReferenceSuggestionSessionActive = true }
+			if trigger == .selectionChanged, !isReferenceSuggestionSessionActive { return }
+
+			let context = ReferenceSuggestions.Context(in: textView.attributedText.string, cursorOffset: textView.selectedRange.location)
+
+			if trigger == .textEdited, context != nil {
+				isReferenceSuggestionSessionActive = true
+			}
+
+			if let context, isReferenceSuggestionSessionActive {
+				parent.onReferenceSuggestionContextChange(context, textView.caretRectForCurrentSelection())
+			} else {
+				if context == nil { isReferenceSuggestionSessionActive = false }
+				parent.onReferenceSuggestionContextChange(nil, nil)
 			}
 		}
 
@@ -285,12 +307,14 @@ extension EditableTextView {
 				textView.selectedRange = NSRange(location: range.location - 2, length: range.length + 4)
 				textView.insertText(text.substring(with: range))
 				textView.selectedRange = NSRange(location: range.location - 2, length: range.length)
+				updateReferenceSuggestions(textView: textView, trigger: .explicitTrigger, activatingSession: true)
 				return
 			}
 
 			let inner = range.length > 0 ? text.substring(with: range) : ""
 			textView.insertText("[[\(inner)]]")
 			textView.selectedRange = NSRange(location: range.location + 2, length: range.length)
+			updateReferenceSuggestions(textView: textView, trigger: .explicitTrigger, activatingSession: true)
 		}
 
 		@objc func handleBlockSelected() {
@@ -370,12 +394,16 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 	}
 
 	func textViewDidChangeSelection(_ textView: UITextView) {
-		guard willSwitchToEditing else { return }
+		if willSwitchToEditing { return transitionToEditMode(textView: textView) }
 
-		transitionToEditMode(textView: textView)
+		updateReferenceSuggestions(textView: textView, trigger: .selectionChanged)
 	}
 
 	func textViewDidEndEditing(_ textView: UITextView) {
+		isReferenceSuggestionSessionActive = false
+		activateSuggestionsOnNextTextChange = false
+		parent.onReferenceSuggestionContextChange(nil, nil)
+
 		guard isEditing else { return }
 		isEditing = false
 		parent.blockCoordinator.editingEnded(for: parent.blockId)
@@ -410,6 +438,9 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 
 	func textViewDidChange(_ textView: UITextView) {
 		textView.invalidateIntrinsicContentSize()
+
+		updateReferenceSuggestions(textView: textView, trigger: .textEdited, activatingSession: activateSuggestionsOnNextTextChange)
+		activateSuggestionsOnNextTextChange = false
 	}
 
 	// MARK: - Special Key Handling
@@ -419,6 +450,17 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 		shouldChangeTextIn range: NSRange,
 		replacementText text: String
 	) -> Bool {
+		// accept suggestions on enter/tab
+		if text == "\n" || text == "\t", parent.onReferenceSuggestionCommand(.accept) {
+			isReferenceSuggestionSessionActive = false
+			activateSuggestionsOnNextTextChange = false
+			return false
+		}
+
+		if shouldActivateReferenceSuggestionSession(for: text, range: range, currentText: textView.attributedText.string as NSString) {
+			activateSuggestionsOnNextTextChange = true
+		}
+
 		if text.isEmpty {
 			if range.location == 0, range.length == 0 {
 				deletionRequested(textView: textView)
@@ -461,6 +503,12 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			)
 
 			textView.selectedRange = NSRange(location: range.location + 1, length: range.length)
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
 			return false
 		}
 
@@ -474,6 +522,12 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 				withText: textToInsert
 			)
 			moveCursorTo(offset: range.location + 1, textView: textView)
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
 			return false
 		}
 
@@ -526,6 +580,11 @@ final class AutosizingTextView: UITextView {
 	@objc private func handleTab() {
 		guard let coordinator = delegate as? EditableTextView.Coordinator else { return }
 
+		if coordinator.parent.onReferenceSuggestionCommand(.accept) {
+			coordinator.isReferenceSuggestionSessionActive = false
+			return
+		}
+
 		coordinator.indent(textView: self)
 	}
 
@@ -576,6 +635,22 @@ final class AutosizingTextView: UITextView {
 
 		let modifiers: UIKeyModifierFlags = [.shift, .control, .alternate, .command]
 		let noModifiers = key.modifierFlags.intersection(modifiers).isEmpty
+
+		// close suggestions panel
+		if key.keyCode == .keyboardEscape, noModifiers, coordinator.parent.onReferenceSuggestionCommand(.dismiss) {
+			coordinator.isReferenceSuggestionSessionActive = false
+			return
+		}
+
+		// previous suggestion
+		if key.keyCode == .keyboardUpArrow, noModifiers, coordinator.parent.onReferenceSuggestionCommand(.moveUp) {
+			return
+		}
+
+		// next suggestion
+		if key.keyCode == .keyboardDownArrow, noModifiers, coordinator.parent.onReferenceSuggestionCommand(.moveDown) {
+			return
+		}
 
 		// move to previous block
 		if key.keyCode == .keyboardUpArrow, noModifiers, isCursorOnFirstLine(), coordinator.moveCursorUp(textView: self) {

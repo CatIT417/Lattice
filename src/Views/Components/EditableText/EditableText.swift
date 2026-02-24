@@ -1,4 +1,5 @@
 import SwiftUI
+import Dependencies
 
 struct EditableText: View {
 	enum Action {
@@ -17,12 +18,16 @@ struct EditableText: View {
 		/// Turn this block into a sibling of its parent
 		case outdent(cursorPosition: Int, currentText: String)
 
+		/// Move cursor to the closest valid position in the previous line
+		case moveCursorUp(visualX: CGFloat)
+
+		/// Move cursor to the closest valid position in the next line
+		case moveCursorDown(visualX: CGFloat)
+
 		#if os(iOS)
+		/// Move block up or down, swapping with the adjacent block.
 		case moveBlock(delta: Int, cursorPosition: Int, currentText: String)
 		#endif
-
-		case moveCursorUp(visualX: CGFloat)
-		case moveCursorDown(visualX: CGFloat)
 	}
 
 	var blockId: Block.ID? = nil
@@ -30,9 +35,12 @@ struct EditableText: View {
 	var alignment: Block.TextAlignment = .left
 	var handleAction: (Action) -> Bool
 
+	@State private var frameInOverlaySpace: CGRect?
+
 	@Environment(\.font) private var font
 	@Environment(Router.self) private var router
 	@Environment(\.fontResolutionContext) private var fontContext
+	@Dependency(\.referenceSuggestionsCoordinator) private var referenceSuggestions
 
 	var body: some View {
 		let ctFont = (font ?? .body).resolve(in: fontContext).ctFont
@@ -43,11 +51,37 @@ struct EditableText: View {
 			alignment: alignment,
 			ctFont: ctFont,
 			onLinkClicked: openLink,
-			handleAction: handleAction
+			handleAction: handleAction,
+			onReferenceSuggestionCommand: { referenceSuggestions.handleCommand($0, from: blockId) },
+			onReferenceSuggestionContextChange: { context, caretRect in
+				referenceSuggestions.handleContextChange(
+					for: blockId,
+					context: context,
+					caretRect: caretRect.map(overlayCaretRect(from:)),
+					onTextChanged: { _ = handleAction(.textChanged($0)) }
+				)
+			}
 		)
+		.onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(ReferenceSuggestions.coordinateSpace)) }) { newFrame in
+			if let previousFrame = frameInOverlaySpace {
+				referenceSuggestions.offsetAnchor(for: blockId, by: CGSize(width: newFrame.minX - previousFrame.minX, height: newFrame.minY - previousFrame.minY))
+			}
+
+			frameInOverlaySpace = newFrame
+		}
 		.alignmentGuide(.firstTextBaseline) { [ascent = CTFontGetAscent(ctFont)] _ in
 			ascent
 		}
+		.onDisappear { referenceSuggestions.endEditing(for: blockId) }
+	}
+
+	private func overlayCaretRect(from localRect: CGRect) -> CGRect {
+		let frame = frameInOverlaySpace ?? .zero
+
+		return CGRect(
+			x: frame.minX + localRect.minX, y: frame.minY + localRect.minY,
+			width: localRect.width, height: localRect.height
+		)
 	}
 
 	private func openLink(_ url: URL) {

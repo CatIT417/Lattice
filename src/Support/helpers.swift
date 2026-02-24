@@ -1,5 +1,10 @@
 import Foundation
 
+/// Clamps a value to the provided bounds.
+func clamp<T: Comparable>(_ value: T, to bounds: ClosedRange<T>) -> T {
+	min(max(value, bounds.lowerBound), bounds.upperBound)
+}
+
 /// Call the given Closure with the given value then return the value.
 func tap<T, E>(_ value: T, _ block: (inout T) throws(E) -> Void) throws(E) -> T {
 	var value = value

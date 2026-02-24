@@ -33,6 +33,7 @@ struct DailyPagesScreen: View {
 			}
 			.scrollTargetLayout()
 		}
+		.referenceSuggestionsOverlay()
 		.task(id: currentDate.timeIntervalSince1970) {
 			let _ = await withErrorReporting {
 				try await $pages.load(query(for: currentDate))

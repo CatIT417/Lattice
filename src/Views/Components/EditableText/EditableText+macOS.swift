@@ -20,6 +20,8 @@ struct EditableTextView: NSViewRepresentable {
 	let ctFont: CTFont
 	let onLinkClicked: (URL) -> Void
 	let handleAction: (EditableText.Action) -> Bool
+	let onReferenceSuggestionCommand: (ReferenceSuggestions.Command) -> Bool
+	let onReferenceSuggestionContextChange: (ReferenceSuggestions.Context?, CGRect?) -> Void
 
 	@Dependency(\.blockCoordinator) var blockCoordinator
 
@@ -141,6 +143,8 @@ extension EditableTextView {
 		var lastKnownText: String
 		var linkWasTapped = false
 		var indexMapping: AttributedStringResult.IndexMapping?
+		var isReferenceSuggestionSessionActive = false
+		var activateSuggestionsOnNextTextChange = false
 
 		init(parent: EditableTextView) {
 			self.parent = parent
@@ -181,8 +185,32 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: NSTextView) {
-			let safeOffset = min(max(0, offset), textView.string.utf16Length)
+			let safeOffset = clamp(offset, to: 0...textView.string.utf16Length)
 			textView.setSelectedRange(NSRange(location: safeOffset, length: 0))
+		}
+
+		func updateReferenceSuggestions(textView: NSTextView, trigger: ReferenceSuggestions.Trigger, activatingSession: Bool = false) {
+			if activatingSession { isReferenceSuggestionSessionActive = true }
+			if trigger == .selectionChanged, !isReferenceSuggestionSessionActive { return }
+
+			let context = ReferenceSuggestions.Context(
+				in: textView.attributedString().string,
+				cursorOffset: textView.selectedRange().location
+			)
+
+			if trigger == .textEdited, context != nil {
+				isReferenceSuggestionSessionActive = true
+			}
+
+			if let context, isReferenceSuggestionSessionActive {
+				parent.onReferenceSuggestionContextChange(
+					context,
+					textView.caretRectForCurrentSelection(fallbackFont: parent.nsFont)
+				)
+			} else {
+				if context == nil { isReferenceSuggestionSessionActive = false }
+				parent.onReferenceSuggestionContextChange(nil, nil)
+			}
 		}
 
 		func cursorXInWindow(textView: NSTextView) -> CGFloat {
@@ -315,12 +343,18 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	}
 
 	func textViewDidChangeSelection(_ notification: Notification) {
-		guard let textView = notification.object as? NSTextView, !isEditing else { return }
-		transitionToEditMode(textView: textView)
+		guard let textView = notification.object as? NSTextView else { return }
+
+		guard isEditing else { return transitionToEditMode(textView: textView) }
+		updateReferenceSuggestions(textView: textView, trigger: .selectionChanged)
 	}
 
 	func textDidEndEditing(_ notification: Notification) {
 		guard let textView = notification.object as? NSTextView else { return }
+		isReferenceSuggestionSessionActive = false
+		activateSuggestionsOnNextTextChange = false
+		parent.onReferenceSuggestionContextChange(nil, nil)
+
 		guard isEditing else { return }
 		isEditing = false
 		parent.blockCoordinator.editingEnded(for: parent.blockId)
@@ -353,26 +387,52 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	func textDidChange(_ notification: Notification) {
 		guard let textView = notification.object as? NSTextView else { return }
 		textView.invalidateIntrinsicContentSize()
+		updateReferenceSuggestions(
+			textView: textView,
+			trigger: .textEdited,
+			activatingSession: activateSuggestionsOnNextTextChange
+		)
+		activateSuggestionsOnNextTextChange = false
 	}
 
 	func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString text: String?) -> Bool {
 		guard let text else { return true }
 
+		let currentText = textView.string as NSString
+		if shouldActivateReferenceSuggestionSession(for: text, range: range, currentText: currentText) {
+			activateSuggestionsOnNextTextChange = true
+		}
+
+		// move through character instead of inserting (for auto-closing characters)
 		if shouldSkipClosingBracket(for: text, in: textView.string, at: range.location) {
 			moveCursorTo(offset: range.location + 1, textView: textView)
 			return false
 		}
 
+		// wrap text with brackets instead of replacing it
 		if range.length > 0, let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.string as NSString).substring(with: range)) {
 			textView.insertText(wrappedText, replacementRange: range)
 
 			textView.setSelectedRange(NSRange(location: range.location + 1, length: range.length))
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
 			return false
 		}
 
+		// auto-close brackets
 		if let textToInsert = shouldAutoComplete(for: text) {
 			textView.insertText(textToInsert, replacementRange: range)
 			moveCursorTo(offset: range.location + 1, textView: textView)
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
 			return false
 		}
 
@@ -382,16 +442,43 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	// MARK: - Command Handling
 
 	func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+		// [esc] close suggestions panel
+		if selector == #selector(NSResponder.cancelOperation(_:)), parent.onReferenceSuggestionCommand(.dismiss) {
+			isReferenceSuggestionSessionActive = false
+			return true
+		}
+
+		// [↑] previous suggestion
+		if selector == #selector(NSResponder.moveUp(_:)), parent.onReferenceSuggestionCommand(.moveUp) {
+			return true
+		}
+
+		// [↓] next suggestion
+		if selector == #selector(NSResponder.moveDown(_:)), parent.onReferenceSuggestionCommand(.moveDown) {
+			return true
+		}
+
+		// [⏎ | tab] accept suggestion
+		if selector == #selector(NSResponder.insertNewline(_:)) || selector == #selector(NSResponder.insertTab(_:)),
+		   parent.onReferenceSuggestionCommand(.accept)
+		{
+			isReferenceSuggestionSessionActive = false
+			return true
+		}
+
+		// [esc] unfocus block
 		if selector == #selector(NSResponder.cancelOperation(_:)) {
 			textView.window?.makeFirstResponder(nil)
 			return true
 		}
 
+		// [⏎] create new block
 		if selector == #selector(NSResponder.insertNewline(_:)) {
 			newBlockRequested(textView: textView, range: textView.selectedRange())
 			return true
 		}
 
+		// [⌫] delete block
 		if selector == #selector(NSResponder.deleteBackward(_:)) {
 			let range = textView.selectedRange()
 
@@ -407,14 +494,17 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			}
 		}
 
+		// [↑] move to previous block
 		if selector == #selector(NSResponder.moveUp(_:)), textView.isCursorOnFirstLine(), parent.handleAction(.moveCursorUp(visualX: cursorXInWindow(textView: textView))) {
 			return true
 		}
 
+		// [↓] move to next block
 		if selector == #selector(NSResponder.moveDown(_:)), textView.isCursorOnLastLine(), parent.handleAction(.moveCursorDown(visualX: cursorXInWindow(textView: textView))) {
 			return true
 		}
 
+		// [tab] indent block
 		if selector == #selector(NSResponder.insertTab(_:)) {
 			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.indent) }
 			else { _ = parent.handleAction(.indent(cursorPosition: textView.selectedRange().location, currentText: textView.attributedString().string)) }
@@ -422,6 +512,7 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			return true
 		}
 
+		// [⇧ + tab] outdent block
 		if selector == #selector(NSResponder.insertBacktab(_:)) {
 			if parent.blockCoordinator.shouldQueueActions(blockId: parent.blockId) { parent.blockCoordinator.queueAction(.outdent) }
 			else { _ = parent.handleAction(.outdent(cursorPosition: textView.selectedRange().location, currentText: textView.attributedString().string)) }

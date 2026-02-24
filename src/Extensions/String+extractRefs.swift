@@ -36,14 +36,9 @@ struct TextRef {
 
 	func replacement(forRenamedPage title: String) -> String? {
 		switch kind {
-			case .pageLink: return "[[\(title)]]"
-			case .blockRef, .blockEmbed: return nil
-			case .tag:
-				let needsBracketing = title.unicodeScalars.contains { scalar in
-					!scalar.isASCII || CharacterSet.whitespacesAndNewlines.contains(scalar)
-				}
-
-				return needsBracketing ? "#[[\(title)]]" : "#\(title)"
+			case .pageLink: "[[\(title)]]"
+			case .blockRef, .blockEmbed: nil
+			case .tag: TagSyntax.makeTagReference(for: title)
 		}
 	}
 }

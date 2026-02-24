@@ -32,6 +32,7 @@ struct ParagraphScreen: View {
 				.doneButtonOnToolbar()
 				.navigationBarTitleDisplayMode(.inline)
 				#endif
+				.referenceSuggestionsOverlay()
 				.syncStatusOnToolbar()
 				.toolbar(removing: .title)
 				.environment(\.blockTree, tree)

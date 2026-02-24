@@ -5,7 +5,7 @@ struct TagRule: InlineParser.Rule, Sendable {
 	let priority = 550
 	let startingCharacters: Set<Character>? = ["#"]
 
-	private nonisolated(unsafe) static let simplePattern = /#(\w+)/
+	private nonisolated(unsafe) static let simplePattern = /#([A-Za-z0-9_-]+)/
 	private nonisolated(unsafe) static let bracketedPattern = /#\[\[([^\]]+)\]\]/
 
 	func match(in text: String, at index: String.Index, using _: InlineParser) -> InlineSpan? {

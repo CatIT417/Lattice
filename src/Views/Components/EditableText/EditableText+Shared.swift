@@ -1,27 +1,30 @@
 import Foundation
 
+// MARK: - Reference Suggestions
+
+extension EditableTextView.Coordinator {
+	func shouldActivateReferenceSuggestionSession(for replacementText: String, range: NSRange, currentText: NSString) -> Bool {
+		replacementText == "#"
+			|| (
+				replacementText == "["
+					&& range.location > 0
+					&& currentText.substring(with: NSRange(location: range.location - 1, length: 1)) == "["
+			)
+	}
+}
+
 // MARK: - Bracket Pairs
 
 extension EditableTextView.Coordinator {
-	struct BracketPair {
-		let open: Character
-		let close: Character
-	}
-
-	private static let bracketPairs: [BracketPair] = [
-		BracketPair(open: "[", close: "]"),
-		BracketPair(open: "(", close: ")"),
+	private static let bracketPairs: [Character: Character] = [
+		"[": "]",
+		"(": ")",
 	]
 
 	/// Returns the text to insert (open + close) if the typed character is an opening bracket.
 	func shouldAutoComplete(for typedText: String) -> String? {
-		guard typedText.count == 1, let typedChar = typedText.first else { return nil }
-
-		for pair in Self.bracketPairs where typedChar == pair.open {
-			return "\(pair.open)\(pair.close)"
-		}
-
-		return nil
+		guard typedText.count == 1, let typedChar = typedText.first, let closingChar = Self.bracketPairs[typedChar] else { return nil }
+		return "\(typedChar)\(closingChar)"
 	}
 
 	/// Returns the range to delete if the cursor is between a matching bracket pair.
@@ -29,30 +32,20 @@ extension EditableTextView.Coordinator {
 		guard offset > 0, offset < currentText.utf16Length else { return nil }
 		guard let charBefore = currentText.character(beforeUTF16Offset: offset) else { return nil }
 		guard let charAfter = currentText.character(atUTF16Offset: offset) else { return nil }
-
-		for pair in Self.bracketPairs where charBefore == pair.open && charAfter == pair.close {
-			return NSRange(location: offset - 1, length: 2)
-		}
-
-		return nil
+		guard Self.bracketPairs[charBefore] == charAfter else { return nil }
+		return NSRange(location: offset - 1, length: 2)
 	}
 
 	/// Returns true if the typed character is a closing bracket that matches the character at cursor.
 	func shouldSkipClosingBracket(for typedText: String, in currentText: String, at offset: Int) -> Bool {
 		guard typedText.count == 1, let typedChar = typedText.first, offset < currentText.utf16Length else { return false }
 		guard let charAtCursor = currentText.character(atUTF16Offset: offset) else { return false }
-
-		return Self.bracketPairs.contains { $0.close == typedChar && charAtCursor == typedChar }
+		return Self.bracketPairs.values.contains(typedChar) && charAtCursor == typedChar
 	}
 
 	/// Returns the wrapped text if the typed character is an opening bracket and text is selected.
 	func wrapWithBrackets(for typedText: String, selectedText: String) -> String? {
-		guard !selectedText.isEmpty, typedText.count == 1, let typedChar = typedText.first else { return nil }
-
-		for pair in Self.bracketPairs where typedChar == pair.open {
-			return "\(pair.open)\(selectedText)\(pair.close)"
-		}
-
-		return nil
+		guard !selectedText.isEmpty, typedText.count == 1, let typedChar = typedText.first, let closingChar = Self.bracketPairs[typedChar] else { return nil }
+		return "\(typedChar)\(selectedText)\(closingChar)"
 	}
 }

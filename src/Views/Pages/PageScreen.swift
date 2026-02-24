@@ -45,6 +45,7 @@ struct PageScreen: View {
 					}
 				}
 				#endif
+				.referenceSuggestionsOverlay()
 				.syncStatusOnToolbar()
 				.navigationTitle(page.title)
 				.navigationDocument(page, preview: SharePreview(page.title))
