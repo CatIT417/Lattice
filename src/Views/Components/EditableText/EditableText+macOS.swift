@@ -143,6 +143,7 @@ extension EditableTextView {
 		var lastKnownText: String
 		var linkWasTapped = false
 		var indexMapping: AttributedStringResult.IndexMapping?
+		var pendingFaviconURLs: Set<URL> = []
 		var isReferenceSuggestionSessionActive = false
 		var activateSuggestionsOnNextTextChange = false
 
@@ -171,14 +172,28 @@ extension EditableTextView {
 		func setText(_ mode: BlockCoordinator.RenderMode, text: String, textView: NSTextView) {
 			switch mode {
 				case .raw:
+					pendingFaviconURLs.removeAll()
 					textView.setAttributedText(NSAttributedString(string: text, attributes: [
 						.font: parent.nsFont,
 						.foregroundColor: NSColor.labelColor,
 					]))
 				case .rendered:
-					let result = buildAttributedString(from: text.strippingTodoPrefix(), font: parent.nsFont, rawStartOffset: text.todoPrefixUTF16Length)
+					let result = buildAttributedString(from: text.strippingTodoPrefix(), font: parent.nsFont, rawStartOffset: text.todoPrefixUTF16Length, faviconProvider: FaviconLoader.image)
 					indexMapping = result.indexMapping
 					textView.setAttributedText(result.attributedString)
+
+					let newURLs = result.uncachedFaviconURLs.subtracting(pendingFaviconURLs)
+					pendingFaviconURLs.formUnion(newURLs)
+					for faviconURL in newURLs {
+						FaviconLoader.ensureLoaded(faviconURL: faviconURL, onSuccess: { [weak self] in
+							guard let self else { return }
+							self.pendingFaviconURLs.remove(faviconURL)
+							guard !self.isEditing else { return }
+							self.setText(.rendered, text: self.lastKnownText, textView: textView)
+						}, onFailure: { [weak self] in
+							self?.pendingFaviconURLs.remove(faviconURL)
+						})
+					}
 			}
 
 			textView.invalidateIntrinsicContentSize()

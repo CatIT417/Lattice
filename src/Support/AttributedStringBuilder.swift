@@ -30,10 +30,12 @@ struct AttributedStringResult {
 	}
 
 	let indexMapping: IndexMapping?
+	let uncachedFaviconURLs: Set<URL>
 	let attributedString: NSAttributedString
 
-	init(renderedToRaw: [Int]? = nil, attributedString: NSAttributedString) {
+	init(renderedToRaw: [Int]? = nil, attributedString: NSAttributedString, uncachedFaviconURLs: Set<URL> = []) {
 		self.attributedString = attributedString
+		self.uncachedFaviconURLs = uncachedFaviconURLs
 		indexMapping = renderedToRaw.map { IndexMapping(renderedToRaw: $0) }
 	}
 }
@@ -53,7 +55,7 @@ func removeReferences(from text: String) -> String {
 private let inlineMarkupCharacters: Set<Character> = ["*", "_", "`", "=", "[", "(", "#"]
 
 /// Build an NSAttributedString from text with refs and formatting
-func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body), using parser: InlineParser = .default, rawStartOffset: Int = 0) -> AttributedStringResult {
+func buildAttributedString(from text: String, font: PlatformFont = .preferredFont(forTextStyle: .body), using parser: InlineParser = .default, rawStartOffset: Int = 0, faviconProvider: ((URL) -> PlatformImage?)? = nil) -> AttributedStringResult {
 	let baseAttributes: [NSAttributedString.Key: Any] = [
 		.font: font,
 		.foregroundColor: labelColor,
@@ -75,16 +77,17 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 	let result = NSMutableAttributedString()
 	var renderedToRaw: [Int] = []
 	renderedToRaw.reserveCapacity(text.utf16.count + 1)
+	var uncachedFaviconURLs: Set<URL> = []
 
-	let context = RenderContext(sourceText: text, rawStartOffset: rawStartOffset, attributes: baseAttributes, font: font, inheritedTraits: [])
+	let context = RenderContext(sourceText: text, rawStartOffset: rawStartOffset, attributes: baseAttributes, font: font, inheritedTraits: [], faviconProvider: faviconProvider)
 	for span in spans {
-		context.render(span: span, into: result, renderedToRaw: &renderedToRaw)
+		context.render(span: span, into: result, renderedToRaw: &renderedToRaw, uncachedFaviconURLs: &uncachedFaviconURLs)
 	}
 
 	// Add final position (for cursor at end)
 	renderedToRaw.append(text.utf16.count + rawStartOffset)
 
-	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: result)
+	return AttributedStringResult(renderedToRaw: renderedToRaw, attributedString: result, uncachedFaviconURLs: uncachedFaviconURLs)
 }
 
 private func plainAttributedResult(for text: String, attributes: [NSAttributedString.Key: Any], rawStartOffset: Int = 0) -> AttributedStringResult {
@@ -107,6 +110,7 @@ private struct RenderContext {
 	let attributes: [NSAttributedString.Key: Any]
 	let font: PlatformFont
 	let inheritedTraits: PlatformFontDescriptor.SymbolicTraits
+	let faviconProvider: ((URL) -> PlatformImage?)?
 }
 
 private struct RenderStyle {
@@ -159,7 +163,7 @@ private extension RenderContext {
 		RenderStyle(baseAttributes: attributes, baseFont: font, inheritedTraits: inheritedTraits)
 	}
 
-	func render(span: InlineSpan, into result: NSMutableAttributedString, renderedToRaw: inout [Int]) {
+	func render(span: InlineSpan, into result: NSMutableAttributedString, renderedToRaw: inout [Int], uncachedFaviconURLs: inout Set<URL>) {
 		let spanRawStart = rawStart(for: span)
 
 		switch span.kind {
@@ -173,7 +177,8 @@ private extension RenderContext {
 					addingTrait: .traitBold,
 					contentDelimiterLength: 2, // **
 					into: result,
-					renderedToRaw: &renderedToRaw
+					renderedToRaw: &renderedToRaw,
+					uncachedFaviconURLs: &uncachedFaviconURLs
 				)
 			case .italic:
 				render(
@@ -182,7 +187,8 @@ private extension RenderContext {
 					addingTrait: .traitItalic,
 					contentDelimiterLength: 1, // *
 					into: result,
-					renderedToRaw: &renderedToRaw
+					renderedToRaw: &renderedToRaw,
+					uncachedFaviconURLs: &uncachedFaviconURLs
 				)
 			case .highlight:
 				render(
@@ -193,9 +199,16 @@ private extension RenderContext {
 					childFont: font,
 					childTraits: inheritedTraits,
 					into: result,
-					renderedToRaw: &renderedToRaw
+					renderedToRaw: &renderedToRaw,
+					uncachedFaviconURLs: &uncachedFaviconURLs
 				)
 			case let .link(url):
+				let isExternal = url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https"
+
+				if isExternal {
+					appendFavicon(for: url, linkAttributes: style.link(url), spanRawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw, uncachedFaviconURLs: &uncachedFaviconURLs)
+				}
+
 				if span.children.isEmpty {
 					// Auto-link: rendered text = raw text, no delimiters
 					append(text: span.content, with: style.link(url), rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
@@ -209,7 +222,8 @@ private extension RenderContext {
 						childFont: font,
 						childTraits: inheritedTraits,
 						into: result,
-						renderedToRaw: &renderedToRaw
+						renderedToRaw: &renderedToRaw,
+						uncachedFaviconURLs: &uncachedFaviconURLs
 					)
 				}
 		}
@@ -221,7 +235,8 @@ private extension RenderContext {
 		addingTrait trait: PlatformFontDescriptor.SymbolicTraits,
 		contentDelimiterLength: Int,
 		into result: NSMutableAttributedString,
-		renderedToRaw: inout [Int]
+		renderedToRaw: inout [Int],
+		uncachedFaviconURLs: inout Set<URL>
 	) {
 		let emphasis = style.emphasis(trait)
 		render(
@@ -232,7 +247,8 @@ private extension RenderContext {
 			childFont: emphasis.font,
 			childTraits: emphasis.traits,
 			into: result,
-			renderedToRaw: &renderedToRaw
+			renderedToRaw: &renderedToRaw,
+			uncachedFaviconURLs: &uncachedFaviconURLs
 		)
 	}
 
@@ -244,7 +260,8 @@ private extension RenderContext {
 		childFont: PlatformFont,
 		childTraits: PlatformFontDescriptor.SymbolicTraits,
 		into result: NSMutableAttributedString,
-		renderedToRaw: inout [Int]
+		renderedToRaw: inout [Int],
+		uncachedFaviconURLs: inout Set<URL>
 	) {
 		let contentRawStart = spanRawStart + contentDelimiterLength
 
@@ -258,11 +275,12 @@ private extension RenderContext {
 			rawStartOffset: contentRawStart,
 			attributes: childAttributes,
 			font: childFont,
-			inheritedTraits: childTraits
+			inheritedTraits: childTraits,
+			faviconProvider: faviconProvider
 		)
 
 		for child in span.children {
-			childContext.render(span: child, into: result, renderedToRaw: &renderedToRaw)
+			childContext.render(span: child, into: result, renderedToRaw: &renderedToRaw, uncachedFaviconURLs: &uncachedFaviconURLs)
 		}
 	}
 
@@ -282,6 +300,38 @@ private extension RenderContext {
 		let bracketOffset = ref.kind.bracketOffset(for: rawSpanText)
 		appendRawOffsets(for: ref.prefix, from: spanRawStart, into: &renderedToRaw)
 		appendRawOffsets(for: span.content, from: spanRawStart + bracketOffset, into: &renderedToRaw)
+	}
+
+	func appendFavicon(
+		for url: URL,
+		linkAttributes: [NSAttributedString.Key: Any],
+		spanRawStart: Int,
+		into result: NSMutableAttributedString,
+		renderedToRaw: inout [Int],
+		uncachedFaviconURLs: inout Set<URL>
+	) {
+		guard let image = faviconProvider?(url) else {
+			if let faviconURL = FaviconLoader.faviconURL(for: url) {
+				uncachedFaviconURLs.insert(faviconURL)
+			}
+			return
+		}
+
+		let size = round(font.ascender - font.descender)
+		let yOffset = round((font.capHeight - size) / 2)
+		let attachment = NSMutableAttributedString(attachment: tap(NSTextAttachment()) {
+			$0.image = image
+			$0.bounds = CGRect(x: 0, y: yOffset, width: size, height: size)
+		})
+
+		attachment.addAttributes(linkAttributes, range: NSRange(location: 0, length: attachment.length))
+		result.append(attachment)
+		// \u{FFFC} = 1 UTF-16 unit, maps to span's raw start (phantom character)
+		renderedToRaw.append(spanRawStart)
+
+		result.append(NSAttributedString(string: " ", attributes: linkAttributes))
+		// space = 1 UTF-16 unit, maps to span's raw start (phantom character)
+		renderedToRaw.append(spanRawStart)
 	}
 
 	func append(text string: String, with attributes: [NSAttributedString.Key: Any], rawStart: Int, into result: NSMutableAttributedString, renderedToRaw: inout [Int]) {
