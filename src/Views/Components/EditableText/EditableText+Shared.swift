@@ -43,6 +43,15 @@ extension EditableTextView.Coordinator {
 		return Self.bracketPairs.values.contains(typedChar) && charAtCursor == typedChar
 	}
 
+	/// Returns a markdown link if the replacement text is a URL and text is selected.
+	func markdownLinkFromPastedURL(for replacementText: String, selectedText: String) -> String? {
+		guard !selectedText.isEmpty, !replacementText.isEmpty, !replacementText.contains("\n"),
+		      let url = URL(string: replacementText), let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https"
+		else { return nil }
+
+		return "[\(selectedText)](\(replacementText))"
+	}
+
 	/// Returns the wrapped text if the typed character is an opening bracket and text is selected.
 	func wrapWithBrackets(for typedText: String, selectedText: String) -> String? {
 		guard !selectedText.isEmpty, typedText.count == 1, let typedChar = typedText.first, let closingChar = Self.bracketPairs[typedChar] else { return nil }

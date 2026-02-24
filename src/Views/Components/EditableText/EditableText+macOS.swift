@@ -424,8 +424,25 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			return false
 		}
 
+		// wrap selected text in markdown link when pasting a URL
+		if range.length > 0, range.location + range.length <= (textView.string as NSString).length,
+		   let markdownLink = markdownLinkFromPastedURL(for: text, selectedText: (textView.string as NSString).substring(with: range))
+		{
+			textView.insertText(markdownLink, replacementRange: range)
+			moveCursorTo(offset: range.location + markdownLink.utf16.count, textView: textView)
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
+			return false
+		}
+
 		// wrap text with brackets instead of replacing it
-		if range.length > 0, let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.string as NSString).substring(with: range)) {
+		if range.length > 0, range.location + range.length <= (textView.string as NSString).length,
+		   let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.string as NSString).substring(with: range))
+		{
 			textView.insertText(wrappedText, replacementRange: range)
 
 			textView.setSelectedRange(NSRange(location: range.location + 1, length: range.length))

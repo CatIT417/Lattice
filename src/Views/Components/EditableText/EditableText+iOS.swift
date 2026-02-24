@@ -507,8 +507,39 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			return false
 		}
 
+		// wrap selected text in markdown link when pasting a URL
+		if range.length > 0, range.location + range.length <= (textView.text as NSString).length,
+		   let markdownLink = markdownLinkFromPastedURL(for: text, selectedText: (textView.text as NSString).substring(with: range))
+		{
+			textView.replace(
+				textView.textRange(
+					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
+					to: textView.position(from: textView.beginningOfDocument, offset: range.location + range.length)!
+				)!,
+				withText: markdownLink
+			)
+
+			updateReferenceSuggestions(
+				textView: textView,
+				trigger: .textEdited,
+				activatingSession: activateSuggestionsOnNextTextChange
+			)
+			activateSuggestionsOnNextTextChange = false
+
+			// UIKit overrides selectedRange after shouldChangeTextIn returns, so we defer moving the cursor
+			let cursorOffset = range.location + markdownLink.utf16.count
+			DispatchQueue.main.async { [weak self, weak textView] in
+				guard let textView else { return }
+				self?.moveCursorTo(offset: cursorOffset, textView: textView)
+			}
+
+			return false
+		}
+
 		// wrap text with brackets instead of replacing it
-		if range.length > 0, let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.text as NSString).substring(with: range)) {
+		if range.length > 0, range.location + range.length <= (textView.text as NSString).length,
+		   let wrappedText = wrapWithBrackets(for: text, selectedText: (textView.text as NSString).substring(with: range))
+		{
 			textView.replace(
 				textView.textRange(
 					from: textView.position(from: textView.beginningOfDocument, offset: range.location)!,
