@@ -34,7 +34,7 @@ extension Tests.SafetyChecksTest {
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Block.find(paragraph.id).update { $0.pageId = otherPage.id }.execute(db)
+				try Block.find(paragraph.id).update { $0.pageId = #bind(otherPage.id) }.execute(db)
 			}
 		}
 	}
@@ -49,7 +49,7 @@ extension Tests.SafetyChecksTest {
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Block.find(paragraph.id).update { $0.parentId = otherPage.id }.execute(db)
+				try Block.find(paragraph.id).update { $0.parentId = #bind(otherPage.id) }.execute(db)
 			}
 		}
 	}
@@ -69,7 +69,7 @@ extension Tests.SafetyChecksTest {
 		}
 
 		try database.write { db in
-			try Block.find(child.id).update { $0.parentId = parent.id }.execute(db)
+			try Block.find(child.id).update { $0.parentId = #bind(parent.id) }.execute(db)
 		}
 	}
 
@@ -83,8 +83,8 @@ extension Tests.SafetyChecksTest {
 
 		try database.write { db in
 			try Block.find(paragraph.id).update {
-				$0.pageId = otherPage.id
-				$0.parentId = otherPage.id
+				$0.pageId = #bind(otherPage.id)
+				$0.parentId = #bind(otherPage.id)
 			}.execute(db)
 		}
 

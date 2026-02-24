@@ -9,13 +9,13 @@ final class AvoidDuplicatePages: Trigger {
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { page in
 			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { block in
-			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
+			block.title.isNot(nil) && Page.where { block.title.eq($0.title) && $0.id.neq(block.id) }.exists()
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(forEachRow: { _, page in
 			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { _, block in
-			block.title.isNot(nil) && Page.where { $0.title == block.title && $0.id != block.id }.exists()
+			block.title.isNot(nil) && Page.where { block.title.eq($0.title) && $0.id.neq(block.id) }.exists()
 		})).execute(db)
 	}
 }
@@ -27,7 +27,7 @@ func unifyPagesWithSameTitle(title: String) throws {
 
 		withErrorReporting {
 			try database.write { db in
-				var pages = try Page.where { $0.title == title }.order { $0.createdAt.asc() }.fetchAll(db)
+				var pages = try Page.where { $0.title.eq(title) }.order { $0.createdAt.asc() }.fetchAll(db)
 				guard pages.count > 1 else { return }
 
 				let keeper = pages.removeFirst()
@@ -38,10 +38,10 @@ func unifyPagesWithSameTitle(title: String) throws {
 
 					for block in affectedRecords {
 						try Block.find(block.id).update {
-							$0.pageId = keeper.id
+							$0.pageId = #bind(keeper.id)
 
 							if block.parentId == duplicatePage.id {
-								$0.parentId = keeper.id
+								$0.parentId = #bind(keeper.id)
 							}
 						}.execute(db)
 					}

@@ -7,7 +7,7 @@ final class UpdateParagraphOrder: Trigger {
 
 			// First, we increment the order of all sibling paragraphs that come after the inserted one
 			Block
-				.where { $0.id != paragraph.id && $0.parentId == paragraph.parentId && $0.order >= paragraph.order }
+				.where { $0.id.neq(paragraph.id) && $0.parentId.eq(paragraph.parentId) && $0.order >= paragraph.order }
 				.update { $0.order += 1 }
 
 			// Then, we clamp the inserted paragraph's order to not exceed the max if needed
@@ -23,12 +23,12 @@ final class UpdateParagraphOrder: Trigger {
 
 			// Close gap in old parent
 			Block
-				.where { $0.parentId == old.parentId && $0.order > old.order }
+				.where { $0.parentId.eq(old.parentId) && $0.order > old.order }
 				.update { $0.order -= 1 }
 
 			// Make room in new parent
 			Block
-				.where { $0.id != new.id && $0.parentId == new.parentId && $0.order >= new.order }
+				.where { $0.id.neq(new.id) && $0.parentId.eq(new.parentId) && $0.order >= new.order }
 				.update { $0.order += 1 }
 
 			// Clamp to max order in new parent
@@ -36,7 +36,7 @@ final class UpdateParagraphOrder: Trigger {
 
 			TriggerGuard.decrement()
 		}, when: { old, new in
-			new.string.isNot(nil) && old.parentId != new.parentId
+			new.string.isNot(nil) && old.parentId.neq(new.parentId)
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.order, forEachRow: { old, new in
@@ -44,8 +44,8 @@ final class UpdateParagraphOrder: Trigger {
 			Block
 				.where {
 					old.order < new.order
-						&& $0.id != new.id
-						&& $0.parentId == new.parentId
+						&& $0.id.neq(new.id)
+						&& $0.parentId.eq(new.parentId)
 						&& $0.order > old.order
 						&& $0.order <= new.order
 				}
@@ -55,8 +55,8 @@ final class UpdateParagraphOrder: Trigger {
 			Block
 				.where {
 					old.order > new.order
-						&& $0.id != new.id
-						&& $0.parentId == new.parentId
+						&& $0.id.neq(new.id)
+						&& $0.parentId.eq(new.parentId)
 						&& $0.order >= new.order
 						&& $0.order < old.order
 				}
@@ -65,14 +65,14 @@ final class UpdateParagraphOrder: Trigger {
 			// Clamp to max order in parent
 			Self.clampToMaxOrder(for: new)
 		}, when: { old, new in
-			new.string.isNot(nil) && old.parentId == new.parentId && !TriggerGuard.isActive
+			new.string.isNot(nil) && old.parentId.eq(new.parentId) && !TriggerGuard.isActive
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .delete(forEachRow: { paragraph in
 			TriggerGuard.increment()
 
 			Block
-				.where { $0.parentId == paragraph.parentId && $0.order > paragraph.order }
+				.where { $0.parentId.eq(paragraph.parentId) && $0.order > paragraph.order }
 				.update { $0.order -= 1 }
 
 			TriggerGuard.decrement()
@@ -84,12 +84,12 @@ final class UpdateParagraphOrder: Trigger {
 	@QueryFragmentBuilder<any Statement> private static func clampToMaxOrder<AliasName>(for paragraph: TableAlias<Block, AliasName>.TableColumns) -> [QueryFragment] {
 		// Then, we fetch the max possible order for this parent
 		let maxOrder = Block
-			.where { $0.id != paragraph.id && $0.parentId == paragraph.parentId }
+			.where { $0.id.neq(paragraph.id) && $0.parentId.eq(paragraph.parentId) }
 			.select { $0.order.max().ifnull(0) + 1 }
 
 		// Finally, we clamp the inserted paragraph's order to not exceed the max if needed
 		Block
-			.where { $0.id == paragraph.id && $0.order > maxOrder }
+			.where { $0.id.eq(paragraph.id) && $0.order > maxOrder }
 			.update { $0.order = maxOrder }
 	}
 }

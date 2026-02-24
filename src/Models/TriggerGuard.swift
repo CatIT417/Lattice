@@ -12,7 +12,7 @@ struct TriggerGuard {
 
 	static var isActive: Select<Bool, TriggerGuard, Void> {
 		TriggerGuard
-			.where { $0.id == 0 }
+			.where { $0.id.eq(0) }
 			.select { $0.depth.gt(0) }
 			.asSelect()
 	}

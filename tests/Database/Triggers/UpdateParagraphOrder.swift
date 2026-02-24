@@ -155,8 +155,8 @@ extension Tests.UpdateParagraphOrderTest {
 			try await database.write { db in
 				try Block.find(paragraphs[3].id).update {
 					$0.order = 0
-					$0.pageId = secondPage.id
-					$0.parentId = secondPage.id
+					$0.pageId = #bind(secondPage.id)
+					$0.parentId = #bind(secondPage.id)
 				}.execute(db)
 			}
 		} changes: { paragraphs in
@@ -199,8 +199,8 @@ extension Tests.UpdateParagraphOrderTest {
 			try await database.write { db in
 				try Block.find(paragraphs[1].id).update {
 					$0.order = 3
-					$0.pageId = secondPage.id
-					$0.parentId = secondPage.id
+					$0.pageId = #bind(secondPage.id)
+					$0.parentId = #bind(secondPage.id)
 				}.execute(db)
 			}
 		} changes: { paragraphs in
@@ -319,8 +319,8 @@ extension Tests.UpdateParagraphOrderTest {
 			try await database.write { db in
 				try Block.find(paragraphs[1].id).update {
 					$0.order = 99
-					$0.pageId = secondPage.id
-					$0.parentId = secondPage.id
+					$0.pageId = #bind(secondPage.id)
+					$0.parentId = #bind(secondPage.id)
 				}.execute(db)
 			}
 		} changes: { paragraphs in

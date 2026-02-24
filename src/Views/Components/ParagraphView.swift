@@ -162,7 +162,7 @@ struct ParagraphView: View {
 		withErrorReporting {
 			try database.write { db in
 				try Block.find(paragraph.id)
-					.update { $0.string = newText }
+					.update { $0.string = #bind(newText) }
 					.execute(db)
 			}
 		}
@@ -193,7 +193,7 @@ struct ParagraphView: View {
 						$0.order += delta
 
 						if currentText != paragraph.string {
-							$0.string = currentText
+							$0.string = #bind(currentText)
 						}
 					}
 					.execute(db)
@@ -249,10 +249,10 @@ struct ParagraphView: View {
 				try Block.find(paragraph.id)
 					.update {
 						$0.order = parentBlock.order + 1
-						$0.parentId = parentBlock.parentId
+						$0.parentId = #bind(parentBlock.parentId)
 
 						if let currentText, currentText != paragraph.string {
-							$0.string = currentText
+							$0.string = #bind(currentText)
 						}
 					}
 					.execute(db)
@@ -271,7 +271,7 @@ struct ParagraphView: View {
 		withErrorReporting {
 			try database.write { db in
 				let maxOrder = try Paragraph
-					.where { $0.parentId == previousSibling.id }
+					.where { $0.parentId.eq(previousSibling.id) }
 					.order { $0.order.desc() }
 					.fetchOne(db)?
 					.order
@@ -279,10 +279,10 @@ struct ParagraphView: View {
 				try Block.find(paragraph.id)
 					.update {
 						$0.order = (maxOrder ?? -1) + 1
-						$0.parentId = previousSibling.id
+						$0.parentId = #bind(previousSibling.id)
 
 						if currentText != paragraph.string {
-							$0.string = currentText
+							$0.string = #bind(currentText)
 						}
 					}
 					.execute(db)

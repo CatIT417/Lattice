@@ -21,7 +21,7 @@ extension Tests.TouchTimestampsTest {
 		#expect(block.createdAt == block.updatedAt)
 
 		try database.write { db in
-			try Block.find(block.id).update { $0.title = "Updated Title" }.execute(db)
+			try Block.find(block.id).update { $0.title = #bind("Updated Title") }.execute(db)
 		}
 
 		let updatedBlock = try database.read { db in
@@ -49,7 +49,7 @@ extension Tests.TouchTimestampsTest {
 		let randomChild = try #require(children.randomElement())
 
 		try database.write { db in
-			try Block.find(randomChild.id).update { $0.string = "Updated Child Block" }.execute(db)
+			try Block.find(randomChild.id).update { $0.string = #bind("Updated Child Block") }.execute(db)
 		}
 
 		let updatedPage = try #require(database.read { db in

@@ -30,7 +30,7 @@ extension Tests.SyncAncestorsTableTest {
 		}
 
 		let parentAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId == parent.id }
+			try Ancestor.where { $0.blockId.eq(parent.id) }
 				.order { $0.depth.asc() }
 				.fetchAll(db)
 		}
@@ -40,7 +40,7 @@ extension Tests.SyncAncestorsTableTest {
 		])
 
 		let childAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId == child.id }
+			try Ancestor.where { $0.blockId.eq(child.id) }
 				.order { $0.depth.asc() }
 				.fetchAll(db)
 		}
@@ -77,12 +77,12 @@ extension Tests.SyncAncestorsTableTest {
 
 		try database.write { db in
 			try Block.find(child.id).update {
-				$0.parentId = secondRoot.id
+				$0.parentId = #bind(secondRoot.id)
 			}.execute(db)
 		}
 
 		let childAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId == child.id }
+			try Ancestor.where { $0.blockId.eq(child.id) }
 				.order { $0.depth.asc() }
 				.fetchAll(db)
 		}
@@ -93,7 +93,7 @@ extension Tests.SyncAncestorsTableTest {
 		])
 
 		let grandchildAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId == grandchild.id }
+			try Ancestor.where { $0.blockId.eq(grandchild.id) }
 				.order { $0.depth.asc() }
 				.fetchAll(db)
 		}

@@ -23,7 +23,7 @@ struct Breadcrumb: Identifiable {
 
 	static func forBlock(id: Block.ID) -> Select<Breadcrumb, Ancestor, Block> {
 		Ancestor
-			.where { $0.blockId == id }
+			.where { $0.blockId.eq(id) }
 			.order { $0.depth.desc() }
 			.join(Block.all) { $0.ancestorId.eq($1.id) }
 			.select { Breadcrumb.Columns(id: $1.id, title: $1.title, string: $1.string) }

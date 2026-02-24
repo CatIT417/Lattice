@@ -5,13 +5,13 @@ struct SafetyChecks: Trigger {
 		try Block.createTemporaryTrigger(before: .update(of: \.pageId, forEachRow: { _, _ in
 			Values(#sql("RAISE(ABORT, 'You forgot to update the `parentId` field to the new page!')"))
 		}, when: { old, new in
-			old.pageId != new.pageId && old.pageId == old.parentId && new.pageId != new.parentId
+			old.pageId.neq(new.pageId) && old.pageId.eq(old.parentId) && new.pageId.neq(new.parentId)
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(before: .update(of: \.parentId, forEachRow: { _, _ in
 			Values(#sql("RAISE(ABORT, 'You forgot to update the `pageId` field to the new page!')"))
 		}, when: { old, new in
-			old.parentId != new.parentId && old.parentId == old.pageId && new.parentId != new.pageId && Page.where { $0.id == new.parentId }.exists()
+			old.parentId.neq(new.parentId) && old.parentId.eq(old.pageId) && new.parentId.neq(new.pageId) && Page.where { new.parentId.eq($0.id) }.exists()
 		})).execute(db)
 	}
 }

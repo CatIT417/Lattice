@@ -27,15 +27,15 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		let pageLinkPage = try #require(database.read { db in
-			try Page.where { $0.title == "Megalopolis" }.fetchOne(db)
+			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
 		})
 
 		let tagPage = try #require(database.read { db in
-			try Page.where { $0.title == "onPlex" }.fetchOne(db)
+			try Page.where { $0.title.eq("onPlex") }.fetchOne(db)
 		})
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [
@@ -58,16 +58,16 @@ extension Tests.SyncReferencesTableTest {
 
 		try database.write { db in
 			try Block.find(paragraph.id).update {
-				$0.string = "Saw [[Tenet]] once more"
+				$0.string = #bind("Saw [[Tenet]] once again")
 			}.execute(db)
 		}
 
 		let newPage = try #require(database.read { db in
-			try Page.where { $0.title == "Tenet" }.fetchOne(db)
+			try Page.where { $0.title.eq("Tenet") }.fetchOne(db)
 		})
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [
@@ -92,7 +92,7 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		try database.write { db in
-			try Block.find(referencedPage.id).update { $0.title = "Megalopolis" }.execute(db)
+			try Block.find(referencedPage.id).update { $0.title = #bind("Megalopolis") }.execute(db)
 		}
 
 		let updatedParagraph = try #require(database.read { db in
@@ -102,7 +102,7 @@ extension Tests.SyncReferencesTableTest {
 		expectNoDifference(updatedParagraph.string, "Saw [[Megalopolis]]")
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [
@@ -127,7 +127,7 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		try database.write { db in
-			try Block.find(tagPage.id).update { $0.title = "On Plex" }.execute(db)
+			try Block.find(tagPage.id).update { $0.title = #bind("On Plex") }.execute(db)
 		}
 
 		let updatedParagraph = try #require(database.read { db in
@@ -137,7 +137,7 @@ extension Tests.SyncReferencesTableTest {
 		expectNoDifference(updatedParagraph.string, "Saw Megalopolis #[[On Plex]]")
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [
@@ -158,11 +158,11 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		let tagPage = try #require(database.read { db in
-			try Page.where { $0.title == "Megalopolis" }.fetchOne(db)
+			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
 		})
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [
@@ -187,7 +187,7 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		try database.write { db in
-			try Block.find(referencedPage.id).update { $0.title = "New Title" }.execute(db)
+			try Block.find(referencedPage.id).update { $0.title = #bind("New Title") }.execute(db)
 		}
 
 		let updatedParagraph = try #require(database.read { db in
@@ -214,7 +214,7 @@ extension Tests.SyncReferencesTableTest {
 		})
 
 		try database.write { db in
-			try Block.find(tagPage.id).update { $0.title = "NewTag" }.execute(db)
+			try Block.find(tagPage.id).update { $0.title = #bind("NewTag") }.execute(db)
 		}
 
 		let updatedParagraph = try #require(database.read { db in
@@ -238,12 +238,12 @@ extension Tests.SyncReferencesTableTest {
 
 		try database.write { db in
 			try Block.find(paragraph.id).update {
-				$0.string = "Haven't seen any movies recently."
+				$0.string = #bind("Haven't seen any movies recently.")
 			}.execute(db)
 		}
 
 		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId == paragraph.id }.fetchAll(db)
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
 		}
 
 		expectNoDifference(references, [])

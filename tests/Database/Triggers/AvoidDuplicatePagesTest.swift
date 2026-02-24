@@ -79,7 +79,7 @@ extension Tests.AvoidDuplicatePagesTest {
 		}
 
 		try await database.write { db in
-			try Block.find(secondPage.id).update { $0.title = "Shared Title" }.execute(db)
+			try Block.find(secondPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
 		}
 
 		let pages = try await waitForPages(title: "Shared Title", expectedCount: 1)
@@ -112,7 +112,7 @@ extension Tests.AvoidDuplicatePagesTest {
 
 		while Date() < deadline {
 			pages = try await database.read { db in
-				try Page.where { $0.title == title }
+				try Page.where { $0.title.eq(title) }
 					.order { $0.createdAt.asc() }
 					.fetchAll(db)
 			}

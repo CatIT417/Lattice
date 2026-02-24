@@ -30,7 +30,7 @@ struct ChildrenRenderer_Previews: PreviewProvider {
 	static var previews: some View {
 		let (page, paragraphs) = previewData { db in
 			let page = try Page.fetchOne(db)!
-			let paragraphs = try Paragraph.where { $0.pageId == page.id }.fetchAll(db)
+			let paragraphs = try Paragraph.where { $0.pageId.eq(page.id) }.fetchAll(db)
 
 			return (page, paragraphs)
 		}

@@ -20,7 +20,7 @@ final class SyncAncestorsTable: Trigger {
 		// When moving a block (parent changes)
 		try Block.createTemporaryTrigger(after: .update(of: \.parentId, forEachRow: { _, new in
 			Values($rebuildAncestorsForSubtree(blockId: new.id))
-		}, when: { $0.parentId != $1.parentId })).execute(database)
+		}, when: { $0.parentId.neq($1.parentId) })).execute(database)
 	}
 
 	/// Inserts the parent as the direct ancestor for a new block.

@@ -69,7 +69,7 @@ extension Page {
 		""", as: Block.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.dailyNoteDate == #bind(page.dailyNoteDate) }.fetchOne(db)!
+		return try Page.where { $0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) }.fetchOne(db)!
 	}
 }
 
@@ -88,7 +88,7 @@ extension Page {
 		""", as: Block.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.title == title }.fetchOne(db)!
+		return try Page.where { $0.title.eq(title) }.fetchOne(db)!
 	}
 }
 

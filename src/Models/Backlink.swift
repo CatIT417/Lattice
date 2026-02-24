@@ -27,7 +27,7 @@ extension Backlink {
 
 	static func groupedByPage(forBlock blockId: Block.ID) -> Select<GroupedByPage, Self, Void> {
 		group(by: \.fromPageId)
-			.where { $0.toBlock == blockId }
+			.where { $0.toBlock.eq(blockId) }
 			.select {
 				GroupedByPage.Columns(
 					pageID: $0.fromPageId,

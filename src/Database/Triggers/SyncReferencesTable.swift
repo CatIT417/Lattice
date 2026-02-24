@@ -11,7 +11,7 @@ final class SyncReferencesTable: Trigger {
 			Values($syncReferencesFromText(
 				new: block.string.unsafelyUnwrapped,
 				forBlockID: block.id,
-				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId == block.id }.exists()
+				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId.eq(block.id) }.exists()
 			))
 		}, when: { block in
 			block.string.isNot(nil)
@@ -21,16 +21,16 @@ final class SyncReferencesTable: Trigger {
 			Values($syncReferencesFromText(
 				new: block.string.unsafelyUnwrapped,
 				forBlockID: block.id,
-				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId == block.id }.exists()
+				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId.eq(block.id) }.exists()
 			))
 		}, when: { old, new in
-			new.string.isNot(nil) && old.string != new.string
+			new.string.isNot(nil) && old.string.neq(new.string)
 		})).execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.title, forEachRow: { old, new in
 			Values($updatePageTitleInReferences(old: old.title.unsafelyUnwrapped, new: new.title.unsafelyUnwrapped, forPageID: new.id))
 		}, when: { old, new in
-			new.title.isNot(nil) && old.title != new.title && Reference.where { $0.targetBlockId == new.id }.exists()
+			new.title.isNot(nil) && old.title.neq(new.title) && Reference.where { $0.targetBlockId.eq(new.id) }.exists()
 		})).execute(db)
 	}
 }
@@ -45,7 +45,7 @@ func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasEx
 			let references = try new.extractRefs().map { try $0.resolved(using: db) }
 
 			if hasExistingReferencesInDatabase {
-				try Reference.where { $0.sourceBlockId == blockID }.delete().execute(db)
+				try Reference.where { $0.sourceBlockId.eq(blockID) }.delete().execute(db)
 			}
 
 			guard !references.isEmpty else { return }
@@ -68,7 +68,7 @@ func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Pag
 			let blocks = try Reference
 				.group(by: \.sourceBlockId)
 				.where { $0.targetBlockId.eq(pageID) }
-				.join(Paragraph.all) { $0.sourceBlockId == $1.id }
+				.join(Paragraph.all) { $0.sourceBlockId.eq($1.id) }
 				.select { $1 }
 				.fetchAll(db)
 
@@ -93,7 +93,7 @@ func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Pag
 				guard updated != original else { continue }
 
 				try Block.find(block.id).update {
-					$0.string = updated
+					$0.string = #bind(updated)
 				}.execute(db)
 			}
 		}
