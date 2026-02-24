@@ -60,7 +60,7 @@ func buildAttributedString(from text: String, font: PlatformFont = .preferredFon
 	]
 
 	// Fast path: skip parsing when no inline markup markers are present
-	guard text.contains(where: { inlineMarkupCharacters.contains($0) }) else {
+	guard text.contains(where: { inlineMarkupCharacters.contains($0) }) || text.contains("://") else {
 		return plainAttributedResult(for: text, attributes: baseAttributes, rawStartOffset: rawStartOffset)
 	}
 
@@ -196,16 +196,22 @@ private extension RenderContext {
 					renderedToRaw: &renderedToRaw
 				)
 			case let .link(url):
-				render(
-					container: span,
-					spanRawStart: spanRawStart,
-					contentDelimiterLength: 1, // [
-					childAttributes: style.link(url),
-					childFont: font,
-					childTraits: inheritedTraits,
-					into: result,
-					renderedToRaw: &renderedToRaw
-				)
+				if span.children.isEmpty {
+					// Auto-link: rendered text = raw text, no delimiters
+					append(text: span.content, with: style.link(url), rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
+				} else {
+					// Markdown link: [text](url)
+					render(
+						container: span,
+						spanRawStart: spanRawStart,
+						contentDelimiterLength: 1, // [
+						childAttributes: style.link(url),
+						childFont: font,
+						childTraits: inheritedTraits,
+						into: result,
+						renderedToRaw: &renderedToRaw
+					)
+				}
 		}
 	}
 

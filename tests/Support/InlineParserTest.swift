@@ -1194,6 +1194,387 @@ extension Tests.InlineParserTest {
 		expectNoDifference(String(text[ref.range]), "[[A%2FB]]")
 	}
 
+	// MARK: - URL Detection
+
+	@Test("parse detects plain https URL")
+	func parseDetectsPlainHttpsURL() {
+		let spans = InlineParser.default.parse("Visit https://example.com today")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Visit ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://example.com)),
+			    range: 6[utf8]..<25[utf8],
+			    content: "https://example.com",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 25[utf8]..<31[utf8],
+			    content: " today",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects plain http URL")
+	func parseDetectsPlainHttpURL() {
+		let spans = InlineParser.default.parse("Visit http://example.com today")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Visit ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(http://example.com)),
+			    range: 6[utf8]..<24[utf8],
+			    content: "http://example.com",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 24[utf8]..<30[utf8],
+			    content: " today",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects URL with path and query string")
+	func parseDetectsURLWithPathAndQuery() {
+		let spans = InlineParser.default.parse("See https://example.com/path?q=1&r=2 for details")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<4[utf8],
+			    content: "See ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://example.com/path?q=1&r=2)),
+			    range: 4[utf8]..<36[utf8],
+			    content: "https://example.com/path?q=1&r=2",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 36[utf8]..<48[utf8],
+			    content: " for details",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse strips trailing period from URL at end of sentence")
+	func parseStripsTrailingPeriodFromURL() {
+		let spans = InlineParser.default.parse("Go to https://example.com.")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Go to ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://example.com)),
+			    range: 6[utf8]..<25[utf8],
+			    content: "https://example.com",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 25[utf8]..<26[utf8],
+			    content: ".",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse strips trailing parenthesis from URL")
+	func parseStripsTrailingParenthesisFromURL() {
+		let spans = InlineParser.default.parse("(see https://example.com)")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<5[utf8],
+			    content: "(see ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://example.com)),
+			    range: 5[utf8]..<24[utf8],
+			    content: "https://example.com",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 24[utf8]..<25[utf8],
+			    content: ")",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects multiple URLs in one block")
+	func parseDetectsMultipleURLs() {
+		let spans = InlineParser.default.parse("https://a.com and https://b.com")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(https://a.com)),
+			    range: 0[any]..<13[utf8],
+			    content: "https://a.com",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .text,
+			    range: 13[utf8]..<18[utf8],
+			    content: " and ",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .link(url: URL(https://b.com)),
+			    range: 18[utf8]..<31[utf8],
+			    content: "https://b.com",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("referencesOnly parser doesn't extract tags from URL fragments")
+	func referencesOnlyDoesNotExtractTagsFromURLFragments() {
+		let refs = InlineParser.referencesOnly.extractReferences(from: "Check https://example.com/#about for info")
+
+		#expect(refs.isEmpty)
+	}
+
+	@Test("parse preserves balanced parentheses in URL")
+	func parsePreservesBalancedParenthesesInURL() {
+		let spans = InlineParser.default.parse("See https://en.wikipedia.org/wiki/Function_(mathematics) for info")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<4[utf8],
+			    content: "See ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://en.wikipedia.org/wiki/Function_(mathematics))),
+			    range: 4[utf8]..<56[utf8],
+			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 56[utf8]..<65[utf8],
+			    content: " for info",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse strips unbalanced trailing parenthesis from URL")
+	func parseStripsUnbalancedTrailingParenFromURL() {
+		let spans = InlineParser.default.parse("(see https://en.wikipedia.org/wiki/Function_(mathematics))")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<5[utf8],
+			    content: "(see ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://en.wikipedia.org/wiki/Function_(mathematics))),
+			    range: 5[utf8]..<57[utf8],
+			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 57[utf8]..<58[utf8],
+			    content: ")",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("URL inside markdown link destination is not double-matched")
+	func urlInsideMarkdownLinkIsNotDoubleMatched() {
+		let spans = InlineParser.default.parse("[click](https://example.com)")
+
+		// Should be a single markdown link, not a markdown link + auto-link
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(https://example.com)),
+			    range: 0[any]..<28[utf8],
+			    content: "click",
+			    children: [
+			      [0]: InlineSpan(
+			        kind: .text,
+			        range: 0[any]..<5[utf8],
+			        content: "click",
+			        children: []
+			      )
+			    ]
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects uppercase HTTPS URL")
+	func parseDetectsUppercaseHTTPSURL() {
+		let spans = InlineParser.default.parse("Visit HTTPS://EXAMPLE.COM today")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Visit ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(HTTPS://EXAMPLE.COM)),
+			    range: 6[utf8]..<25[utf8],
+			    content: "HTTPS://EXAMPLE.COM",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 25[utf8]..<31[utf8],
+			    content: " today",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("referencesOnly parser doesn't extract tags from uppercase URL fragments")
+	func referencesOnlyDoesNotExtractTagsFromUppercaseURLFragments() {
+		let refs = InlineParser.referencesOnly.extractReferences(from: "Check HTTPS://example.com/#about for info")
+
+		#expect(refs.isEmpty)
+	}
+
+	@Test("parse detects IPv6 URL with bracketed host")
+	func parseDetectsIPv6URL() {
+		let spans = InlineParser.default.parse("Visit http://[2001:db8::1]/path today")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Visit ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(http://[2001:db8::1]/path)),
+			    range: 6[utf8]..<31[utf8],
+			    content: "http://[2001:db8::1]/path",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 31[utf8]..<37[utf8],
+			    content: " today",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse rejects scheme-only URL")
+	func parseRejectsSchemeOnlyURL() {
+		let spans = InlineParser.default.parse("Use http://, not ftp://")
+
+		// "http://" alone should not become a link
+		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
+		#expect(!hasLink)
+	}
+
+	@Test("parse includes bracketed query parameters in URL")
+	func parseIncludesBracketedQueryParams() {
+		let spans = InlineParser.default.parse("See https://example.com/search?filters[]=done end")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<4[utf8],
+			    content: "See ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(url: URL(https://example.com/search?filters%5B%5D=done)),
+			    range: 4[utf8]..<45[utf8],
+			    content: "https://example.com/search?filters[]=done",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 45[utf8]..<49[utf8],
+			    content: " end",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
 	@Test("extractReferences rebases ranges correctly through bold-italic nesting")
 	func extractReferencesRebasesRangesThroughBoldItalicNesting() {
 		let text = "***hello [[Page]]***"

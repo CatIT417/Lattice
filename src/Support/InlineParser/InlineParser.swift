@@ -26,6 +26,7 @@ struct InlineParser: Sendable {
 		InlineCodeRule(),
 		EmphasisRule(),
 		LinkRule(),
+		URLRule(),
 		TagRule(),
 		PageLinkRule(),
 		BlockRefRule(),
@@ -43,6 +44,7 @@ struct InlineParser: Sendable {
 	static let referencesOnly = InlineParser(rules: [
 		InlineCodeRule(), // skip refs inside code
 		LinkRule(), // skip refs inside markdown links
+		URLRule(), // skip refs inside URLs (e.g. #fragment)
 		TagRule(),
 		PageLinkRule(),
 		BlockRefRule(),
