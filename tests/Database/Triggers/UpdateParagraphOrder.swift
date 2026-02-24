@@ -7,7 +7,10 @@ import DependenciesTestSupport
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/UpdateParagraphOrder", .dependency(\.date, .constant(.distantPast)))
+	@Suite("Database/Triggers/UpdateParagraphOrder", .dependencies {
+		try $0.bootstrapDatabase()
+		$0.date = .constant(.distantPast)
+	})
 	struct UpdateParagraphOrderTest {
 		@FetchAll var paragraphs: [Paragraph]
 		@Dependency(\.uuid) var uuid

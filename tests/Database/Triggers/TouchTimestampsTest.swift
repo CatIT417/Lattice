@@ -1,11 +1,12 @@
 import Testing
 import SQLiteData
 import Foundation
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/TouchTimestamps")
+	@Suite("Database/Triggers/TouchTimestamps", .dependencies { try $0.bootstrapDatabase() })
 	struct TouchTimestampsTest {
 		@Dependency(\.defaultDatabase) var database
 	}

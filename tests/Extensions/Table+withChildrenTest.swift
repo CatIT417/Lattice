@@ -1,11 +1,12 @@
 import Testing
 import SQLiteData
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Extensions/Table+withChildren")
+	@Suite("Extensions/Table+withChildren", .dependencies { try $0.bootstrapDatabase() })
 	struct TableWithChildrenTest {
 		@Dependency(\.defaultDatabase) var database
 	}

@@ -2,11 +2,12 @@ import Testing
 import SQLiteData
 import Foundation
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/SyncAncestorsTable")
+	@Suite("Database/Triggers/SyncAncestorsTable", .dependencies { try $0.bootstrapDatabase() })
 	struct SyncAncestorsTableTest {
 		@Dependency(\.defaultDatabase) var database
 	}

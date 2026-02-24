@@ -1,11 +1,12 @@
 import Testing
 import SQLiteData
 import Foundation
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/SafetyChecks")
+	@Suite("Database/Triggers/SafetyChecks", .dependencies { try $0.bootstrapDatabase() })
 	struct SafetyChecksTest {
 		@Dependency(\.defaultDatabase) var database
 

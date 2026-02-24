@@ -1,11 +1,12 @@
 import Testing
 import SQLiteData
 import InlineSnapshotTesting
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Support/MarkdownExporter")
+	@Suite("Support/MarkdownExporter", .dependencies { try $0.bootstrapDatabase() })
 	struct MarkdownExporterTest {
 		@Dependency(\.defaultDatabase) var database
 	}

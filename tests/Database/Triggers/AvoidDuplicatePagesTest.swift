@@ -2,12 +2,13 @@ import Testing
 import SQLiteData
 import Foundation
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
 	// TODO: Throughly check all edge cases that can occur when syncing.
-	@Suite("Database/Triggers/AvoidDuplicatePages")
+	@Suite("Database/Triggers/AvoidDuplicatePages", .dependencies { try $0.bootstrapDatabase() })
 	struct AvoidDuplicatePagesTest {
 		@Dependency(\.defaultDatabase) var database
 	}

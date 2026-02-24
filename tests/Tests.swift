@@ -11,8 +11,6 @@ import DependenciesTestSupport
 @Suite(.dependencies {
 	$0.uuid = .incrementing
 	$0.date = .init { Date() }
-
-	try $0.bootstrapDatabase()
 })
 struct Tests {}
 

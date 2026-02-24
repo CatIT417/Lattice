@@ -2,6 +2,7 @@ import Testing
 import SQLiteData
 import Foundation
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
@@ -101,7 +102,7 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(pageRef.replacement(forRenamedPage: "New Title"), "[[New Title]]")
 	}
 
-	@Test("TextRef.resolved creates pages for page links and tags, and resolves block refs")
+	@Test("TextRef.resolved creates pages for page links and tags, and resolves block refs", .dependencies { try $0.bootstrapDatabase() })
 	func textRefResolvedCreatesPagesAndResolvesBlocks() throws {
 		let uuidString = "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E"
 		let text = "[[My Page]] #myTag ((\(uuidString)))"

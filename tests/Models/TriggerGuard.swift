@@ -1,11 +1,12 @@
 import Testing
 import SQLiteData
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Models/TriggerGuard")
+	@Suite("Models/TriggerGuard", .dependencies { try $0.bootstrapDatabase() })
 	struct TriggerGuardTest {
 		@Dependency(\.defaultDatabase) var database
 	}

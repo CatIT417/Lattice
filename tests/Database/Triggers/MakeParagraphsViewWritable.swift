@@ -2,11 +2,12 @@ import Testing
 import SQLiteData
 import Foundation
 import CustomDump
+import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/MakeParagraphsViewWritable")
+	@Suite("Database/Triggers/MakeParagraphsViewWritable", .dependencies { try $0.bootstrapDatabase() })
 	struct MakeParagraphsViewWritableTest {
 		@Dependency(\.defaultDatabase) var database
 
