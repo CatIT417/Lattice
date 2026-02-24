@@ -57,4 +57,36 @@ extension InlineSpan.Kind {
 			default: nil
 		}
 	}
+
+	static func fromRefDestination(_ destination: String) -> (kind: Self, target: String)? {
+		// page link (`[[page]]`)
+		if destination.hasPrefix("[["), destination.hasSuffix("]]") {
+			let title = String(destination.dropFirst(2).dropLast(2))
+			guard !title.isEmpty, title.contains(where: { !$0.isWhitespace }) else { return nil }
+			return (.pageLink, title)
+		}
+
+		// block link (`((uuid))`)
+		if destination.hasPrefix("(("), destination.hasSuffix("))") {
+			let raw = String(destination.dropFirst(2).dropLast(2))
+			guard let uuid = UUID(uuidString: raw) else { return nil }
+			return (.blockRef, uuid.uuidString)
+		}
+
+		// tag (`#[[tag]]`)
+		if destination.hasPrefix("#[["), destination.hasSuffix("]]") {
+			let tag = String(destination.dropFirst(3).dropLast(2))
+			guard !tag.isEmpty, tag.contains(where: { !$0.isWhitespace }) else { return nil }
+			return (.tag, tag)
+		}
+
+		// tag (`#tag`)
+		if destination.hasPrefix("#") {
+			let tag = String(destination.dropFirst())
+			guard !tag.isEmpty else { return nil }
+			return (.tag, tag)
+		}
+
+		return nil
+	}
 }

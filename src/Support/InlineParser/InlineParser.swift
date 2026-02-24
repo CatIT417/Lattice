@@ -162,12 +162,7 @@ struct InlineParser: Sendable {
 	}
 
 	/// Recursively collect reference spans from a span tree, rebasing ranges to the original text
-	private func collectReferences(
-		from spans: [InlineSpan],
-		parentContent: String,
-		in originalText: String,
-		contentStartOffset: Int
-	) -> [InlineSpan] {
+	private func collectReferences(from spans: [InlineSpan], parentContent: String, in originalText: String, contentStartOffset: Int) -> [InlineSpan] {
 		var refs: [InlineSpan] = []
 		for span in spans {
 			if span.kind.isReference {
@@ -183,6 +178,14 @@ struct InlineParser: Sendable {
 					children: span.children
 				))
 			}
+
+			// Extract reference from internal-destination markdown links
+			if case let .link(url) = span.kind, url.scheme == "lattice" {
+				if let refSpan = synthesizeReference(from: span, parentContent: parentContent, originalText: originalText, contentStartOffset: contentStartOffset) {
+					refs.append(refSpan)
+				}
+			}
+
 			// Don't recurse into references, but do recurse into formatting spans
 			if !span.kind.isReference, !span.children.isEmpty {
 				let spanStartInContent = parentContent.distance(from: parentContent.startIndex, to: span.range.lowerBound)
@@ -191,12 +194,9 @@ struct InlineParser: Sendable {
 				// Compute opening delimiter length to find where content starts
 				let openingDelimiterLength: Int
 				switch span.kind {
-					case .bold, .italic, .highlight:
-						openingDelimiterLength = (rawLength - span.content.count) / 2
-					case .link, .code:
-						openingDelimiterLength = 1
-					default:
-						openingDelimiterLength = 0
+					case .bold, .italic, .highlight: openingDelimiterLength = (rawLength - span.content.count) / 2
+					case .link, .code: openingDelimiterLength = 1
+					default: openingDelimiterLength = 0
 				}
 
 				let childContentStartOffset = contentStartOffset + spanStartInContent + openingDelimiterLength
@@ -210,6 +210,32 @@ struct InlineParser: Sendable {
 			}
 		}
 		return refs
+	}
+}
+
+// MARK: - Internal Reference Synthesis
+
+private extension InlineParser {
+	/// Synthesize a reference span from an internal-destination markdown link.
+	///
+	/// The reference range covers just the destination syntax (e.g. `[[page]]`) in the original text.
+	func synthesizeReference(from span: InlineSpan, parentContent: String, originalText: String, contentStartOffset: Int) -> InlineSpan? {
+		// Compute the range of the destination syntax in the original text.
+		// The span raw text is: [linkText](destination)
+		let spanStartOffset = contentStartOffset + parentContent.distance(from: parentContent.startIndex, to: span.range.lowerBound)
+		let spanEndOffset = contentStartOffset + parentContent.distance(from: parentContent.startIndex, to: span.range.upperBound)
+		let destStart = spanStartOffset + 1 + span.content.count + 2 // skip [content](
+		let destEnd = spanEndOffset - 1 // before )
+
+		guard destStart < destEnd, destEnd <= originalText.count else { return nil }
+
+		let destLower = originalText.index(originalText.startIndex, offsetBy: destStart)
+		let destUpper = originalText.index(originalText.startIndex, offsetBy: destEnd)
+
+		let destination = String(originalText[destLower..<destUpper])
+		guard let (kind, target) = InlineSpan.Kind.fromRefDestination(destination) else { return nil }
+
+		return InlineSpan(kind: kind, range: destLower..<destUpper, content: target, children: [])
 	}
 }
 

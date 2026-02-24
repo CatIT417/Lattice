@@ -1146,6 +1146,54 @@ extension Tests.AttributedStringBuilderTest {
 		expectNoDifference(mapping.rawIndex(fromRendered: 11), 15)
 	}
 
+	@Test("buildAttributedString renders markdown link with internal page destination")
+	func buildAttributedStringRendersMarkdownLinkWithInternalPageDestination() throws {
+		let text = "[custom text]([[Page]])"
+		let result = buildAttributedString(from: text, font: testFont)
+
+		expectNoDifference(result.attributedString.string, "custom text")
+
+		#if os(macOS)
+		assertInlineSnapshot(of: result.attributedString, as: .raw) {
+			#"""
+			custom text{
+			    NSColor = "Catalog color: System systemBlueColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			    NSLink = "lattice://page/Page";
+			}
+			"""#
+		}
+		#else
+		assertInlineSnapshot(of: result.attributedString, as: .raw) {
+			#"""
+			custom text{
+			    NSColor = "<UITintColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			    NSLink = "lattice://page/Page";
+			}
+			"""#
+		}
+		#endif
+
+		// Should have a link attribute pointing to lattice://page/Page
+		var linkURL: URL?
+		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
+			linkURL = value as? URL
+		}
+		expectNoDifference(linkURL?.absoluteString, "lattice://page/Page")
+
+		// Cursor mapping: rendered positions map within [custom text], gap skips over ]([[Page]])
+		let mapping = try #require(result.indexMapping)
+		// 'c' at rendered 0 -> raw 1 (after "[")
+		expectNoDifference(mapping.rawIndex(fromRendered: 0), 1)
+		// 't' at rendered 7 -> raw 8
+		expectNoDifference(mapping.rawIndex(fromRendered: 7), 8)
+		// 't' at rendered 10 (last char of "custom text") -> raw 11
+		expectNoDifference(mapping.rawIndex(fromRendered: 10), 11)
+		// End position: rendered length 11 -> raw length 23 (full text)
+		expectNoDifference(mapping.rawIndex(fromRendered: 11), 23)
+	}
+
 	@Test("buildAttributedString with rawStartOffset shifts index mapping for plain text")
 	func buildAttributedStringWithRawStartOffsetPlainText() throws {
 		// Plain text (no markup characters) — exercises the fast path in plainAttributedResult

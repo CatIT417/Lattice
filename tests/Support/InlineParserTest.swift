@@ -1000,6 +1000,200 @@ extension Tests.InlineParserTest {
 		}
 	}
 
+	@Test("parse detects markdown link with page link destination")
+	func parseDetectsMarkdownLinkWithPageLinkDestination() {
+		let spans = InlineParser.default.parse("[custom text]([[My Page]])")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(lattice://page/My%20Page)),
+			    range: 0[any]..<26[utf8],
+			    content: "custom text",
+			    children: [
+			      [0]: InlineSpan(
+			        kind: .text,
+			        range: 0[any]..<11[utf8],
+			        content: "custom text",
+			        children: []
+			      )
+			    ]
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects markdown link with block ref destination")
+	func parseDetectsMarkdownLinkWithBlockRefDestination() {
+		let spans = InlineParser.default.parse("[see this](((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)))")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)),
+			    range: 0[any]..<52[utf8],
+			    content: "see this",
+			    children: [
+			      [0]: InlineSpan(
+			        kind: .text,
+			        range: 0[any]..<8[utf8],
+			        content: "see this",
+			        children: []
+			      )
+			    ]
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects markdown link with tag destination")
+	func parseDetectsMarkdownLinkWithTagDestination() {
+		let spans = InlineParser.default.parse("[click here](#mytag)")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(lattice://tag/mytag)),
+			    range: 0[any]..<20[utf8],
+			    content: "click here",
+			    children: [
+			      [0]: InlineSpan(
+			        kind: .text,
+			        range: 0[any]..<10[utf8],
+			        content: "click here",
+			        children: []
+			      )
+			    ]
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse detects markdown link with bracketed tag destination")
+	func parseDetectsMarkdownLinkWithBracketedTagDestination() {
+		let spans = InlineParser.default.parse("[click here](#[[tag with spaces]])")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .link(url: URL(lattice://tag/tag%20with%20spaces)),
+			    range: 0[any]..<34[utf8],
+			    content: "click here",
+			    children: [
+			      [0]: InlineSpan(
+			        kind: .text,
+			        range: 0[any]..<10[utf8],
+			        content: "click here",
+			        children: []
+			      )
+			    ]
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("extractReferences returns page link ref from internal-destination markdown link")
+	func extractReferencesReturnsPageLinkRefFromInternalLink() {
+		let text = "[custom text]([[My Page]])"
+		let refs = InlineParser.referencesOnly.extractReferences(from: text)
+
+		assertInlineSnapshot(of: refs, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .pageLink,
+			    range: 14[utf8]..<25[utf8],
+			    content: "My Page",
+			    children: []
+			  )
+			]
+			"""
+		}
+
+		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
+		expectNoDifference(String(text[ref.range]), "[[My Page]]")
+	}
+
+	@Test("extractReferences returns tag ref from internal-destination markdown link")
+	func extractReferencesReturnsTagRefFromInternalLink() {
+		let text = "[click](#mytag)"
+		let refs = InlineParser.referencesOnly.extractReferences(from: text)
+
+		assertInlineSnapshot(of: refs, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .tag,
+			    range: 8[utf8]..<14[utf8],
+			    content: "mytag",
+			    children: []
+			  )
+			]
+			"""
+		}
+
+		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
+		expectNoDifference(String(text[ref.range]), "#mytag")
+	}
+
+	@Test("extractReferences returns block ref from internal-destination markdown link")
+	func extractReferencesReturnsBlockRefFromInternalLink() {
+		let text = "[see](((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)))"
+		let refs = InlineParser.referencesOnly.extractReferences(from: text)
+
+		assertInlineSnapshot(of: refs, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .blockRef,
+			    range: 6[utf8]..<46[utf8],
+			    content: "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E",
+			    children: []
+			  )
+			]
+			"""
+		}
+
+		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
+		expectNoDifference(String(text[ref.range]), "((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))")
+	}
+
+	@Test("internal-destination link rejects whitespace-only page title")
+	func internalDestinationLinkRejectsWhitespaceOnlyPageTitle() {
+		let spans = InlineParser.default.parse("[label]([[   ]])")
+
+		// Should not parse as a link — whitespace-only page titles are invalid
+		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
+		#expect(!hasLink)
+	}
+
+	@Test("internal-destination link rejects whitespace-only bracketed tag")
+	func internalDestinationLinkRejectsWhitespaceOnlyBracketedTag() {
+		let spans = InlineParser.default.parse("[label](#[[   ]])")
+
+		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
+		#expect(!hasLink)
+	}
+
+	@Test("extractReferences preserves percent-literal page title from internal-destination link")
+	func extractReferencesPreservesPercentLiteralPageTitle() {
+		// Title contains a literal "A%2FB" — should NOT be decoded to "A/B"
+		let text = #"[link]([[A%2FB]])"#
+		let refs = InlineParser.referencesOnly.extractReferences(from: text)
+
+		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
+		expectNoDifference(ref.content, "A%2FB")
+		expectNoDifference(String(text[ref.range]), "[[A%2FB]]")
+	}
+
 	@Test("extractReferences rebases ranges correctly through bold-italic nesting")
 	func extractReferencesRebasesRangesThroughBoldItalicNesting() {
 		let text = "***hello [[Page]]***"
