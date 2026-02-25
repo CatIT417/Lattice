@@ -92,15 +92,9 @@ extension Tests.ReferenceSuggestionContextTest {
 		#expect(referenceSuggestionContext(in: text, cursorOffset: 6) == nil)
 	}
 
-	@Test("detects empty simple tag context for #")
-	func detectsEmptySimpleTagContext() throws {
-		let text = "#"
-		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 1))
-
-		expectNoDifference(context.kind, .tagSimple)
-		expectNoDifference(context.query, "")
-		expectNoDifference(context.queryRange, NSRange(location: 1, length: 0))
-		expectNoDifference(context.tokenRange, NSRange(location: 0, length: 1))
+	@Test("does not detect simple tag context for bare #")
+	func doesNotDetectSimpleTagContextForBareHash() {
+		#expect(referenceSuggestionContext(in: "#", cursorOffset: 1) == nil)
 	}
 
 	@Test("replacement for page links leaves cursor after token")

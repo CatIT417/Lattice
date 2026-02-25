@@ -254,6 +254,7 @@ extension ReferenceSuggestions.Context {
 		guard (queryStart...tokenEnd).contains(cursorOffset) else { return nil }
 
 		let queryRange = NSRange(location: queryStart, length: tokenEnd - queryStart)
+		guard queryRange.length > 0 else { return nil }
 		return makeContext(
 			kind: .tagSimple,
 			in: text,
