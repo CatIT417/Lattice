@@ -136,15 +136,16 @@ struct ParagraphView: View {
 	private func handleAction(_ action: EditableText.Action) -> Bool {
 		switch action {
 			case let .textChanged(text): saveChanges(text)
+			case let .setHeading(level): setHeading(level)
+			case let .moveCursorDown(visualX): moveToNextBlock(visualX: visualX)
+			case let .moveCursorUp(visualX): moveToPreviousBlock(visualX: visualX)
+			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			case let .indent(cursor, text): indentBlock(cursorPosition: cursor, currentText: text)
 			case let .outdent(cursor, text): outdentBlock(cursorPosition: cursor, currentText: text)
 			case let .blockBreak(currentText, remainingText): createNewBlock(currentText: currentText, withText: remainingText)
-			case let .mergeIntoPrevious(content): mergeIntoPrevious(appendingContent: content)
 			#if os(iOS)
 			case let .moveBlock(delta, cursorPosition, text): changeOrder(cursorPosition: cursorPosition, delta: delta, currentText: text)
 			#endif
-			case let .moveCursorDown(visualX): moveToNextBlock(visualX: visualX)
-			case let .moveCursorUp(visualX): moveToPreviousBlock(visualX: visualX)
 		}
 	}
 
@@ -323,6 +324,20 @@ struct ParagraphView: View {
 			expectsNewText: true,
 			startingInMode: .raw
 		)
+
+		return true
+	}
+
+	private func setHeading(_ level: Block.HeadingLevel) -> Bool {
+		guard paragraph.heading == nil else { return false }
+
+		withErrorReporting {
+			try database.write { db in
+				try Block.find(paragraph.id)
+					.update { $0.heading = #bind(level) }
+					.execute(db)
+			}
+		}
 
 		return true
 	}

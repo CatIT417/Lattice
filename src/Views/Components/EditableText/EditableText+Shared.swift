@@ -13,6 +13,21 @@ extension EditableTextView.Coordinator {
 	}
 }
 
+// MARK: - Heading Shortcut
+
+extension EditableTextView.Coordinator {
+	/// Returns a heading level if the user typed a space after 1–3 `#` characters at the start of the text.
+	func shouldSetHeading(for replacementText: String, range: NSRange, currentText: NSString) -> Block.HeadingLevel? {
+		guard replacementText == " ", range.length == 0 else { return nil }
+
+		let hashCount = range.location
+		guard hashCount >= 1, hashCount <= 3 else { return nil }
+		guard currentText.substring(with: NSRange(location: 0, length: hashCount)) == String(repeating: "#", count: hashCount) else { return nil }
+
+		return Block.HeadingLevel(rawValue: hashCount)
+	}
+}
+
 // MARK: - Bracket Pairs
 
 extension EditableTextView.Coordinator {

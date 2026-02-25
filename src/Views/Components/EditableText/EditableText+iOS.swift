@@ -488,7 +488,8 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 			return false
 		}
 
-		if shouldActivateReferenceSuggestionSession(for: text, range: range, currentText: textView.attributedText.string as NSString) {
+		let currentText = textView.attributedText.string as NSString
+		if shouldActivateReferenceSuggestionSession(for: text, range: range, currentText: currentText) {
 			activateSuggestionsOnNextTextChange = true
 		}
 
@@ -509,6 +510,18 @@ extension EditableTextView.Coordinator: UITextViewDelegate {
 				moveCursorTo(offset: rangeToDelete.location, textView: textView)
 				return false
 			}
+		}
+
+		// set heading from "# ", "## ", or "### " prefix
+		if let level = shouldSetHeading(for: text, range: range, currentText: currentText), parent.handleAction(.setHeading(level)) {
+			setText(.raw, text: String(currentText.substring(from: range.location)), textView: textView)
+			moveCursorTo(offset: 0, textView: textView)
+
+			isReferenceSuggestionSessionActive = false
+			activateSuggestionsOnNextTextChange = false
+			parent.onReferenceSuggestionContextChange(nil, nil)
+
+			return false
 		}
 
 		// create new block

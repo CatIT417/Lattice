@@ -432,6 +432,18 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 			activateSuggestionsOnNextTextChange = true
 		}
 
+		// set heading from "# ", "## ", or "### " prefix
+		if let level = shouldSetHeading(for: text, range: range, currentText: currentText), parent.handleAction(.setHeading(level)) {
+			setText(.raw, text: String(currentText.substring(from: range.location)), textView: textView)
+			moveCursorTo(offset: 0, textView: textView)
+
+			isReferenceSuggestionSessionActive = false
+			activateSuggestionsOnNextTextChange = false
+			parent.onReferenceSuggestionContextChange(nil, nil)
+
+			return false
+		}
+
 		// move through character instead of inserting (for auto-closing characters)
 		if shouldSkipClosingBracket(for: text, in: textView.string, at: range.location) {
 			moveCursorTo(offset: range.location + 1, textView: textView)

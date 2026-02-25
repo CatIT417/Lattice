@@ -24,6 +24,9 @@ struct EditableText: View {
 		/// Move cursor to the closest valid position in the next line
 		case moveCursorDown(visualX: CGFloat)
 
+		/// Set heading level
+		case setHeading(Block.HeadingLevel)
+
 		#if os(iOS)
 		/// Move block up or down, swapping with the adjacent block.
 		case moveBlock(delta: Int, cursorPosition: Int, currentText: String)
