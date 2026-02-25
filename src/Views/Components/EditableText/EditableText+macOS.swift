@@ -70,6 +70,18 @@ struct EditableTextView: NSViewRepresentable {
 	func updateNSView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
 
+		if context.coordinator.lastKnownFont != nsFont {
+			context.coordinator.lastKnownFont = nsFont
+
+			let selectedRange = textView.selectedRange()
+			context.coordinator.setText(
+				context.coordinator.isEditing ? .raw : .rendered,
+				text: context.coordinator.isEditing ? textView.attributedString().string : context.coordinator.lastKnownText,
+				textView: textView
+			)
+			textView.setSelectedRange(selectedRange)
+		}
+
 		let alignment = NSTextAlignment(alignment)
 		if textView.alignment != alignment { textView.alignment = alignment }
 
@@ -141,6 +153,7 @@ extension EditableTextView {
 
 		var isEditing = false
 		var lastKnownText: String
+		var lastKnownFont: NSFont
 		var linkWasTapped = false
 		var indexMapping: AttributedStringResult.IndexMapping?
 		var pendingFaviconURLs: Set<URL> = []
@@ -150,6 +163,7 @@ extension EditableTextView {
 		init(parent: EditableTextView) {
 			self.parent = parent
 			lastKnownText = parent.text
+			lastKnownFont = parent.nsFont
 			super.init()
 
 			NotificationCenter.default.addObserver(

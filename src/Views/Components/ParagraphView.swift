@@ -294,6 +294,11 @@ struct ParagraphView: View {
 	}
 
 	private func mergeIntoPrevious(appendingContent content: String) -> Bool {
+		if paragraph.heading != nil {
+			clearHeading()
+			return false
+		}
+
 		guard !blockTree.hasChildren(paragraph.id), let previousParagraphID = blockTree.previousBlockOnScreen(for: paragraph), let previousParagraph = withErrorReporting(catching: {
 			try database.read { db in
 				try Paragraph.find(previousParagraphID).fetchOne(db)
@@ -320,6 +325,16 @@ struct ParagraphView: View {
 		)
 
 		return true
+	}
+
+	private func clearHeading() {
+		withErrorReporting {
+			try database.write { db in
+				try Block.find(paragraph.id)
+					.update { $0.heading = #bind(nil) }
+					.execute(db)
+			}
+		}
 	}
 
 	private func moveToPreviousBlock(visualX: CGFloat) -> Bool {

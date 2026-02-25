@@ -82,9 +82,23 @@ struct EditableTextView: UIViewRepresentable {
 	func updateUIView(_ textView: AutosizingTextView, context: Context) {
 		context.coordinator.parent = self
 
+		// re-render if font changed
+		if context.coordinator.lastKnownFont != uiFont {
+			context.coordinator.lastKnownFont = uiFont
+
+			let selectedRange = textView.selectedRange
+			context.coordinator.setText(
+				context.coordinator.isEditing ? .raw : .rendered,
+				text: context.coordinator.isEditing ? textView.attributedText.string : context.coordinator.lastKnownText,
+				textView: textView
+			)
+			textView.selectedRange = selectedRange
+		}
+
 		let alignment = NSTextAlignment(alignment)
 		if alignment != textView.textAlignment { textView.textAlignment = alignment }
 
+		// disable editing when block selection is active
 		if selectionCoordinator.hasSelection == textView.isEditable {
 			DispatchQueue.main.async {
 				textView.isEditable = !selectionCoordinator.hasSelection
@@ -147,6 +161,7 @@ extension EditableTextView {
 	@MainActor class Coordinator: NSObject {
 		var isEditing = false
 		var lastKnownText: String
+		var lastKnownFont: UIFont
 		var linkWasTapped = false
 		var parent: EditableTextView
 		weak var textView: UITextView?
@@ -160,6 +175,7 @@ extension EditableTextView {
 		init(parent: EditableTextView) {
 			self.parent = parent
 			lastKnownText = parent.text
+			lastKnownFont = parent.uiFont
 			super.init()
 
 			NotificationCenter.default.addObserver(
