@@ -39,8 +39,8 @@ struct RenderAsLabel: UIViewRepresentable {
 struct RenderAsLabel: NSViewRepresentable {
 	let text: NSAttributedString
 
-	func makeNSView(context: Context) -> NSTextView {
-		let textView = NSTextView()
+	func makeNSView(context: Context) -> AutosizingTextView {
+		let textView = AutosizingTextView()
 		textView.isEditable = false
 		textView.isSelectable = false
 		textView.backgroundColor = .clear
@@ -49,7 +49,7 @@ struct RenderAsLabel: NSViewRepresentable {
 		return textView
 	}
 
-	func updateNSView(_ textView: NSTextView, context _: Context) {
+	func updateNSView(_ textView: AutosizingTextView, context _: Context) {
 		if text != textView.attributedString() {
 			textView.textStorage?.setAttributedString(text)
 		}

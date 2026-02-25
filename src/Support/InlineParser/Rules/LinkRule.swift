@@ -12,7 +12,7 @@ struct LinkRule: InlineParser.Rule, Sendable {
 
 	// Matches [text]([[page]]), [text](((uuid))), [text](#tag), [text](#[[tag]])
 	private nonisolated(unsafe) static let internalRefPattern =
-		/\[((?:[^\]]|\](?!\())+)\]\((\[\[[^\]]+\]\]|\(\([a-fA-F0-9-]{36}\)\)|#\[\[[^\]]+\]\]|#[A-Za-z0-9_-]+)\)/
+		/\[((?:[^\]]|\](?!\())+)\]\((\[\[[^\]]{3,}\]\]|\(\([a-fA-F0-9-]{36}\)\)|#\[\[[^\]]{3,}\]\]|#[A-Za-z0-9_-]{3,})\)/
 
 	private static let allowedSchemes: Set<String> = [
 		"http", "https", "file",

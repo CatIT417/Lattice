@@ -45,6 +45,25 @@ extension Tests.StringExtractRefsTest {
 		#expect(refs.isEmpty)
 	}
 
+	@Test("extractRefs ignores page links with trimmed length under 3")
+	func extractRefsIgnoresShortPageLinks() {
+		let refs = "See [[AB ]] and [[AB]] text".extractRefs()
+		#expect(refs.isEmpty)
+	}
+
+	@Test("extractRefs ignores bracketed tags with trimmed length under 3")
+	func extractRefsIgnoresShortBracketedTags() {
+		let refs = "Tag #[[AB ]] and #[[XY]] #XY here".extractRefs()
+		#expect(refs.isEmpty)
+	}
+
+	@Test("extractRefs accepts references with trimmed length of exactly 3")
+	func extractRefsAcceptsThreeCharReferences() {
+		let refs = "Link [[ABC]] tag #[[DEF]] simple #GHI".extractRefs()
+		expectNoDifference(refs.map(\.target), ["ABC", "DEF", "GHI"])
+		expectNoDifference(refs.map(\.kind), [.pageLink, .tag, .tag])
+	}
+
 	@Test("extractRefs preserves duplicate references by range")
 	func extractRefsPreservesDuplicateReferences() {
 		let text = "Repeat [[Page]] and [[Page]] again"

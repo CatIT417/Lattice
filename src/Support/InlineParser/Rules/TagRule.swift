@@ -5,8 +5,8 @@ struct TagRule: InlineParser.Rule, Sendable {
 	let priority = 550
 	let startingCharacters: Set<Character>? = ["#"]
 
-	private nonisolated(unsafe) static let simplePattern = /#([A-Za-z0-9_-]+)/
-	private nonisolated(unsafe) static let bracketedPattern = /#\[\[([^\]]+)\]\]/
+	private nonisolated(unsafe) static let simplePattern = /#([A-Za-z0-9_-]{3,})/
+	private nonisolated(unsafe) static let bracketedPattern = /#\[\[([^\]]{3,})\]\]/
 
 	func match(in text: String, at index: String.Index, using _: InlineParser) -> InlineSpan? {
 		let remaining = text[index...]
@@ -24,7 +24,7 @@ struct TagRule: InlineParser.Rule, Sendable {
 
 	private func extractTag(match: Regex<Regex<(Substring, Substring)>.RegexOutput>.Match) -> InlineSpan? {
 		let target = String(match.1)
-		guard !target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+		guard target.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 else { return nil }
 
 		return InlineSpan(
 			kind: .tag,

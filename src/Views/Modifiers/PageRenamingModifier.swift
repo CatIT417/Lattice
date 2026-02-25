@@ -28,7 +28,9 @@ struct PageRenamingModifier: ViewModifier {
 	}
 
 	var isValidTitle: Bool {
-		newTitle != page.title && !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+		with(newTitle.trimmingCharacters(in: .whitespacesAndNewlines)) { newTitle in
+			newTitle != page.title && newTitle.count >= 3
+		}
 	}
 
 	func body(content: Content) -> some View {
@@ -51,26 +53,29 @@ struct PageRenamingModifier: ViewModifier {
 
 	func renamePage() {
 		guard isValidTitle else { return }
+		let trimmedTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
 
-		if Constants.specialPages.contains(newTitle) {
+		if Constants.specialPages.contains(trimmedTitle) {
 			error = .reserved
 			return
 		}
 
-		if DayOfYear(title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines)) != nil {
+		if DayOfYear(title: trimmedTitle) != nil {
 			error = .isDateTitle
 			return
 		}
 
 		withErrorReporting {
 			try database.write { db in
-				if let existingPage = try Values(Page.where { $0.title.eq(newTitle) }.exists()).fetchOne(db), existingPage {
+				if let existingPage = try Values(Page.where { $0.title.eq(trimmedTitle) }.exists()).fetchOne(db), existingPage {
 					// TODO: Offer to merge pages
 					error = .existing
 					return
 				}
 
-				try Block.find(page.id).update { $0.title = #bind(newTitle) }.execute(db)
+				try Block.find(page.id).update {
+					$0.title = #bind(trimmedTitle)
+				}.execute(db)
 			}
 		}
 	}

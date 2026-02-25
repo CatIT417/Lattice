@@ -18,6 +18,11 @@ final class SearchResults {
 		searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 	}
 
+	var hasShortQuery: Bool {
+		let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+		return !trimmed.isEmpty && trimmed.count < 3
+	}
+
 	var hasResults: Bool {
 		!results.isEmpty
 	}
@@ -38,18 +43,16 @@ final class SearchResults {
 			try await clock.sleep(for: .seconds(0.3))
 
 			_ = await withErrorReporting {
-				guard !hasEmptyQuery else {
+				guard !hasEmptyQuery, !hasShortQuery else {
 					return try await $results.load(Block.none, animation: .default)
 				}
 
 				return try await $results.load(
-					Block.where {
-						for term in searchText.split(separator: " ") {
-							$0.title.map({ $0.contains(term) }, or: false) || $0.string.map({ $0.contains(term) }, or: false)
-						}
-					}.order {
-						($0.title.isNot(nil).desc(), $0.order)
-					},
+					Block
+						.join(BlockText.all) { $0.id.eq($1.blockID) }
+						.where { $1.match(searchText.trimmingCharacters(in: .whitespacesAndNewlines).quoted()) }
+						.order { $1.bm25([\.title: 3]) }
+						.select { block, _ in block },
 					animation: .default
 				)
 			}

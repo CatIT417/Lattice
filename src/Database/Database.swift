@@ -60,6 +60,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		CreateReferencesTable.self,
 		CreateAncestorsTable.self,
 		CreateTriggerGuardTable.self,
+		CreateBlocksFTSTable.self,
 	], in: database)
 
 	try database.setupTriggers([
@@ -72,6 +73,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		AvoidDuplicatePages.self,
 		SyncReferencesTable.self,
 		UpdateParagraphOrder.self,
+		SyncBlocksFTSTable.self,
 	])
 
 	if context == .live, Bundle.main.isDev {

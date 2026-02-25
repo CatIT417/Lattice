@@ -22,16 +22,14 @@ final class ReferenceSuggestions {
 		let title: String
 		let isSyntheticNewPage: Bool
 
-		static func matchingPages(for query: String, limit: Int) -> Select<Item, Page, Void> {
+		static func matchingPages(for query: String, limit: Int) -> Select<Item, Page, BlockText> {
 			Page
-				.where { $0.title.contains(query) }
-				.order { $0.updatedAt.desc() }
+				.join(BlockText.all) { $0.id.eq($1.blockID) }
+				.where { $1.title.match(query.quoted()) }
+				.order { $1.rank }
 				.limit(limit)
-				.select {
-					Item.Columns(
-						title: $0.title,
-						isSyntheticNewPage: #bind(false)
-					)
+				.select { page, _ in
+					Item.Columns(title: page.title, isSyntheticNewPage: #bind(false))
 				}
 		}
 	}
@@ -65,9 +63,16 @@ final class ReferenceSuggestions {
 		return context.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 	}
 
+	var isQueryTooShort: Bool {
+		guard let context else { return false }
+		let trimmed = context.query.trimmingCharacters(in: .whitespacesAndNewlines)
+		return !trimmed.isEmpty && trimmed.count < 3
+	}
+
 	var suggestions: [Item] {
 		guard let context else { return [] }
-		guard !context.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+		let trimmed = context.query.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty, trimmed.count >= 3 else { return [] }
 
 		if fetchedSuggestions.isEmpty {
 			return [Item(title: context.query, isSyntheticNewPage: true)]
@@ -196,7 +201,8 @@ final class ReferenceSuggestions {
 	}
 
 	private func loadSuggestions(for query: String) {
-		guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty, trimmed.count >= 3 else {
 			loadTask?.cancel()
 			loadTask = nil
 			highlightedIndex = 0
@@ -208,7 +214,7 @@ final class ReferenceSuggestions {
 		loadTask = Task {
 			_ = await withErrorReporting {
 				try await $fetchedSuggestions.load(
-					Item.matchingPages(for: query, limit: maximumSuggestionCount),
+					Item.matchingPages(for: trimmed, limit: maximumSuggestionCount),
 					animation: .default
 				)
 			}

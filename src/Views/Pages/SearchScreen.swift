@@ -19,7 +19,12 @@ struct SearchScreen: View {
 		.toolbarTitleDisplayMode(.inline)
 		.navigationTitle(search.hasEmptyQuery ? "All Pages" : "Search Results")
 		.overlay {
-			if !search.hasResults, !search.hasEmptyQuery {
+			if search.hasShortQuery {
+				ContentUnavailableView(
+					"Keep typing to search",
+					systemImage: "magnifyingglass"
+				)
+			} else if !search.hasResults, !search.hasEmptyQuery {
 				ContentUnavailableView.search(text: search.searchText)
 			}
 		}

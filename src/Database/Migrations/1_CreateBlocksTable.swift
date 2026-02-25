@@ -29,6 +29,7 @@ final class CreateBlocksTable: Migration {
 			table.column("updatedAt", .datetime).notNull().defaults(sql: "(now())").indexed()
 
 			// Constraints
+			table.constraint(#sql("CHECK (title IS NULL OR length(title) >= 3)")) // Enforce minimum title length for pages
 			table.constraint(#sql("CHECK (title IS NOT NULL OR parentId IS NOT NULL)")) // Pages have title, blocks have parent
 			table.constraint(#sql("CHECK (dailyNoteDate IS NULL OR title IS NOT NULL)")) // dailyNoteDate only on pages
 			table.constraint(#sql("CHECK ((title IS NOT NULL) != (string IS NOT NULL))")) // XOR: either page OR block

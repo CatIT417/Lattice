@@ -1597,4 +1597,40 @@ extension Tests.InlineParserTest {
 
 		expectNoDifference(String(text[ref.range]), "[[Page]]")
 	}
+
+	@Test("page link with whitespace-padded short target is treated as plain text")
+	func pageLinkWithPaddedShortTargetIsTreatedAsPlainText() {
+		let spans = InlineParser.default.parse("See [[AB ]] here")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<16[utf8],
+			    content: "See [[AB ]] here",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("bracketed tag with whitespace-padded short target is treated as plain text")
+	func bracketedTagWithPaddedShortTargetIsTreatedAsPlainText() {
+		let spans = InlineParser.default.parse("See #[[AB ]] here")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<17[utf8],
+			    content: "See #[[AB ]] here",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
 }
