@@ -27,6 +27,21 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 		self.init(day: components.day!, month: components.month!, year: components.year!)
 	}
 
+	init?(title: String, calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) {
+		let stripped = title.replacingOccurrences(of: #"(\d{1,2})(st|nd|rd|th)"#, with: "$1", options: .regularExpression)
+
+		let parser = tap(DateFormatter()) {
+			$0.calendar = calendar
+			$0.dateFormat = "MMMM d, yyyy"
+			$0.timeZone = calendar.timeZone
+		}
+
+		guard let date = parser.date(from: stripped) else { return nil }
+		self.init(date, calendar: calendar)
+
+		guard self.title(using: calendar) == title else { return nil }
+	}
+
 	init?(rawValue: String) {
 		let parts = rawValue.split(separator: "-", omittingEmptySubsequences: false)
 		guard parts.count == 3, let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]) else { return nil }

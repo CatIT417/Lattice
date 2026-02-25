@@ -55,4 +55,30 @@ extension Tests.DayOfYearTest {
 		expectNoDifference(DayOfYear(date), DayOfYear(date, calendar: gregorian))
 		#expect(DayOfYear(date, calendar: buddhist) != DayOfYear(date, calendar: gregorian))
 	}
+
+	@Test("parses valid daily page titles", arguments: [
+		("January 1st, 2024", DayOfYear(day: 1, month: 1, year: 2024)),
+		("February 3rd, 2026", DayOfYear(day: 3, month: 2, year: 2026)),
+		("December 22nd, 2025", DayOfYear(day: 22, month: 12, year: 2025)),
+	])
+	func parsesTitle(title: String, expected: DayOfYear) {
+		expectNoDifference(DayOfYear(title: title), expected)
+	}
+
+	@Test("rejects non-daily-page titles", arguments: [
+		"Hello World",
+		"February 2026",
+		"02/03/2026",
+		"February 3, 2026",
+		"February 33rd, 2026",
+	])
+	func rejectsInvalidTitle(title: String) {
+		#expect(DayOfYear(title: title) == nil)
+	}
+
+	@Test("title round-trips through init(title:)")
+	func titleRoundTrip() {
+		let day = DayOfYear(day: 24, month: 2, year: 2026)
+		expectNoDifference(DayOfYear(title: day.title()), day)
+	}
 }

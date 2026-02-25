@@ -5,7 +5,11 @@ struct PageScreen: View {
 	let pageId: Page.ID
 
 	@Environment(Router.self) var router
+	@Dependency(\.defaultDatabase) var database
 	@FetchOne var pageWithContent: Page.WithChildren?
+
+	@State private var willDeletePage = false
+	@State private var willRenamePage = false
 
 	var hasNoChildren: Bool {
 		pageWithContent?.tree.children(of: pageId).isEmpty ?? true
@@ -48,6 +52,27 @@ struct PageScreen: View {
 				.referenceSuggestionsOverlay()
 				.syncStatusOnToolbar()
 				.navigationTitle(page.title)
+				.toolbarTitleMenu {
+					if !page.isDailyNote, !page.isSpecialPage {
+						Button("Rename", systemImage: "pencil") {
+							willRenamePage = true
+						}
+
+						Button("Delete", systemImage: "trash", role: .destructive) {
+							willDeletePage = true
+						}
+					}
+				}
+				.renamePage(page, active: $willRenamePage)
+				.alert("Are you sure you want to delete this page?", isPresented: $willDeletePage) {
+					Button("Delete", role: .destructive) {
+						deletePage()
+					}
+
+					Button(role: .cancel) {}
+				} message: {
+					Text("Any blocks referencing this page will have their content altered as well.")
+				}
 				.navigationDocument(page, preview: SharePreview(page.title))
 				.toolbarTitleDisplayMode(.inline)
 				.toolbarRole(.editor)
@@ -62,6 +87,16 @@ struct PageScreen: View {
 			_ = await withErrorReporting {
 				try await $pageWithContent.load(Page.withChildren(id: pageId), animation: .default)
 			}
+		}
+	}
+
+	func deletePage() {
+		withErrorReporting {
+			try database.write { db in
+				try Page.find(pageId).delete().execute(db)
+			}
+
+			router.navigationStackPath.removeAll(where: { $0 == .page(id: pageId) })
 		}
 	}
 }

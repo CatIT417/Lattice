@@ -251,4 +251,210 @@ extension Tests.SyncReferencesTableTest {
 
 		expectNoDifference(references, [])
 	}
+
+	@Test("Deleting a page removes all references")
+	func deletingAPageRemovesAllReferences() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Saw [[Megalopolis]] again", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		let referencePage = try #require(database.read { db in
+			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(referencePage.id).delete().execute(db)
+		}
+
+		let references = try database.read { db in
+			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
+		}
+
+		expectNoDifference(references, [])
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "Saw Megalopolis again")
+	}
+
+	@Test("Deleting a page removes tag syntax with leading space")
+	func deletingPageRemovesTagWithLeadingSpace() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		let tagPage = try #require(database.write { db in
+			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Saw Megalopolis #cinema", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(tagPage.id).delete().execute(db)
+		}
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "Saw Megalopolis")
+	}
+
+	@Test("Deleting a page removes tag syntax with trailing space")
+	func deletingPageRemovesTagWithTrailingSpace() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		let tagPage = try #require(database.write { db in
+			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "#cinema is great", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(tagPage.id).delete().execute(db)
+		}
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "is great")
+	}
+
+	@Test("Deleting a page removes bracketed tag syntax")
+	func deletingPageRemovesBracketedTag() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		let tagPage = try #require(database.write { db in
+			try Page.insert { Page(title: "On Plex") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Saw Megalopolis #[[On Plex]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(tagPage.id).delete().execute(db)
+		}
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "Saw Megalopolis")
+	}
+
+	@Test("Deleting a page cleans up mixed reference kinds")
+	func deletingPageCleansMixedReferences() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		let referencedPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Old") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Read [[Old]] and #Old and [[Old]] again", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(referencedPage.id).delete().execute(db)
+		}
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "Read Old and and Old again")
+	}
+
+	@Test("Deleting a page cleans up references across multiple blocks")
+	func deletingPageCleansMultipleBlocks() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph1 = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Saw [[Megalopolis]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph2 = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Also [[Megalopolis]] was good", parentId: hostPage.id, pageId: hostPage.id, order: 1)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		let referencePage = try #require(database.read { db in
+			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(referencePage.id).delete().execute(db)
+		}
+
+		paragraph1 = try #require(database.read { db in
+			try Paragraph.find(paragraph1.id).fetchOne(db)
+		})
+
+		paragraph2 = try #require(database.read { db in
+			try Paragraph.find(paragraph2.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph1.string, "Saw Megalopolis")
+		expectNoDifference(paragraph2.string, "Also Megalopolis was good")
+	}
+
+	@Test("Deleting a page with a sole tag reference leaves empty string")
+	func deletingPageWithSoleTagLeavesEmptyString() throws {
+		let hostPage = try #require(database.write { db in
+			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
+		})
+
+		let tagPage = try #require(database.write { db in
+			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
+		})
+
+		var paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "#cinema", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		try database.write { db in
+			try Block.find(tagPage.id).delete().execute(db)
+		}
+
+		paragraph = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+
+		expectNoDifference(paragraph.string, "")
+	}
 }

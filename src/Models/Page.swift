@@ -24,6 +24,10 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		dailyNoteDate != nil
 	}
 
+	var isSpecialPage: Bool {
+		Constants.specialPages.contains(title)
+	}
+
 	init(id: UUID? = nil, title: String, dailyNoteDate: DayOfYear? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
 		@Dependency(\.uuid) var uuid
 		@Dependency(\.date.now) var now
