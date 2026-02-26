@@ -36,6 +36,7 @@ struct ParagraphView: View {
 					ParagraphBullet(paragraph: paragraph)
 				}
 				.buttonStyle(.plain)
+				.focusedSceneValue(\.blockID, paragraph.id)
 				.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
 					xHeight
 				}

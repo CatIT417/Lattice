@@ -49,7 +49,6 @@ func makeDatabase() throws -> any DatabaseWriter {
 
 func prepareDatabase(_ database: any DatabaseWriter) throws {
 	@Dependency(\.context) var context
-	@Dependency(\.isDebug) var isDebug
 
 	var migrator = DatabaseMigrator()
 	#if DEBUG

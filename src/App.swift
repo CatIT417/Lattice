@@ -50,5 +50,8 @@ struct LatticeApp: App {
 			}
 		}
 		.handlesExternalEvents(matching: Set(arrayLiteral: "Lattice"))
+		.commands {
+			SidebarCommands()
+		}
 	}
 }

@@ -14,21 +14,23 @@ struct SearchScreen: View {
 				allPages
 			}
 		}
-		.searchable(text: $search.searchText)
+		.searchable(text: $search.searchText, placement: .toolbar)
 		.searchPresentationToolbarBehavior(.avoidHidingContent)
-		.toolbarTitleDisplayMode(.inline)
-		.navigationTitle(search.hasEmptyQuery ? "All Pages" : "Search Results")
-		.overlay {
-			if search.hasShortQuery {
-				ContentUnavailableView(
-					"Keep typing to search",
-					systemImage: "magnifyingglass"
-				)
-			} else if !search.hasResults, !search.hasEmptyQuery {
-				if search.isLoading { ProgressView() }
-				else { ContentUnavailableView.search(text: search.searchText) }
+		#if os(iOS)
+			.navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .large : .inline)
+		#endif
+			.navigationTitle(search.hasEmptyQuery ? "All Pages" : "Search Results")
+			.overlay {
+				if search.hasShortQuery {
+					ContentUnavailableView(
+						"Keep typing to search",
+						systemImage: "magnifyingglass"
+					)
+				} else if !search.hasResults, !search.hasEmptyQuery {
+					if search.isLoading { ProgressView() }
+					else { ContentUnavailableView.search(text: search.searchText) }
+				}
 			}
-		}
 	}
 
 	var searchResults: some View {

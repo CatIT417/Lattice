@@ -10,13 +10,15 @@ struct RootContainer: View {
 	@State var router = Router(level: 0, identifierTab: nil)
 	@Shared(.appStorage("sidebarCustomizations")) var tabViewCustomization = TabViewCustomization()
 
-	var body: some View {
+	#if os(iOS)
+	var iosLayout: some View {
 		TabView(selection: $router.selectedTab) {
 			Tab("Daily Notes", systemImage: "calendar", value: Tabs.daily) {
 				NavigationContainer(parentRouter: router, tab: .daily) {
 					DailyPagesScreen()
 				}
 			}
+			.customizationBehavior(.disabled, for: .sidebar, .tabBar)
 
 			Tab(value: Tabs.search, role: .search) {
 				NavigationContainer(parentRouter: router, tab: .search) {
@@ -24,17 +26,41 @@ struct RootContainer: View {
 				}
 			}
 		}
-		#if os(iOS)
-		// .sidebarAdaptable breaks `Environment` in macOS
-		.tabViewStyle(.sidebarAdaptable)
-		#endif
+		.postNotificationOnStateChange()
 		.onAppear { createDailyNoteIfNeeded() }
 		.tabViewSearchActivation(.searchTabSelection)
 		.tabViewCustomization(Binding($tabViewCustomization))
+	}
+	#endif
+
+	#if os(macOS)
+	var macLayout: some View {
+		// putting the navigation container at the top level makes the sidebar disappear on navigation
+		// unfortunately, putting it where it should go breaks navigation completely, so this is better 🥲
+		NavigationContainer(parentRouter: router, tab: .daily) {
+			TabView(selection: $router.selectedTab) {
+				Tab("Daily Notes", systemImage: "calendar", value: Tabs.daily) {
+					DailyPagesScreen()
+				}
+
+				Tab(value: Tabs.search, role: .search) {
+					SearchScreen()
+				}
+			}
+		}
+		.tabViewStyle(.sidebarAdaptable)
+		.clearInitialResponderOnLaunch()
+		.onAppear { createDailyNoteIfNeeded() }
+		.tabViewSearchActivation(.searchTabSelection)
+		.tabViewCustomization(Binding($tabViewCustomization))
+	}
+	#endif
+
+	var body: some View {
 		#if os(iOS)
-			.postNotificationOnStateChange()
+		iosLayout
 		#elseif os(macOS)
-			.clearInitialResponderOnLaunch()
+		macLayout
 		#endif
 	}
 
