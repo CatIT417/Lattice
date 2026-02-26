@@ -33,6 +33,7 @@ struct DailyPagesScreen: View {
 			}
 			.scrollTargetLayout()
 		}
+		.unfocusBlockOnBackgroundTap()
 		.referenceSuggestionsOverlay()
 		.task(id: currentDate.timeIntervalSince1970) {
 			let _ = await withErrorReporting {

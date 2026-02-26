@@ -27,6 +27,7 @@ struct ParagraphScreen: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.safeAreaPadding()
 				}
+				.unfocusBlockOnBackgroundTap()
 				#if os(iOS)
 				.blockSelectionMenu()
 				.doneButtonOnToolbar()

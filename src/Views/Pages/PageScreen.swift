@@ -40,6 +40,7 @@ struct PageScreen: View {
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.safeAreaPadding()
 				}
+				.unfocusBlockOnBackgroundTap()
 				#if os(iOS)
 				.doneButtonOnToolbar()
 				.toolbar {
