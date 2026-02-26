@@ -104,6 +104,7 @@ extension Page: Transferable {
 			try MarkdownExporter.exportPage(id: page.id)
 		}
 
+		#if os(iOS)
 		FileRepresentation(exportedContentType: .text) { page in
 			let markdown = try MarkdownExporter.exportPage(id: page.id)
 			let url = URL.temporaryDirectory.appending(path: "\(page.title).md")
@@ -112,5 +113,6 @@ extension Page: Transferable {
 
 			return .init(url)
 		}
+		#endif
 	}
 }

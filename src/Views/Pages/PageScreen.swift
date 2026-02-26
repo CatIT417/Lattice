@@ -63,8 +63,10 @@ struct PageScreen: View {
 				.blockSelectionMenu()
 				#else
 				.toolbar {
-					Menu {
-						if !page.isDailyNote, !page.isSpecialPage {
+					ShareLink(item: page, preview: SharePreview(page.title))
+
+					if !page.isDailyNote, !page.isSpecialPage {
+						Menu {
 							Button("Rename", systemImage: "pencil") {
 								willRenamePage = true
 							}
@@ -72,9 +74,9 @@ struct PageScreen: View {
 							Button("Delete", systemImage: "trash", role: .destructive) {
 								willDeletePage = true
 							}
+						} label: {
+							Image(systemName: "ellipsis.circle")
 						}
-					} label: {
-						Image(systemName: "ellipsis.circle")
 					}
 				}
 				#endif
