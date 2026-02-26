@@ -36,6 +36,30 @@ extension Backlink {
 				)
 			}
 	}
+
+	static func unlinkedReferences(forPage pageId: Page.ID, title: String) -> some PartialSelectStatement<GroupedByPage> {
+		Paragraph
+			.where { $0.pageId.neq(pageId) }
+			.where {
+				$0.id.notIn(
+					Reference
+						.select(\.sourceBlockId)
+						.where { $0.targetBlockId.eq(pageId) }
+				)
+			}
+			.group(by: \.pageId)
+			.join(BlockText.all) { $0.id.eq($1.blockID) }
+			.where { _, blockTexts in blockTexts.match(title.quoted()) }
+			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) }
+			.join(Page.all) { $0.pageId.eq($2.id) }
+			.select { paragraphs, _, pages in
+				GroupedByPage.Columns(
+					pageID: pages.id,
+					pageTitle: pages.title,
+					referencedBlockIDs: paragraphs.id.jsonGroupArray()
+				)
+			}
+	}
 }
 
 extension [Backlink.GroupedByPage] {

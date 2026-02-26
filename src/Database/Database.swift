@@ -23,6 +23,7 @@ func makeDatabase() throws -> any DatabaseWriter {
 		config.prepareDatabase { db in
 			db.add(function: $now)
 			db.add(function: $uuid)
+			db.add(function: $containsOutsideRefs)
 			try db.setupViews([CreatePagesView.self, CreateParagraphsView.self, CreateBacklinksView.self])
 			if context == .live, !Bundle.main.isDev { try db.attachMetadatabase() }
 

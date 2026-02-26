@@ -34,6 +34,8 @@ struct PageScreen: View {
 
 						LinkedReferencesSection(forBlockID: page.id)
 							.padding(.top, 12)
+
+						UnlinkedReferencesSection(forPage: page.id, title: page.title)
 					}
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.safeAreaPadding()
