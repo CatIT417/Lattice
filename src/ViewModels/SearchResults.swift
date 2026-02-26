@@ -28,9 +28,10 @@ final class SearchResults {
 	}
 
 	var isLoading: Bool {
-		$results.isLoading
+		$results.isLoading || isLoadingQuery
 	}
 
+	private var isLoadingQuery = false
 	private var searchTask: Task<Void, any Error>?
 
 	init() {}
@@ -40,7 +41,9 @@ final class SearchResults {
 
 		searchTask?.cancel()
 		searchTask = Task {
+			isLoadingQuery = true
 			try await clock.sleep(for: .seconds(0.3))
+			isLoadingQuery = false
 
 			_ = await withErrorReporting {
 				guard !hasEmptyQuery, !hasShortQuery else {

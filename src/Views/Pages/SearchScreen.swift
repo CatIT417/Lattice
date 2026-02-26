@@ -25,7 +25,8 @@ struct SearchScreen: View {
 					systemImage: "magnifyingglass"
 				)
 			} else if !search.hasResults, !search.hasEmptyQuery {
-				ContentUnavailableView.search(text: search.searchText)
+				if search.isLoading { ProgressView() }
+				else { ContentUnavailableView.search(text: search.searchText) }
 			}
 		}
 	}
