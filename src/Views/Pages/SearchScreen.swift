@@ -3,7 +3,9 @@ import SQLiteData
 import NavigationKit
 
 struct SearchScreen: View {
-	@FetchAll var pages: [Page]
+	@FetchAll(Page.order(by: { ($0.dailyNoteDate.desc(nulls: .first), $0.title) }))
+	var pages: [Page]
+
 	@State var search = SearchResults()
 
 	var body: some View {

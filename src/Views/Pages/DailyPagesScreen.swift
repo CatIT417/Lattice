@@ -28,7 +28,7 @@ struct DailyPagesScreen: View {
 					}
 
 					PageView(pageId: page.id)
-						.frame(minHeight: 150, alignment: .top)
+						.frame(minHeight: 250, alignment: .top)
 				}
 			}
 			.scrollTargetLayout()
