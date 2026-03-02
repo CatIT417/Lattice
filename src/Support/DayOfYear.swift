@@ -28,6 +28,8 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 	}
 
 	init?(title: String, calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) {
+		guard title.last?.isNumber == true, title.contains(", ") else { return nil }
+
 		let stripped = title.replacingOccurrences(of: #"(\d{1,2})(st|nd|rd|th)"#, with: "$1", options: .regularExpression)
 
 		let parser = tap(DateFormatter()) {

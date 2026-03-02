@@ -147,6 +147,26 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(blockResolved.targetID, UUID(uuidString: uuidString)!)
 	}
 
+	@Test("TextRef.resolved maps date-like page links to daily notes", .dependencies { try $0.bootstrapDatabase() })
+	func textRefResolvedMapsDateLikePageLinksToDailyNotes() throws {
+		let day = DayOfYear(day: 18, month: 1, year: 2026)
+		let dailyTitle = "January 18th, 2026"
+		let refs = "[[\(dailyTitle)]]".extractRefs()
+		let ref = try #require(refs.first)
+
+		let resolved = try database.write { db in
+			try ref.resolved(using: db)
+		}
+
+		let page = try #require(database.read { db in
+			try Page.find(resolved.targetID).fetchOne(db)
+		})
+
+		#expect(resolved.kind == .pageLink)
+		expectNoDifference(page.dailyNoteDate, day)
+		expectNoDifference(page.title, dailyTitle)
+	}
+
 	@Test("extractRefs ignores references inside markdown link labels")
 	func extractRefsIgnoresReferencesInsideMarkdownLinkLabels() {
 		let text = "[go #tag](https://example.com) and [[Real Page]]"

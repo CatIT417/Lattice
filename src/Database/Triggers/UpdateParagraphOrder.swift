@@ -90,6 +90,7 @@ final class UpdateParagraphOrder: Trigger {
 		// Finally, we clamp the inserted paragraph's order to not exceed the max if needed
 		Block
 			.where { $0.id.eq(paragraph.id) && $0.order > maxOrder }
+			.where { _ in !SyncEngine.$isSynchronizing }
 			.update { $0.order = maxOrder }
 	}
 }

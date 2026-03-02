@@ -70,7 +70,9 @@ extension TextRef {
 			return Resolved(targetID: UUID(uuidString: target)!, kind: kind)
 		}
 
-		let page = try Page.findOrCreate(title: target, in: db)
+		let page = if let dayOfYear = DayOfYear(title: target) { try Page.createDailyNote(for: dayOfYear, in: db) }
+		else { try Page.findOrCreate(title: target, in: db) }
+
 		return Resolved(targetID: page.id, kind: kind)
 	}
 }

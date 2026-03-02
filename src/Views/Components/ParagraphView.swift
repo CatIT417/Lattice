@@ -226,7 +226,7 @@ struct ParagraphView: View {
 						parentId: isRootParagraph ? paragraph.id : paragraph.parentId,
 						pageId: paragraph.pageId,
 						order: isRootParagraph ? 0 : paragraph.order + 1,
-						viewType: paragraph.viewType
+						viewType: .bullet
 					)
 				}.returning(\.id).fetchOne(db)
 			}
@@ -252,6 +252,8 @@ struct ParagraphView: View {
 					.update {
 						$0.order = parentBlock.order + 1
 						$0.parentId = #bind(parentBlock.parentId)
+
+						// TODO: If siblings are numbered, convert this block to numbered too
 
 						if let currentText, currentText != paragraph.string {
 							$0.string = #bind(currentText)
@@ -282,6 +284,10 @@ struct ParagraphView: View {
 					.update {
 						$0.order = (maxOrder ?? -1) + 1
 						$0.parentId = #bind(previousSibling.id)
+
+						if paragraph.viewType == .numbered {
+							$0.viewType = #bind(.bullet)
+						}
 
 						if currentText != paragraph.string {
 							$0.string = #bind(currentText)
