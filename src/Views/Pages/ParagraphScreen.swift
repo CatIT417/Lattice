@@ -9,7 +9,7 @@ struct ParagraphScreen: View {
 
 	init(paragraphId: Paragraph.ID) {
 		self.paragraphId = paragraphId
-		_paragraphWithContent = FetchOne(Paragraph.withChildren(id: paragraphId), animation: .default)
+		_paragraphWithContent = FetchOne(Paragraph.withChildren(id: paragraphId))
 	}
 
 	var body: some View {
@@ -44,7 +44,7 @@ struct ParagraphScreen: View {
 			}
 		}.task {
 			_ = await withErrorReporting {
-				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraphId), animation: .default)
+				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraphId))
 			}
 		}
 	}

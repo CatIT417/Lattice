@@ -100,6 +100,7 @@ struct ParagraphView: View {
 					Button(action: toggleIsOpen) {
 						Image(systemName: "arrowtriangle.right.fill")
 							.imageScale(.small)
+							.foregroundStyle(.secondary)
 					}
 					.foregroundStyle(.primary)
 					.transition(
@@ -130,8 +131,13 @@ struct ParagraphView: View {
 
 			if paragraph.isOpen || paragraph.id == rootBlockID {
 				ChildrenRenderer(parentID: paragraph.id, showIndentLine: true, onIndentLineTapped: toggleIsOpen)
+					.transition(.asymmetric(
+						insertion: .offset(y: -30).combined(with: .opacity).animation(.easeIn(duration: 0.1)),
+						removal: .offset(y: -150).combined(with: .opacity).animation(.easeOut(duration: 0.1))
+					))
 			}
 		}
+		.animation(.default, value: paragraph.isOpen)
 	}
 
 	private func handleAction(_ action: EditableText.Action) -> Bool {
@@ -384,6 +390,7 @@ struct ParagraphView: View {
 	let paragraph = previewData { try Paragraph.fetchOne($0) }
 
 	ParagraphView(paragraph: paragraph!)
+		.padding()
 		.preview()
 }
 

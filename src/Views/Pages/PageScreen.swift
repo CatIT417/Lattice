@@ -17,7 +17,7 @@ struct PageScreen: View {
 
 	init(pageId: Page.ID) {
 		self.pageId = pageId
-		_pageWithContent = FetchOne(Page.withChildren(id: pageId), animation: .default)
+		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
 	}
 
 	var body: some View {
@@ -110,7 +110,7 @@ struct PageScreen: View {
 		}
 		.task {
 			_ = await withErrorReporting {
-				try await $pageWithContent.load(Page.withChildren(id: pageId), animation: .default)
+				try await $pageWithContent.load(Page.withChildren(id: pageId))
 			}
 		}
 	}

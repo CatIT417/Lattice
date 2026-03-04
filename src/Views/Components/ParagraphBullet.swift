@@ -24,18 +24,18 @@ struct ParagraphBullet: View {
 			if !paragraph.isOpen, paragraph.id != rootBlockID {
 				ZStack {
 					Circle()
-						.fill(colorScheme == .dark ? HierarchicalShapeStyle.secondary : HierarchicalShapeStyle.tertiary)
+						.fill(.tertiary)
 						.frame(width: 10, height: 10)
 
 					Circle()
-						.fill(Color.primary)
+						.fill(colorScheme == .dark ? HierarchicalShapeStyle.secondary : HierarchicalShapeStyle.tertiary)
 						.frame(width: 5, height: 5)
 				}
 				.padding(.top, -2.5)
 				.padding(.horizontal, -2.5)
 			} else {
 				Circle()
-					.fill(Color.primary)
+					.fill(Color.secondary)
 					.frame(width: 5, height: 5)
 			}
 		}
