@@ -29,16 +29,15 @@ struct ParagraphScreen: View {
 				}
 				.unfocusBlockOnBackgroundTap()
 				#if os(iOS)
-				.blockSelectionMenu()
-				.doneButtonOnToolbar()
-				.navigationBarTitleDisplayMode(.inline)
+					.blockSelectionMenu()
+					.doneButtonOnToolbar()
+					.navigationBarTitleDisplayMode(.inline)
 				#endif
-				.referenceSuggestionsOverlay()
-				.syncStatusOnToolbar()
-				.toolbar(removing: .title)
-				.environment(\.blockTree, tree)
-				.environment(\.rootBlockID, paragraph.id)
-				.navigationTitle(removeReferences(from: paragraph.string.strippingTodoPrefix()))
+					.referenceSuggestionsOverlay()
+					.toolbar(removing: .title)
+					.environment(\.blockTree, tree)
+					.environment(\.rootBlockID, paragraph.id)
+					.navigationTitle(removeReferences(from: paragraph.string.strippingTodoPrefix()))
 			} else {
 				ProgressView()
 					.onAppear { router.pop() }

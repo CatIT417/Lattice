@@ -49,13 +49,12 @@ struct DailyPagesScreen: View {
 		.blockSelectionMenu()
 		.doneButtonOnToolbar()
 		#endif
-		.syncStatusOnToolbar()
 		.roamImport()
 		.navigationTitle("Daily Notes")
 		.toolbarTitleDisplayMode(.inlineLarge)
 		.toolbar {
 			#if os(iOS)
-			ToolbarItem(placement: .topBarTrailing) {
+			ToolbarItem(placement: .primaryAction) {
 				GoToDailyPageButton()
 			}
 			#endif

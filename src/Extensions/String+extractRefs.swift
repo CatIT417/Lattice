@@ -19,11 +19,15 @@ struct TextRef {
 		target = span.content
 	}
 
+	private static let urlAllowed = tap(CharacterSet.urlPathAllowed) {
+		$0.remove(charactersIn: "/")
+	}
+
 	var url: URL {
 		switch kind {
-			case .tag: URL(string: "lattice://tag/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
-			case .pageLink: URL(string: "lattice://page/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
-			case .blockRef, .blockEmbed: URL(string: "lattice://block/\(target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")!
+			case .tag: URL(string: "lattice://tag/\(target.addingPercentEncoding(withAllowedCharacters: Self.urlAllowed)!)")!
+			case .pageLink: URL(string: "lattice://page/\(target.addingPercentEncoding(withAllowedCharacters: Self.urlAllowed)!)")!
+			case .blockRef, .blockEmbed: URL(string: "lattice://block/\(target.addingPercentEncoding(withAllowedCharacters: Self.urlAllowed)!)")!
 		}
 	}
 

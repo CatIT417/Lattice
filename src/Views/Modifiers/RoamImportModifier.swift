@@ -58,8 +58,8 @@ struct RoamImportModifier: ViewModifier {
 				}
 			}
 			.toolbar {
-				ToolbarItem {
-					Button("Import", systemImage: "square.and.arrow.down") {
+				ToolbarItem(placement: .secondaryAction) {
+					Button("Import from Roam", systemImage: "square.and.arrow.down") {
 						showingFileImporter = true
 					}
 				}

@@ -95,7 +95,6 @@ struct PageScreen: View {
 						Text("Any blocks referencing this page will have their content altered as well.")
 					}
 					.toolbarRole(.editor)
-					.syncStatusOnToolbar()
 					.navigationTitle(page.title)
 					.referenceSuggestionsOverlay()
 					.toolbarTitleDisplayMode(.inline)
