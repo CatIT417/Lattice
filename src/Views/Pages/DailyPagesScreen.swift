@@ -50,6 +50,7 @@ struct DailyPagesScreen: View {
 		.doneButtonOnToolbar()
 		#endif
 		.syncStatusOnToolbar()
+		.roamImport()
 		.navigationTitle("Daily Notes")
 		.toolbarTitleDisplayMode(.inlineLarge)
 		.toolbar {

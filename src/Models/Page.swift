@@ -55,16 +55,18 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 // MARK: - Daily Notes
 
 extension Page {
-	static func newDailyNote(for day: DayOfYear) -> Page {
-		return Page(title: day.title(), dailyNoteDate: day)
+	static func newDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil) -> Page {
+		@Dependency(\.date.now) var now
+
+		return Page(title: day.title(), dailyNoteDate: day, createdAt: createdAt ?? now, updatedAt: updatedAt ?? now)
 	}
 
-	static func createDailyNote(for day: DayOfYear, in db: Database) throws -> Page {
-		let page = newDailyNote(for: day)
+	static func createDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
+		let page = newDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt)
 
 		let newlyCreatedBlock = try #sql("""
-		INSERT INTO \(Block.self) (title, dailyNoteDate)
-		SELECT \(bind: page.title), \(bind: page.dailyNoteDate!)
+		INSERT INTO \(Block.self) (title, dailyNoteDate, createdAt, updatedAt)
+		SELECT \(bind: page.title), \(bind: page.dailyNoteDate!), \(bind: page.createdAt), \(bind: page.updatedAt)
 		WHERE NOT EXISTS (
 		 SELECT 1 FROM \(Block.self)
 		 WHERE \(Block.dailyNoteDate) = \(bind: page.dailyNoteDate!)
@@ -80,10 +82,12 @@ extension Page {
 // MARK: - Query Helpers
 
 extension Page {
-	static func findOrCreate(title: String, in db: Database) throws -> Page {
+	static func findOrCreate(title: String, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
+		@Dependency(\.date.now) var now
+
 		let newlyCreatedBlock = try #sql("""
-		INSERT INTO \(Block.self) (title)
-		SELECT \(bind: title)
+		INSERT INTO \(Block.self) (title, createdAt, updatedAt)
+		SELECT \(bind: title), \(bind: createdAt ?? now), \(bind: updatedAt ?? now)
 		WHERE NOT EXISTS (
 			SELECT 1 FROM \(Block.self)
 			WHERE \(Block.title) = \(bind: title)
