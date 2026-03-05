@@ -301,7 +301,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<36[utf8],
 			    content: "my site",
 			    children: [
@@ -563,7 +566,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://en.wikipedia.org/wiki/Rust_(programming_language))),
+			    kind: .link(
+			      url: URL(https://en.wikipedia.org/wiki/Rust_(programming_language)),
+			      embed: nil
+			    ),
 			    range: 4[utf8]..<69[utf8],
 			    content: "link",
 			    children: [
@@ -634,7 +640,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(http://example.com)),
+			    kind: .link(
+			      url: URL(http://example.com),
+			      embed: nil
+			    ),
 			    range: 0[any]..<29[utf8],
 			    content: "[[hello",
 			    children: [
@@ -718,7 +727,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 0[any]..<34[utf8],
 			    content: "go [[Page]]",
 			    children: [
@@ -743,7 +755,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 0[any]..<34[utf8],
 			    content: "go #[[tag]]",
 			    children: [
@@ -1008,7 +1023,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(lattice://page/My%20Page)),
+			    kind: .link(
+			      url: URL(lattice://page/My%20Page),
+			      embed: nil
+			    ),
 			    range: 0[any]..<26[utf8],
 			    content: "custom text",
 			    children: [
@@ -1033,7 +1051,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)),
+			    kind: .link(
+			      url: URL(lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E),
+			      embed: nil
+			    ),
 			    range: 0[any]..<52[utf8],
 			    content: "see this",
 			    children: [
@@ -1058,7 +1079,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(lattice://tag/mytag)),
+			    kind: .link(
+			      url: URL(lattice://tag/mytag),
+			      embed: nil
+			    ),
 			    range: 0[any]..<20[utf8],
 			    content: "click here",
 			    children: [
@@ -1083,7 +1107,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(lattice://tag/tag%20with%20spaces)),
+			    kind: .link(
+			      url: URL(lattice://tag/tag%20with%20spaces),
+			      embed: nil
+			    ),
 			    range: 0[any]..<34[utf8],
 			    content: "click here",
 			    children: [
@@ -1210,7 +1237,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<25[utf8],
 			    content: "https://example.com",
 			    children: []
@@ -1240,7 +1270,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(http://example.com)),
+			    kind: .link(
+			      url: URL(http://example.com),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<24[utf8],
 			    content: "http://example.com",
 			    children: []
@@ -1270,7 +1303,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com/path?q=1&r=2)),
+			    kind: .link(
+			      url: URL(https://example.com/path?q=1&r=2),
+			      embed: nil
+			    ),
 			    range: 4[utf8]..<36[utf8],
 			    content: "https://example.com/path?q=1&r=2",
 			    children: []
@@ -1300,7 +1336,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<25[utf8],
 			    content: "https://example.com",
 			    children: []
@@ -1330,7 +1369,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 5[utf8]..<24[utf8],
 			    content: "https://example.com",
 			    children: []
@@ -1354,7 +1396,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(https://a.com)),
+			    kind: .link(
+			      url: URL(https://a.com),
+			      embed: nil
+			    ),
 			    range: 0[any]..<13[utf8],
 			    content: "https://a.com",
 			    children: []
@@ -1366,7 +1411,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [2]: InlineSpan(
-			    kind: .link(url: URL(https://b.com)),
+			    kind: .link(
+			      url: URL(https://b.com),
+			      embed: nil
+			    ),
 			    range: 18[utf8]..<31[utf8],
 			    content: "https://b.com",
 			    children: []
@@ -1397,7 +1445,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://en.wikipedia.org/wiki/Function_(mathematics))),
+			    kind: .link(
+			      url: URL(https://en.wikipedia.org/wiki/Function_(mathematics)),
+			      embed: nil
+			    ),
 			    range: 4[utf8]..<56[utf8],
 			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
 			    children: []
@@ -1427,7 +1478,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://en.wikipedia.org/wiki/Function_(mathematics))),
+			    kind: .link(
+			      url: URL(https://en.wikipedia.org/wiki/Function_(mathematics)),
+			      embed: nil
+			    ),
 			    range: 5[utf8]..<57[utf8],
 			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
 			    children: []
@@ -1452,7 +1506,10 @@ extension Tests.InlineParserTest {
 			"""
 			[
 			  [0]: InlineSpan(
-			    kind: .link(url: URL(https://example.com)),
+			    kind: .link(
+			      url: URL(https://example.com),
+			      embed: nil
+			    ),
 			    range: 0[any]..<28[utf8],
 			    content: "click",
 			    children: [
@@ -1483,7 +1540,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(HTTPS://EXAMPLE.COM)),
+			    kind: .link(
+			      url: URL(HTTPS://EXAMPLE.COM),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<25[utf8],
 			    content: "HTTPS://EXAMPLE.COM",
 			    children: []
@@ -1520,7 +1580,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(http://[2001:db8::1]/path)),
+			    kind: .link(
+			      url: URL(http://[2001:db8::1]/path),
+			      embed: nil
+			    ),
 			    range: 6[utf8]..<31[utf8],
 			    content: "http://[2001:db8::1]/path",
 			    children: []
@@ -1559,7 +1622,10 @@ extension Tests.InlineParserTest {
 			    children: []
 			  ),
 			  [1]: InlineSpan(
-			    kind: .link(url: URL(https://example.com/search?filters%5B%5D=done)),
+			    kind: .link(
+			      url: URL(https://example.com/search?filters%5B%5D=done),
+			      embed: nil
+			    ),
 			    range: 4[utf8]..<45[utf8],
 			    content: "https://example.com/search?filters[]=done",
 			    children: []
@@ -1568,6 +1634,39 @@ extension Tests.InlineParserTest {
 			    kind: .text,
 			    range: 45[utf8]..<49[utf8],
 			    content: " end",
+			    children: []
+			  )
+			]
+			"""
+		}
+	}
+
+	@Test("parse attaches embed info to embeddable URLs")
+	func parseAttachesEmbedInfoToEmbeddableURLs() {
+		let spans = InlineParser.default.parse("Visit https://x.com/user/status/123 today")
+
+		assertInlineSnapshot(of: spans, as: .customDump) {
+			"""
+			[
+			  [0]: InlineSpan(
+			    kind: .text,
+			    range: 0[any]..<6[utf8],
+			    content: "Visit ",
+			    children: []
+			  ),
+			  [1]: InlineSpan(
+			    kind: .link(
+			      url: URL(https://x.com/user/status/123),
+			      embed: .tweet(url: URL(https://x.com/user/status/123))
+			    ),
+			    range: 6[utf8]..<35[utf8],
+			    content: "https://x.com/user/status/123",
+			    children: []
+			  ),
+			  [2]: InlineSpan(
+			    kind: .text,
+			    range: 35[utf8]..<41[utf8],
+			    content: " today",
 			    children: []
 			  )
 			]

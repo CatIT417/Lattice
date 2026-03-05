@@ -6,6 +6,7 @@ struct ParagraphView: View {
 	var paragraph: Paragraph
 
 	@State private var isHovering = false
+	@State private var embeds: Set<EmbedInfo> = []
 
 	@Dependency(\.uuid) var uuid
 	@Dependency(\.platform) var platform
@@ -129,6 +130,10 @@ struct ParagraphView: View {
 				}
 			#endif
 
+			if blockCoordinator.activelyEditingBlock != paragraph.id, !embeds.isEmpty {
+				BlockEmbeds(embeds: embeds)
+			}
+
 			if paragraph.isOpen || paragraph.id == rootBlockID {
 				ChildrenRenderer(parentID: paragraph.id, showIndentLine: true, onIndentLineTapped: toggleIsOpen)
 					.transition(.asymmetric(
@@ -138,6 +143,7 @@ struct ParagraphView: View {
 			}
 		}
 		.animation(.default, value: paragraph.isOpen)
+		.task(id: paragraph.string) { embeds = EmbedInfo.extract(from: paragraph.string) }
 	}
 
 	private func handleAction(_ action: EditableText.Action) -> Bool {

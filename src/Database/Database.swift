@@ -61,6 +61,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		CreateAncestorsTable.self,
 		CreateTriggerGuardTable.self,
 		CreateBlocksFTSTable.self,
+		CreateCachedLinkMetadataTable.self,
 	], in: database)
 
 	try database.setupTriggers([

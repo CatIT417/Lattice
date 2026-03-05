@@ -10,7 +10,7 @@ struct InlineSpan: Equatable, Sendable {
 		case bold
 		case italic
 		case highlight
-		case link(url: URL)
+		case link(url: URL, embed: EmbedInfo? = nil)
 
 		case tag
 		case pageLink

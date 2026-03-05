@@ -122,10 +122,14 @@ private struct RenderStyle {
 		tap(baseAttributes) { $0[.font] = font }
 	}
 
-	func link(_ url: URL) -> [NSAttributedString.Key: Any] {
+	func link(_ url: URL, embed: EmbedInfo? = nil) -> [NSAttributedString.Key: Any] {
 		tap(baseAttributes) {
 			$0[.link] = url
 			$0[.foregroundColor] = tintColor
+
+			if embed != nil {
+				$0[.font] = baseFont.withSize(baseFont.pointSize * 0.9)
+			}
 		}
 	}
 
@@ -202,16 +206,16 @@ private extension RenderContext {
 					renderedToRaw: &renderedToRaw,
 					uncachedFaviconURLs: &uncachedFaviconURLs
 				)
-			case let .link(url):
+			case let .link(url, embed):
 				let isExternal = url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https"
 
-				if isExternal {
+				if isExternal, embed == nil {
 					appendFavicon(for: url, linkAttributes: style.link(url), spanRawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw, uncachedFaviconURLs: &uncachedFaviconURLs)
 				}
 
 				if span.children.isEmpty {
 					// Auto-link: rendered text = raw text, no delimiters
-					append(text: span.content, with: style.link(url), rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
+					append(text: span.content, with: style.link(url, embed: embed), rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
 				} else {
 					// Markdown link: [text](url)
 					render(

@@ -1283,4 +1283,47 @@ extension Tests.AttributedStringBuilderTest {
 		// End position
 		expectNoDifference(mapping.rawIndex(fromRendered: 8), 12 + offset)
 	}
+
+	@Test("buildAttributedString uses smaller font for embed links")
+	func buildAttributedStringUsesSmallerFontForEmbedLinks() {
+		let text = "https://x.com/user/status/123"
+		let result = buildAttributedString(from: text, font: testFont)
+
+		expectNoDifference(result.attributedString.string, text)
+
+		// Embed links should not trigger favicon loading
+		expectNoDifference(result.uncachedFaviconURLs, [])
+
+		// Font should be 0.9x base size for embed links
+		var fontSize: CGFloat?
+		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
+			fontSize = (value as? PlatformFont)?.pointSize
+		}
+		expectNoDifference(fontSize, testFont.pointSize * 0.9)
+
+		// Should have a link attribute
+		var hasLink = false
+		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
+			if value is URL { hasLink = true }
+		}
+		#expect(hasLink)
+	}
+
+	@Test("buildAttributedString requests favicon for non-embed external links")
+	func buildAttributedStringRequestsFaviconForNonEmbedLinks() {
+		let text = "https://example.com"
+		let result = buildAttributedString(from: text, font: testFont)
+
+		expectNoDifference(result.attributedString.string, text)
+
+		// Non-embed external links should request favicon
+		#expect(!result.uncachedFaviconURLs.isEmpty)
+
+		// Font should remain at base size (no 0.9x scaling)
+		var fontSize: CGFloat?
+		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
+			fontSize = (value as? PlatformFont)?.pointSize
+		}
+		expectNoDifference(fontSize, testFont.pointSize)
+	}
 }

@@ -24,7 +24,7 @@ struct URLRule: InlineParser.Rule, Sendable {
 		let endIndex = text.index(index, offsetBy: urlString.count)
 
 		return InlineSpan(
-			kind: .link(url: url),
+			kind: .link(url: url, embed: EmbedInfo(url: url)),
 			range: index..<endIndex,
 			content: urlString,
 			children: []

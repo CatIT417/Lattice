@@ -182,7 +182,7 @@ struct InlineParser: Sendable {
 			}
 
 			// Extract reference from internal-destination markdown links
-			if case let .link(url) = span.kind, url.scheme == "lattice" {
+			if case let .link(url, _) = span.kind, url.scheme == "lattice" {
 				if let refSpan = synthesizeReference(from: span, parentContent: parentContent, originalText: originalText, contentStartOffset: contentStartOffset) {
 					refs.append(refSpan)
 				}
