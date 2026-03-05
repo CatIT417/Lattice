@@ -86,14 +86,20 @@ struct ParagraphView: View {
 					.padding(.trailing, -4)
 				}
 
-				EditableText(
-					blockId: paragraph.id,
-					text: paragraph.string,
-					alignment: paragraph.textAlign,
-					handleAction: handleAction
-				)
-				.font(fontForHeading)
-				.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
+				VStack(alignment: .leading, spacing: 4) {
+					EditableText(
+						blockId: paragraph.id,
+						text: paragraph.string,
+						alignment: paragraph.textAlign,
+						handleAction: handleAction
+					)
+					.font(fontForHeading)
+					.frame(maxWidth: .infinity, minHeight: CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font), alignment: .topLeading)
+
+					if blockCoordinator.activelyEditingBlock != paragraph.id, !embeds.isEmpty {
+						BlockEmbeds(embeds: embeds)
+					}
+				}
 
 				if !paragraph.isOpen, paragraph.id != rootBlockID, !platform.hasPointer {
 					Spacer(minLength: 2)
@@ -129,10 +135,6 @@ struct ParagraphView: View {
 					}
 				}
 			#endif
-
-			if blockCoordinator.activelyEditingBlock != paragraph.id, !embeds.isEmpty {
-				BlockEmbeds(embeds: embeds)
-			}
 
 			if paragraph.isOpen || paragraph.id == rootBlockID {
 				ChildrenRenderer(parentID: paragraph.id, showIndentLine: true, onIndentLineTapped: toggleIsOpen)
