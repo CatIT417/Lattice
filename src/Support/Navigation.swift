@@ -41,11 +41,11 @@ struct Destination: NavigationDestination {
 		}
 
 		static var routes: Routes {
-			Route("page", String.parameter("title")) { title in
+			Route("page", String.wildcard("title")) { title in
 				.page(title: title)
 			}
 
-			Route("tag", String.parameter("name")) { name in
+			Route("tag", String.wildcard("name")) { name in
 				.tag(name: name)
 			}
 
