@@ -89,6 +89,9 @@ struct RoamImporter {
 		var imported = [ImportedPage]()
 
 		try database.write { db in
+			// Defer foreign key checks until the end of the transaction to ensure insert order doesn't cause conflicts.
+			try #sql("PRAGMA defer_foreign_keys = ON").execute(db)
+
 			var resolvedPages = [(page: Page, prepared: PreparedPage)]()
 
 			for prepared in pages {
