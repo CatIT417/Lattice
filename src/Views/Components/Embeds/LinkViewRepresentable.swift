@@ -67,9 +67,6 @@ class LinkContainerView: UIView {
 }
 
 #elseif canImport(AppKit)
-import SwiftUI
-import LinkPresentation
-
 struct LinkViewRepresentable: NSViewRepresentable {
 	var metadata: LPLinkMetadata
 
