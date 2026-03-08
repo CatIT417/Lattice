@@ -23,6 +23,10 @@ The database schema (mostly) consists of a single `blocks` table. Both pages and
 
 The app adapts to each device's capabilities. On iPad, certain UI elements change between their iOS/macOS counterparts when you connect a keyboard or trackpad. The iPad + magic keyboard combo provides the ultimate Lattice experience imo.
 
+### Use of AI
+
+While Lattice was primarily hand-written, I made extensive use of Claude to help plan new features and figure out implementation details. It came in particularly handy when figuring out the AppKit equivalents for UIKit code. I also used Codex to review most of the commits and point out potential bugs.
+
 ## License
 
 Lattice is open-source software licensed under the MIT license. See the [License file](LICENSE) for more information.
