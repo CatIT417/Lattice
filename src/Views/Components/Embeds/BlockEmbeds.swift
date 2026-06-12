@@ -11,16 +11,29 @@ struct BlockEmbeds: View {
 
 	init(embeds: Set<EmbedInfo>) {
 		self.embeds = embeds
+		let linkPreviewURLs = embeds.compactMap(\.linkPreviewURL)
 		_metadataCache = FetchAll(
-			CachedLinkMetadata.where { $0.url.in(embeds.map(\.url)) },
+			CachedLinkMetadata.where { $0.url.in(linkPreviewURLs) },
 			animation: .default
 		)
 	}
 
 	var body: some View {
-		VStack {
-			ForEach(metadataCache, id: \.url) { entry in
-				LinkViewRepresentable(metadata: entry.metadata)
+		VStack(alignment: .leading, spacing: 8) {
+			ForEach(embeds.sortedByURL) { embed in
+				switch embed {
+					case let .tweet(url):
+						if let id = Tweet.id(from: url) {
+							TweetView(id: id)
+						} else {
+							TweetUnavailableView(message: "This tweet URL could not be embedded.")
+						}
+
+					case let .youtube(url):
+						if let entry = metadataCache.first(where: { $0.url == url }) {
+							LinkViewRepresentable(metadata: entry.metadata)
+						}
+				}
 			}
 		}
 		.task(id: embeds) { await fetchMetadata() }
@@ -28,7 +41,8 @@ struct BlockEmbeds: View {
 
 	func fetchMetadata() async {
 		let cacheMisses = embeds.filter { embed in
-			!metadataCache.contains(where: { $0.url == embed.url })
+			guard embed.linkPreviewURL != nil else { return false }
+			return !metadataCache.contains(where: { $0.url == embed.url })
 		}
 
 		await withTaskGroup { group in
@@ -53,6 +67,21 @@ struct BlockEmbeds: View {
 				}
 			}
 		}
+	}
+}
+
+private extension EmbedInfo {
+	var linkPreviewURL: URL? {
+		switch self {
+			case .tweet: nil
+			case let .youtube(url): url
+		}
+	}
+}
+
+private extension Set where Element == EmbedInfo {
+	var sortedByURL: [EmbedInfo] {
+		sorted { $0.url.absoluteString < $1.url.absoluteString }
 	}
 }
 

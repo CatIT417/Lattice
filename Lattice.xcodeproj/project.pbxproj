@@ -771,6 +771,8 @@
 				branch = recursion;
 				kind = branch;
 			};
+			traits = (
+			);
 		};
 		C013D7E12F3C23A200D4F59A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
