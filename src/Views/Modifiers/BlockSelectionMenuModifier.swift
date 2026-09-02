@@ -106,7 +106,9 @@ struct SelectionToolbar: UIViewRepresentable {
 			try database.write { db in
 				try Block.where {
 					$0.id.in(selectionCoordinator.highlightedIDs)
-				}.delete().execute(db)
+				}
+				.delete()
+				.execute(db)
 			}
 
 			router.navigationStackPath.removeAll(where: { path in
