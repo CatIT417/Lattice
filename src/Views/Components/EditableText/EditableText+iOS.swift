@@ -391,7 +391,7 @@ extension EditableTextView {
 		private func newBlockRequested(textView: UITextView, range: NSRange) {
 			let currentText = textView.attributedText.string as NSString
 			let newText = currentText.substring(to: range.location)
-			let remainingText = currentText.substring(from: range.location)
+			let remainingText = currentText.substring(from: range.location + range.length)
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textViewDidEndEditing will read the rendered text (without [[...]] syntax)

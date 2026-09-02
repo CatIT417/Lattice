@@ -147,14 +147,13 @@ struct EditableTextView: NSViewRepresentable {
 }
 
 extension EditableTextView {
-	@MainActor class Coordinator: NSObject {
+	@MainActor final class Coordinator: NSObject {
 		var parent: EditableTextView
 		weak var textView: NSTextView?
 
 		var isEditing = false
 		var lastKnownText: String
 		var lastKnownFont: NSFont
-		var linkWasTapped = false
 		var indexMapping: AttributedStringResult.IndexMapping?
 		var pendingFaviconURLs: Set<URL> = []
 		var isReferenceSuggestionSessionActive = false
@@ -214,7 +213,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: NSTextView) {
-			let safeOffset = clamp(offset, to: 0...textView.string.utf16Length)
+			let safeOffset = clamp(offset, to: 0 ... textView.string.utf16Length)
 			textView.setSelectedRange(NSRange(location: safeOffset, length: 0))
 		}
 
@@ -340,7 +339,7 @@ extension EditableTextView {
 		fileprivate func newBlockRequested(textView: NSTextView, range: NSRange) {
 			let currentText = textView.attributedString().string as NSString
 			let newText = currentText.substring(to: range.location)
-			let remainingText = currentText.substring(from: range.location)
+			let remainingText = currentText.substring(from: range.location + range.length)
 
 			// Save the raw text before switching to rendered mode, otherwise
 			// textDidEndEditing will read the rendered text (without [[...]] syntax)
@@ -364,11 +363,6 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 
 	func textDidBeginEditing(_ notification: Notification) {
 		guard let textView = notification.object as? NSTextView else { return }
-
-		if linkWasTapped {
-			linkWasTapped = false
-			textView.window?.makeFirstResponder(nil)
-		}
 	}
 
 	func textViewDidChangeSelection(_ notification: Notification) {
@@ -400,8 +394,6 @@ extension EditableTextView.Coordinator: NSTextViewDelegate {
 	// MARK: - Link Handling
 
 	func textView(_ textView: NSTextView, clickedOnLink link: Any, at _: Int) -> Bool {
-		linkWasTapped = true
-
 		if let url = link as? URL {
 			parent.onLinkClicked(url)
 			textView.window?.makeFirstResponder(nil)

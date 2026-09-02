@@ -2,10 +2,10 @@ import SwiftUI
 import SQLiteData
 
 struct PageView: View {
-	@FetchOne var pageWithContent: Page.WithChildren? = nil
+	@Fetch var pageWithContent: Page.WithChildren? = nil
 
 	init(pageId: Page.ID) {
-		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
+		_pageWithContent = Fetch(wrappedValue: nil, Page.withChildren(id: pageId))
 	}
 
 	var body: some View {

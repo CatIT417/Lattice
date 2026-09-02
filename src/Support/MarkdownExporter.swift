@@ -5,7 +5,7 @@ enum MarkdownExporter {
 		@Dependency(\.defaultDatabase) var database
 
 		guard let result = try database.read({ db in
-			try Page.withChildren(id: id).fetchOne(db)
+			try Page.withChildren(id: id).fetch(db)
 		}) else { return "" }
 
 		var lines: [String] = ["# \(result.block.title)", ""]
@@ -18,7 +18,7 @@ enum MarkdownExporter {
 		@Dependency(\.defaultDatabase) var database
 
 		guard let result = try database.read({ db in
-			try Paragraph.withChildren(id: id).fetchOne(db)
+			try Paragraph.withChildren(id: id).fetch(db)
 		}) else { return "" }
 
 		var lines: [String] = []

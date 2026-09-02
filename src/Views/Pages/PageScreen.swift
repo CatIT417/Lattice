@@ -6,7 +6,7 @@ struct PageScreen: View {
 
 	@Environment(Router.self) var router
 	@Dependency(\.defaultDatabase) var database
-	@FetchOne var pageWithContent: Page.WithChildren?
+	@Fetch var pageWithContent: Page.WithChildren?
 
 	@State private var willDeletePage = false
 	@State private var willRenamePage = false
@@ -17,7 +17,7 @@ struct PageScreen: View {
 
 	init(pageId: Page.ID) {
 		self.pageId = pageId
-		_pageWithContent = FetchOne(Page.withChildren(id: pageId))
+		_pageWithContent = Fetch(wrappedValue: nil, Page.withChildren(id: pageId))
 	}
 
 	var body: some View {

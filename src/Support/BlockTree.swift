@@ -8,7 +8,7 @@ struct BlockTree {
 		for p in paragraphs {
 			grouped[p.parentId, default: []].append(p)
 		}
-		childrenByParentId = grouped
+		childrenByParentId = grouped.mapValues { $0.sorted(using: KeyPathComparator(\.order, order: .forward)) }
 	}
 
 	private init(childrenByParentId: [Block.ID: [Paragraph]]) {
@@ -26,7 +26,7 @@ struct BlockTree {
 	}
 
 	func children(of parentId: Block.ID) -> [Paragraph] {
-		childrenByParentId[parentId]?.sorted(using: KeyPathComparator(\.order, order: .forward)) ?? []
+		childrenByParentId[parentId] ?? []
 	}
 
 	func hasChildren(_ parentId: Block.ID) -> Bool {

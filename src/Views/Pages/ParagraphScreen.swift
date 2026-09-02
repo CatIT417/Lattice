@@ -5,11 +5,11 @@ struct ParagraphScreen: View {
 	let paragraphId: Paragraph.ID
 
 	@Environment(Router.self) var router
-	@FetchOne var paragraphWithContent: Paragraph.WithChildren?
+	@Fetch var paragraphWithContent: Paragraph.WithChildren?
 
 	init(paragraphId: Paragraph.ID) {
 		self.paragraphId = paragraphId
-		_paragraphWithContent = FetchOne(Paragraph.withChildren(id: paragraphId))
+		_paragraphWithContent = Fetch(wrappedValue: nil, Paragraph.withChildren(id: paragraphId))
 	}
 
 	var body: some View {

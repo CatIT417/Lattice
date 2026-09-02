@@ -56,7 +56,7 @@ extension Tests.TableWithChildrenTest {
 		})
 
 		let result = try #require(database.read { db in
-			try Page.withChildren(id: page.id).fetchOne(db)
+			try Page.withChildren(id: page.id).fetch(db)
 		})
 
 		expectNoDifference(page.id, result.block.id)
@@ -99,7 +99,7 @@ extension Tests.TableWithChildrenTest {
 		})
 
 		let result = try #require(database.read { db in
-			try Paragraph.withChildren(id: root.id).fetchOne(db)
+			try Paragraph.withChildren(id: root.id).fetch(db)
 		})
 
 		expectNoDifference(root.id, result.block.id)
@@ -116,7 +116,7 @@ extension Tests.TableWithChildrenTest {
 		})
 
 		let result = try #require(database.read { db in
-			try Page.withChildren(id: page.id).fetchOne(db)
+			try Page.withChildren(id: page.id).fetch(db)
 		})
 
 		expectNoDifference([], result.tree.children(of: page.id).map(\.id))
