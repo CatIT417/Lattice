@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 /// Links between blocks (the [[wiki links]] and ((block refs)))
 @Table
@@ -27,12 +27,13 @@ extension Backlink {
 
 	static func groupedByPage(forBlock blockId: Block.ID) -> Select<GroupedByPage, Self, Void> {
 		group(by: \.fromPageId)
+			.order(by: \.fromBlock)
 			.where { $0.toBlock.eq(blockId) }
 			.select {
 				GroupedByPage.Columns(
 					pageID: $0.fromPageId,
 					pageTitle: $0.fromPageTitle,
-					referencedBlockIDs: $0.fromBlock.jsonGroupArray()
+					referencedBlockIDs: $0.fromBlock.jsonGroupArray(distinct: true)
 				)
 			}
 	}

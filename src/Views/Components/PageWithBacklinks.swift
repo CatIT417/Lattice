@@ -5,32 +5,31 @@ struct PageWithBacklinks: View {
 	let backlinks: Backlink.GroupedByPage
 
 	@State private var isExpanded = true
-	@FetchOne private var pageWithContent: Page.WithChildren?
+	@FetchAll private var paragraphs: [Paragraph]
 
 	init(backlinks: Backlink.GroupedByPage) {
 		self.backlinks = backlinks
-		_pageWithContent = FetchOne(Page.withChildren(id: backlinks.pageID))
+		_paragraphs = FetchAll(Paragraph.subtrees(rootedAt: backlinks.referencedBlockIDs))
 	}
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 8) {
 			DisclosureGroup(isExpanded: $isExpanded) {
-				if let pageWithContent {
-					let paragraphs = Set(backlinks.referencedBlockIDs).compactMap {
-						pageWithContent.tree.get(byID: $0)
-					}.sorted(using: KeyPathComparator(\.order, order: .forward))
+				let referencedIDs = Set(backlinks.referencedBlockIDs)
+				let referenced = paragraphs
+					.filter { referencedIDs.contains($0.id) }
+					.sorted(using: KeyPathComparator(\.order, order: .forward))
 
-					if !paragraphs.isEmpty {
-						LazyVStack(alignment: .leading, spacing: 8) {
-							ForEach(paragraphs) { paragraph in
-								ParagraphView(paragraph: paragraph)
-									.padding(12)
-									.environment(\.rootBlockID, paragraph.id)
-									.background(.thinMaterial, in: .rect(cornerRadius: 12))
-							}
+				if !referenced.isEmpty {
+					LazyVStack(alignment: .leading, spacing: 8) {
+						ForEach(referenced) { paragraph in
+							ParagraphView(paragraph: paragraph)
+								.padding(12)
+								.environment(\.rootBlockID, paragraph.id)
+								.background(.thinMaterial, in: .rect(cornerRadius: 12))
 						}
-						.environment(\.blockTree, pageWithContent.tree.subset(only: Set(backlinks.referencedBlockIDs)))
 					}
+					.environment(\.blockTree, BlockTree(paragraphs: paragraphs))
 				}
 			} label: {
 				NavigationButton(push: .page(id: backlinks.pageID)) {

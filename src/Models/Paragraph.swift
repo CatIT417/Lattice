@@ -79,6 +79,13 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 }
 
 extension Paragraph {
+	/// The given paragraphs plus every paragraph nested underneath them.
+	static func subtrees(rootedAt ids: [Paragraph.ID]) -> Where<Paragraph> {
+		Paragraph.where {
+			$0.id.in(ids) || $0.id.in(Ancestor.select(\.blockId).where { $0.ancestorId.in(ids) })
+		}
+	}
+
 	static func fetchInOrder(_ blockIDs: Set<Paragraph.ID>) throws -> [Paragraph] {
 		@Dependency(\.defaultDatabase) var database
 
