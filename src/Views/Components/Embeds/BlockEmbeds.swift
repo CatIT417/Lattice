@@ -34,7 +34,7 @@ struct BlockEmbeds: View {
 		await withTaskGroup { group in
 			for embed in cacheMisses {
 				group.addTask {
-					await Result { try (embed.url, await LPMetadataProvider().startFetchingMetadata(for: embed.url)) }
+					await Result { try (embed.url, await LPMetadataProvider().fetchMetadata(for: embed.url)) }
 				}
 			}
 
@@ -47,8 +47,8 @@ struct BlockEmbeds: View {
 				}
 			}
 
-			withErrorReporting {
-				try database.write { db in
+			await withErrorReporting {
+				try await database.write { db in
 					try CachedLinkMetadata.upsert { entries }.execute(db)
 				}
 			}

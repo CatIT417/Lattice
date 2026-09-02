@@ -1,10 +1,9 @@
 import Testing
-import SQLiteData
-import Foundation
 import CustomDump
-import DependenciesTestSupport
-
+import Foundation
 @testable import LatticeDev
+import SQLiteData
+import DependenciesTestSupport
 
 extension Tests {
 	@Suite("Database/Triggers/MakePagesViewWritable", .dependencies { try $0.bootstrapDatabase() })
@@ -23,7 +22,9 @@ extension Tests.MakePagesViewWritableTest {
 		let page = try #require(database.write { db in
 			try Page.insert {
 				Page(title: "Test Page", dailyNoteDate: dailyNoteDate, props: props, createdAt: date, updatedAt: date)
-			}.returning(\.self).fetchOne(db)
+			}
+			.returning(\.self)
+			.fetchOne(db)
 		})
 
 		let block = try #require(database.read { db in
@@ -72,7 +73,7 @@ extension Tests.MakePagesViewWritableTest {
 		})
 
 		let blockExists = try database.read { db in
-			try Values(Block.find(page.id).exists()).fetchOne(db)
+			try Select(Block.find(page.id).exists()).fetchOne(db)
 		}
 		#expect(blockExists == true)
 
@@ -81,7 +82,7 @@ extension Tests.MakePagesViewWritableTest {
 		}
 
 		let blockExistsAfterDelete = try database.read { db in
-			try Values(Block.find(page.id).exists()).fetchOne(db)
+			try Select(Block.find(page.id).exists()).fetchOne(db)
 		}
 		#expect(blockExistsAfterDelete == false)
 	}

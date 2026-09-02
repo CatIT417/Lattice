@@ -1,10 +1,9 @@
 import Testing
-import SQLiteData
-import Foundation
 import CustomDump
-import DependenciesTestSupport
-
+import Foundation
 @testable import LatticeDev
+import SQLiteData
+import DependenciesTestSupport
 
 extension Tests {
 	@Suite("Database/Triggers/MakeParagraphsViewWritable", .dependencies { try $0.bootstrapDatabase() })
@@ -35,7 +34,9 @@ extension Tests.MakeParagraphsViewWritableTest {
 		let paragraph = try #require(database.write { db in
 			try Paragraph.insert {
 				Paragraph(string: string, parentId: page.id, pageId: page.id, order: order, heading: heading, viewType: viewType, textAlign: textAlign, isOpen: isOpen, props: props, createdAt: date, updatedAt: date)
-			}.returning(\.self).fetchOne(db)
+			}
+			.returning(\.self)
+			.fetchOne(db)
 		})
 
 		let block = try #require(database.read { db in
@@ -74,7 +75,9 @@ extension Tests.MakeParagraphsViewWritableTest {
 		let paragraph = try #require(database.write { db in
 			try Paragraph.insert {
 				Paragraph(string: "My Paragraph", parentId: page.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db)
+			}
+			.returning(\.self)
+			.fetchOne(db)
 		})
 
 		#expect(throws: DatabaseError.self) {
@@ -91,7 +94,7 @@ extension Tests.MakeParagraphsViewWritableTest {
 		})
 
 		let blockExists = try database.read { db in
-			try Values(Block.find(paragraph.id).exists()).fetchOne(db)
+			try Select(Block.find(paragraph.id).exists()).fetchOne(db)
 		}
 		#expect(blockExists == true)
 
@@ -100,7 +103,7 @@ extension Tests.MakeParagraphsViewWritableTest {
 		}
 
 		let blockExistsAfterDelete = try database.read { db in
-			try Values(Block.find(paragraph.id).exists()).fetchOne(db)
+			try Select(Block.find(paragraph.id).exists()).fetchOne(db)
 		}
 		#expect(blockExistsAfterDelete == false)
 	}

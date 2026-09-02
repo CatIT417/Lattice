@@ -1,10 +1,9 @@
 import Testing
-import SQLiteData
-import Foundation
 import CustomDump
-import DependenciesTestSupport
-
+import Foundation
 @testable import LatticeDev
+import SQLiteData
+import DependenciesTestSupport
 
 extension Tests {
 	@Suite("Database/Triggers/AvoidDuplicatePages", .dependencies {
@@ -23,19 +22,27 @@ extension Tests.AvoidDuplicatePagesTest {
 		let (firstPage, duplicatePage, rootParagraph, childParagraph) = try await database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Duplicate Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let duplicatePage = try Page.insert {
 				Page(title: "Duplicate Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let rootParagraph = try Paragraph.insert {
 				Paragraph(string: "Root", parentId: duplicatePage.id, pageId: duplicatePage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let childParagraph = try Paragraph.insert {
 				Paragraph(string: "Child", parentId: rootParagraph.id, pageId: duplicatePage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			return (firstPage, duplicatePage, rootParagraph, childParagraph)
 		}
@@ -47,7 +54,7 @@ extension Tests.AvoidDuplicatePagesTest {
 		expectNoDifference(keeper.id, firstPage.id)
 
 		let duplicateExists = try await database.read { db in
-			try Values(Page.find(duplicatePage.id).exists()).fetchOne(db)
+			try Select(Page.find(duplicatePage.id).exists()).fetchOne(db)
 		}
 		#expect(duplicateExists == false)
 
@@ -69,15 +76,21 @@ extension Tests.AvoidDuplicatePagesTest {
 		let (firstPage, secondPage, rootParagraph) = try await database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let secondPage = try Page.insert {
 				Page(title: "Other Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let rootParagraph = try Paragraph.insert {
 				Paragraph(string: "Root", parentId: secondPage.id, pageId: secondPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			return (firstPage, secondPage, rootParagraph)
 		}
@@ -93,7 +106,7 @@ extension Tests.AvoidDuplicatePagesTest {
 		expectNoDifference(keeper.id, firstPage.id)
 
 		let duplicateExists = try await database.read { db in
-			try Values(Page.find(secondPage.id).exists()).fetchOne(db)
+			try Select(Page.find(secondPage.id).exists()).fetchOne(db)
 		}
 		#expect(duplicateExists == false)
 
@@ -109,19 +122,27 @@ extension Tests.AvoidDuplicatePagesTest {
 		let (keeper, duplicatePage, paragraph, reference) = try await database.write { db in
 			let keeper = try Page.insert {
 				Page(title: "Keeper Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let duplicatePage = try Page.insert {
 				Page(title: "Duplicate Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let hostPage = try Page.insert {
 				Page(title: "Host Page", createdAt: Date(timeIntervalSince1970: 200), updatedAt: Date(timeIntervalSince1970: 200))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let paragraph = try Paragraph.insert {
 				Paragraph(string: "See [[Duplicate Title]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let reference = try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchOne(db)!
 
@@ -145,7 +166,7 @@ extension Tests.AvoidDuplicatePagesTest {
 			)
 		}
 
-		expectNoDifference(try #require(updatedParagraph), paragraph)
+		try expectNoDifference(#require(updatedParagraph), paragraph)
 
 		var expectedReference = reference
 		expectedReference.targetBlockId = keeper.id
@@ -157,27 +178,39 @@ extension Tests.AvoidDuplicatePagesTest {
 		let (firstPage, secondPage, thirdPage, paragraphIDs) = try await database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let secondPage = try Page.insert {
 				Page(title: "Second Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let thirdPage = try Page.insert {
 				Page(title: "Third Title", createdAt: Date(timeIntervalSince1970: 200), updatedAt: Date(timeIntervalSince1970: 200))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let firstParagraph = try Paragraph.insert {
 				Paragraph(string: "First", parentId: firstPage.id, pageId: firstPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let secondParagraph = try Paragraph.insert {
 				Paragraph(string: "Second", parentId: secondPage.id, pageId: secondPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let thirdParagraph = try Paragraph.insert {
 				Paragraph(string: "Third", parentId: thirdPage.id, pageId: thirdPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			return (firstPage, secondPage, thirdPage, [firstParagraph.id, secondParagraph.id, thirdParagraph.id])
 		}
@@ -207,21 +240,26 @@ extension Tests.AvoidDuplicatePagesTest {
 		let (keeper, duplicatePage) = try await database.write { db in
 			let keeper = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			let duplicatePage = try Page.insert {
 				Page(title: "Other Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}.returning(\.self).fetchOne(db)!
+			}
+			.returning(\.self)
+			.fetchOne(db)!
 
 			try Paragraph.insert {
-				for order in 0..<3 {
+				for order in 0 ..< 3 {
 					Paragraph(string: "Keeper \(order)", parentId: keeper.id, pageId: keeper.id, order: order)
 				}
 
-				for order in 0..<3 {
+				for order in 0 ..< 3 {
 					Paragraph(string: "Duplicate \(order)", parentId: duplicatePage.id, pageId: duplicatePage.id, order: order)
 				}
-			}.execute(db)
+			}
+			.execute(db)
 
 			return (keeper, duplicatePage)
 		}
@@ -255,7 +293,7 @@ extension Tests.AvoidDuplicatePagesTest {
 			tap(&paragraphs[5]) { $0.order = 5 }
 		}
 
-		expectNoDifference(paragraphs.map(\.order).sorted(), Array(0..<6))
+		expectNoDifference(paragraphs.map(\.order).sorted(), Array(0 ..< 6))
 	}
 }
 
