@@ -21,6 +21,22 @@ struct InlineParser: Sendable {
 	/// Rules that don't provide start-character filters, sorted by priority (highest first).
 	private let unfilteredRules: [any Rule & Sendable]
 
+	/// Scratch storage that lives for a single `parse` call, so rules can memoize work across positions of the same text.
+	/// Only ever touched from the thread running that `parse` call.
+	private final class Scratch: @unchecked Sendable {
+		private var storage: [AnyHashable: Any] = [:]
+
+		func memo<Value>(key: some Hashable, make: () -> Value) -> Value {
+			if let value = storage[AnyHashable(key)] as? Value { return value }
+
+			let value = make()
+			storage[AnyHashable(key)] = value
+			return value
+		}
+	}
+
+	private var scratch: Scratch?
+
 	/// Default parser with all standard rules
 	static let `default` = InlineParser(rules: [
 		InlineCodeRule(),
@@ -74,6 +90,9 @@ struct InlineParser: Sendable {
 	func parse(_ text: String) -> [InlineSpan] {
 		guard !text.isEmpty else { return [] }
 
+		var parser = self
+		parser.scratch = Scratch()
+
 		var spans: [InlineSpan] = []
 		var index = text.startIndex
 		var plainTextStart = text.startIndex
@@ -91,7 +110,7 @@ struct InlineParser: Sendable {
 			// Try each rule in priority order
 			var matched = false
 			for rule in rulesToTry {
-				if let span = rule.match(in: text, at: index, using: self) {
+				if let span = rule.match(in: text, at: index, using: parser) {
 					// Emit accumulated plain text before this span
 					if plainTextStart < index {
 						spans.append(InlineSpan(
@@ -122,6 +141,12 @@ struct InlineParser: Sendable {
 		}
 
 		return spans
+	}
+
+	/// Returns the value memoized under `key` for the current `parse` call, creating it on first use.
+	func memo<Value>(key: some Hashable, make: () -> Value) -> Value {
+		guard let scratch else { return make() }
+		return scratch.memo(key: key, make: make)
 	}
 
 	/// Merge filtered and unfiltered rules while preserving global priority order.

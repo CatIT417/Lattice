@@ -61,6 +61,22 @@ extension Backlink {
 				)
 			}
 	}
+
+	static func unlinkedReferenceCount(forPage pageId: Page.ID, title: String) -> Select<Int, Paragraph, BlockText> {
+		Paragraph
+			.where { $0.pageId.neq(pageId) }
+			.where {
+				$0.id.notIn(
+					Reference
+						.select(\.sourceBlockId)
+						.where { $0.targetBlockId.eq(pageId) }
+				)
+			}
+			.join(BlockText.all) { $0.id.eq($1.blockID) }
+			.where { _, blockTexts in blockTexts.match(title.quoted()) }
+			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) }
+			.count()
+	}
 }
 
 extension [Backlink.GroupedByPage] {

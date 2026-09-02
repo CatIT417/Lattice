@@ -1750,4 +1750,15 @@ extension Tests.InlineParserTest {
 		expectNoDifference(1, spans.count)
 		expectNoDifference(.text, try #require(spans.first).kind)
 	}
+
+	@Test("unclosed openers stay plain text and only the innermost opener pairs with the closer")
+	func unclosedOpenersStayPlainText() throws {
+		let spans = InlineParser.default.parse("a *b *c *d end*")
+
+		expectNoDifference(2, spans.count)
+		expectNoDifference(.text, spans[0].kind)
+		expectNoDifference("a *b *c ", spans[0].content)
+		expectNoDifference(.italic, spans[1].kind)
+		expectNoDifference("d end", spans[1].content)
+	}
 }
