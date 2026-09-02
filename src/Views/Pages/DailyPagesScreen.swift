@@ -1,43 +1,53 @@
-import SwiftUI
 import Combine
+import SwiftUI
 import SQLiteData
 
-fileprivate func query(for date: Date) -> SelectOf<Page> {
+fileprivate let dailyPageBatchSize = 30
+fileprivate let dailyPageLoadThreshold = 5
+
+fileprivate func dailyPagesQuery(for date: Date, limit: Int) -> SelectOf<Page> {
 	let day: DayOfYear? = DayOfYear(date)
 
 	return Page
 		.where { $0.dailyNoteDate.isNot(nil) && $0.dailyNoteDate <= day }
 		.order(by: { $0.dailyNoteDate.desc() })
+		.limit(limit)
 }
 
 struct DailyPagesScreen: View {
+	private struct QueryID: Equatable {
+		let day: DayOfYear
+		let limit: Int
+	}
+
 	@State private var currentDate = Date()
+	@State private var pageLimit = dailyPageBatchSize
 	let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-	@Environment(Router.self) private var router
-	@FetchAll(query(for: Date())) var pages: [Page]
-	@Dependency(\.defaultDatabase) private var database
-
+	@FetchAll(dailyPagesQuery(for: Date(), limit: dailyPageBatchSize)) private var pages
 	var body: some View {
 		ScrollView {
 			LazyVStack {
 				ForEach(pages.enumerated(), id: \.element.id) { i, page in
-					if i > 0 {
-						Divider()
-							.padding(.bottom, 20)
-					}
+					VStack(spacing: 8) {
+						if i > 0 {
+							Divider()
+								.padding(.bottom, 20)
+						}
 
-					PageView(pageId: page.id)
-						.frame(minHeight: 250, alignment: .top)
+						PageView(pageId: page.id)
+							.frame(minHeight: 250, alignment: .top)
+					}
+					.onAppear { loadMorePagesIfNeeded(after: i) }
 				}
 			}
 			.scrollTargetLayout()
 		}
 		.unfocusBlockOnBackgroundTap()
 		.referenceSuggestionsOverlay()
-		.task(id: currentDate.timeIntervalSince1970) {
+		.task(id: QueryID(day: DayOfYear(currentDate), limit: pageLimit)) {
 			let _ = await withErrorReporting {
-				try await $pages.load(query(for: currentDate))
+				try await $pages.load(dailyPagesQuery(for: currentDate, limit: pageLimit)).task
 			}
 		}
 		.onReceive(timer) { newDate in
@@ -59,6 +69,12 @@ struct DailyPagesScreen: View {
 			}
 			#endif
 		}
+	}
+
+	private func loadMorePagesIfNeeded(after index: Int) {
+		guard index >= pages.count - dailyPageLoadThreshold, pages.count == pageLimit else { return }
+
+		pageLimit += dailyPageBatchSize
 	}
 }
 

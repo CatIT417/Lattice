@@ -30,6 +30,10 @@ struct LatticeApp: App {
 		}
 		#endif
 
+		#if !DEBUG
+		IssueReporters.current = IssueReporters.current + [OSLogIssueReporter()]
+		#endif
+
 		do {
 			try prepareDependencies {
 				try $0.bootstrapDatabase()
