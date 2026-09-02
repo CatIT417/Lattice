@@ -1,28 +1,36 @@
 import SwiftUI
 
 struct BlockTree {
+	private let paragraphsById: [Block.ID: Paragraph]
 	private let childrenByParentId: [Block.ID: [Paragraph]]
 
 	init(paragraphs: [Paragraph]) {
+		var indexed: [Block.ID: Paragraph] = [:]
 		var grouped: [Block.ID: [Paragraph]] = [:]
+
 		for p in paragraphs {
+			indexed[p.id] = p
 			grouped[p.parentId, default: []].append(p)
 		}
+
+		paragraphsById = indexed
 		childrenByParentId = grouped.mapValues { $0.sorted(using: KeyPathComparator(\.order, order: .forward)) }
 	}
 
-	private init(childrenByParentId: [Block.ID: [Paragraph]]) {
+	private init(childrenByParentId: [Block.ID: [Paragraph]], paragraphsById: [Block.ID: Paragraph]) {
+		self.paragraphsById = paragraphsById
 		self.childrenByParentId = childrenByParentId
 	}
 
 	func subset(only blocks: Set<Block.ID>) -> BlockTree {
+		var indexed: [Block.ID: Paragraph] = [:]
 		var result: [Block.ID: [Paragraph]] = [:]
 
 		for blockId in blocks {
-			copySubtree(of: blockId, into: &result)
+			copySubtree(of: blockId, into: &result, indexedBy: &indexed)
 		}
 
-		return BlockTree(childrenByParentId: result)
+		return BlockTree(childrenByParentId: result, paragraphsById: indexed)
 	}
 
 	func children(of parentId: Block.ID) -> [Paragraph] {
@@ -47,7 +55,7 @@ struct BlockTree {
 	}
 
 	func get(byID id: Block.ID) -> Paragraph? {
-		childrenByParentId.values.lazy.flatMap { $0 }.first(where: { $0.id == id })
+		paragraphsById[id]
 	}
 
 	func nextBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
@@ -73,12 +81,17 @@ struct BlockTree {
 		}
 	}
 
-	private func copySubtree(of parentId: Block.ID, into result: inout [Block.ID: [Paragraph]]) {
+	private func copySubtree(
+		of parentId: Block.ID,
+		into result: inout [Block.ID: [Paragraph]],
+		indexedBy indexed: inout [Block.ID: Paragraph]
+	) {
 		guard let children = childrenByParentId[parentId] else { return }
 
 		result[parentId] = children
 		for child in children {
-			copySubtree(of: child.id, into: &result)
+			indexed[child.id] = child
+			copySubtree(of: child.id, into: &result, indexedBy: &indexed)
 		}
 	}
 

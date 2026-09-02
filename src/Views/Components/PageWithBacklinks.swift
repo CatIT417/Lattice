@@ -2,9 +2,35 @@ import SwiftUI
 import SQLiteData
 
 struct PageWithBacklinks: View {
+	struct Content {
+		struct Input: Equatable {
+			let paragraphs: [Paragraph]
+			let referencedBlockIDs: [Block.ID]
+		}
+
+		var paragraphs: [Paragraph] = []
+		var tree = BlockTree(paragraphs: [])
+
+		init() {}
+
+		init(input: Input) {
+			var seen = Set<Block.ID>()
+			let tree = BlockTree(paragraphs: input.paragraphs)
+
+			self.tree = tree
+			paragraphs = input.referencedBlockIDs
+				.compactMap { id in
+					guard seen.insert(id).inserted else { return nil }
+					return tree.get(byID: id)
+				}
+				.sorted(using: KeyPathComparator(\.order, order: .forward))
+		}
+	}
+
 	let backlinks: Backlink.GroupedByPage
 
 	@State private var isExpanded = true
+	@State private var content = Content()
 	@FetchAll private var paragraphs: [Paragraph]
 
 	init(backlinks: Backlink.GroupedByPage) {
@@ -13,23 +39,23 @@ struct PageWithBacklinks: View {
 	}
 
 	var body: some View {
+		let input = Content.Input(
+			paragraphs: paragraphs,
+			referencedBlockIDs: backlinks.referencedBlockIDs
+		)
+
 		VStack(alignment: .leading, spacing: 8) {
 			DisclosureGroup(isExpanded: $isExpanded) {
-				let referencedIDs = Set(backlinks.referencedBlockIDs)
-				let referenced = paragraphs
-					.filter { referencedIDs.contains($0.id) }
-					.sorted(using: KeyPathComparator(\.order, order: .forward))
-
-				if !referenced.isEmpty {
+				if !content.paragraphs.isEmpty {
 					LazyVStack(alignment: .leading, spacing: 8) {
-						ForEach(referenced) { paragraph in
+						ForEach(content.paragraphs) { paragraph in
 							ParagraphView(paragraph: paragraph)
 								.padding(12)
 								.environment(\.rootBlockID, paragraph.id)
 								.background(.thinMaterial, in: .rect(cornerRadius: 12))
 						}
 					}
-					.environment(\.blockTree, BlockTree(paragraphs: paragraphs))
+					.environment(\.blockTree, content.tree)
 				}
 			} label: {
 				NavigationButton(push: .page(id: backlinks.pageID)) {
@@ -46,6 +72,9 @@ struct PageWithBacklinks: View {
 				#endif
 			}
 			.disclosureGroupStyle(LeftLabelSectionDisclosureStyle(hidesArrowOnHover: false))
+		}
+		.onChange(of: input, initial: true) { _, input in
+			content = Content(input: input)
 		}
 	}
 }

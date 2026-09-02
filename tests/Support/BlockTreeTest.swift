@@ -22,4 +22,24 @@ extension Tests.BlockTreeTest {
 
 		expectNoDifference([0, 1, 2], tree.children(of: pageID).map(\.order))
 	}
+
+	@Test("Paragraph lookup returns the paragraph with the given ID")
+	func getsParagraphByID() {
+		let pageID = UUID()
+		let paragraph = Paragraph(string: "Block", parentId: pageID, pageId: pageID, order: 0)
+		let tree = BlockTree(paragraphs: [paragraph])
+
+		expectNoDifference(paragraph, tree.get(byID: paragraph.id))
+		#expect(tree.get(byID: UUID()) == nil)
+	}
+
+	@Test("Subset lookup returns copied descendants")
+	func subsetGetsDescendantsByID() {
+		let pageID = UUID()
+		let parent = Paragraph(string: "Parent", parentId: pageID, pageId: pageID, order: 0)
+		let child = Paragraph(string: "Child", parentId: parent.id, pageId: pageID, order: 0)
+		let tree = BlockTree(paragraphs: [parent, child]).subset(only: [parent.id])
+
+		expectNoDifference(child, tree.get(byID: child.id))
+	}
 }
