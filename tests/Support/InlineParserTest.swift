@@ -1732,4 +1732,22 @@ extension Tests.InlineParserTest {
 			"""
 		}
 	}
+
+	@Test("escaped delimiter inside emphasis is skipped, closer after it still matches")
+	func escapedDelimiterInsideEmphasisIsSkipped() throws {
+		let spans = InlineParser.default.parse(#"*foo \* bar*"#)
+
+		expectNoDifference(1, spans.count)
+		let italic = try #require(spans.first)
+		expectNoDifference(.italic, italic.kind)
+		expectNoDifference(#"foo \* bar"#, italic.content)
+	}
+
+	@Test("escaped delimiter does not close emphasis")
+	func escapedDelimiterDoesNotCloseEmphasis() throws {
+		let spans = InlineParser.default.parse(#"*foo\*"#)
+
+		expectNoDifference(1, spans.count)
+		expectNoDifference(.text, try #require(spans.first).kind)
+	}
 }

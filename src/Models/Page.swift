@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 import CoreTransferable
 import UniformTypeIdentifiers
 
@@ -84,6 +84,8 @@ extension Page {
 extension Page {
 	static func findOrCreate(title: String, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
 		@Dependency(\.date.now) var now
+
+		let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
 		let newlyCreatedBlock = try #sql("""
 		INSERT INTO \(Block.self) (title, createdAt, updatedAt)

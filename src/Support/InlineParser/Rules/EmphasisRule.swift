@@ -77,11 +77,13 @@ struct EmphasisRule: InlineParser.Rule, Sendable {
 		let contentStart = text.index(index, offsetBy: openerLen)
 		guard contentStart < text.endIndex else { return nil }
 
-		// Scan forward with inner-opener stack
+		// Scan forward with inner-opener stack, one token at a time so we stop at the closer
 		var stack: [Int] = []
-		let remaining = text[contentStart...]
+		var searchStart = contentStart
 
-		for token in remaining.matches(of: delimiter.tokenPattern) {
+		while let token = text[searchStart...].firstMatch(of: delimiter.tokenPattern) {
+			searchStart = token.range.upperBound
+
 			guard let run = token.1 else {
 				// Escaped character token (e.g. \*) - delimiters inside it are inert.
 				continue

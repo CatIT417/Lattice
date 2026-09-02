@@ -16,7 +16,7 @@ struct TextRef {
 		guard let refKind = span.kind.asReferenceKind else { return nil }
 		kind = refKind
 		range = span.range
-		target = span.content
+		target = span.content.trimmingCharacters(in: .whitespacesAndNewlines)
 	}
 
 	private static let urlAllowed = tap(CharacterSet.urlPathAllowed) {
