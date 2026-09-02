@@ -42,25 +42,32 @@ struct EditableTextView: UIViewRepresentable {
 		textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
 		textView.withKeyboardActions(items: [
-			UIBarButtonItem(image: UIImage(systemName: "chevron.backward"), primaryAction: UIAction { _ in
-				context.coordinator.outdent(textView: textView)
+			UIBarButtonItem(image: UIImage(systemName: "chevron.backward"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.outdent(textView: textView)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "chevron.forward"), primaryAction: UIAction { _ in
-				context.coordinator.indent(textView: textView)
+			UIBarButtonItem(image: UIImage(systemName: "chevron.forward"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.indent(textView: textView)
 			}),
-			UIBarButtonItem(image: UIImage(named: "brackets"), primaryAction: UIAction { _ in
-				context.coordinator.insertBrackets(textView: textView)
+			UIBarButtonItem(image: UIImage(named: "brackets"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.insertBrackets(textView: textView)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { _ in
-				context.coordinator.moveBlock(textView: textView, delta: -1)
+			UIBarButtonItem(image: UIImage(systemName: "arrow.up"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.moveBlock(textView: textView, delta: -1)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "arrow.down"), primaryAction: UIAction { _ in
-				context.coordinator.moveBlock(textView: textView, delta: 1)
+			UIBarButtonItem(image: UIImage(systemName: "arrow.down"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.moveBlock(textView: textView, delta: 1)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "checkmark.square"), primaryAction: UIAction { _ in
-				context.coordinator.toggleTodo(textView: textView)
+			UIBarButtonItem(image: UIImage(systemName: "checkmark.square"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
+				coordinator.toggleTodo(textView: textView)
 			}),
-			UIBarButtonItem(image: UIImage(systemName: "photo"), primaryAction: UIAction { _ in
+			UIBarButtonItem(image: UIImage(systemName: "photo"), primaryAction: UIAction { [weak textView] _ in
+				guard let textView, let coordinator = textView.delegate as? Coordinator else { return }
 				// TODO: Add photo button
 			}),
 			UIBarButtonItem(systemItem: .flexibleSpace),
@@ -158,7 +165,7 @@ struct EditableTextView: UIViewRepresentable {
 }
 
 extension EditableTextView {
-	@MainActor class Coordinator: NSObject {
+	@MainActor final class Coordinator: NSObject {
 		var isEditing = false
 		var lastKnownText: String
 		var lastKnownFont: UIFont
@@ -223,7 +230,7 @@ extension EditableTextView {
 		}
 
 		func moveCursorTo(offset: Int, textView: UITextView) {
-			if let position = textView.position(from: textView.beginningOfDocument, offset: clamp(offset, to: 0...textView.attributedText.length)) {
+			if let position = textView.position(from: textView.beginningOfDocument, offset: clamp(offset, to: 0 ... textView.attributedText.length)) {
 				textView.selectedTextRange = textView.textRange(from: position, to: position)
 			}
 		}
