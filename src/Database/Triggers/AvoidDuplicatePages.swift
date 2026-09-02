@@ -7,21 +7,23 @@ final class AvoidDuplicatePages: Trigger {
 
 	static func install(in db: Database) throws {
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { page in
-			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
+			Select($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { block in
 			block.title.isNot(nil) && Page.where { block.title.eq($0.title) && $0.id.neq(block.id) }.exists()
-		})).execute(db)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(forEachRow: { _, page in
-			Values($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
+			Select($unifyPagesWithSameTitle(title: page.title.unsafelyUnwrapped))
 		}, when: { _, block in
 			block.title.isNot(nil) && Page.where { block.title.eq($0.title) && $0.id.neq(block.id) }.exists()
-		})).execute(db)
+		}))
+		.execute(db)
 	}
 }
 
 @DatabaseFunction(isDeterministic: false)
-func unifyPagesWithSameTitle(title: String) throws {
+func unifyPagesWithSameTitle(title: String) {
 	Task {
 		@Dependency(\.defaultDatabase) var database
 
@@ -37,13 +39,15 @@ func unifyPagesWithSameTitle(title: String) throws {
 					let affectedReferences = try Reference.where { $0.targetBlockId.eq(duplicatePage.id) }.fetchAll(db)
 
 					for block in affectedRecords {
-						try Block.find(block.id).update {
-							$0.pageId = #bind(keeper.id)
+						try Block.find(block.id)
+							.update {
+								$0.pageId = #bind(keeper.id)
 
-							if block.parentId == duplicatePage.id {
-								$0.parentId = #bind(keeper.id)
+								if block.parentId == duplicatePage.id {
+									$0.parentId = #bind(keeper.id)
+								}
 							}
-						}.execute(db)
+							.execute(db)
 					}
 
 					for reference in affectedReferences {

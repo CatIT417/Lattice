@@ -71,8 +71,8 @@ extension QueryExpression where QueryValue: _OptionalProtocol, QueryValue.Wrappe
 	func withTodoState(_ state: TodoState?) -> SQLQueryExpression<String?> {
 		let s = unsafelyUnwrapped
 		let stripped = Case()
-			.when(s.hasPrefix(TodoState.todo.prefix), then: s.substr(14))
-			.when(s.hasPrefix(TodoState.done.prefix), then: s.substr(14))
+			.when(s.like("\(TodoState.todo.prefix)%"), then: s.substr(14))
+			.when(s.like("\(TodoState.done.prefix)%"), then: s.substr(14))
 			.else(s)
 
 		guard let state else { return SQLQueryExpression("\(stripped)", as: String?.self) }

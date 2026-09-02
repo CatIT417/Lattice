@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 fileprivate nonisolated let logger = Logger(category: "Database")
 
@@ -86,7 +86,7 @@ func seedDatabase() {
 	@Dependency(\.defaultDatabase) var database
 
 	withErrorReporting {
-		let hasSeeded = try database.read { try Values(Block.exists()).fetchOne($0) }
+		let hasSeeded = try database.read { try Select(Block.exists()).fetchOne($0) }
 		guard !(hasSeeded ?? false) else { return }
 
 		try database.seed(SeedDatabase.self)

@@ -1,5 +1,5 @@
-import SwiftUI
 import Sharing
+import SwiftUI
 import SQLiteData
 
 fileprivate typealias Tabs = Destination.Tabs
@@ -7,7 +7,7 @@ fileprivate typealias Tabs = Destination.Tabs
 struct RootContainer: View {
 	@Dependency(\.defaultDatabase) var database
 	@Dependency(\.defaultSyncEngine) var syncEngine
-	@State var router = Router(level: 0, identifierTab: nil)
+	@State private var router = Router(level: 0, identifierTab: nil)
 	@Shared(.appStorage("sidebarCustomizations")) var tabViewCustomization = TabViewCustomization()
 
 	#if os(iOS)
@@ -69,7 +69,7 @@ struct RootContainer: View {
 
 		withErrorReporting {
 			guard let hasPage = try database.read({ db in
-				try Values(Page.where { $0.dailyNoteDate.eq(date) }.exists()).fetchOne(db)
+				try Select(Page.where { $0.dailyNoteDate.eq(date) }.exists()).fetchOne(db)
 			}), !hasPage else { return }
 
 			_ = try database.write { try Page.createDailyNote(for: date, in: $0) }

@@ -88,8 +88,9 @@ extension GRDB.TableDefinition {
 	func constraint(_ sql: SQLQueryExpression<Bool>) {
 		constraint(sql: sql.queryFragment.segments.reduce(into: "") { string, segment in
 			switch segment {
-				case let .sql(sql): string.append(sql)
 				case .binding: string.append("?")
+				case let .sql(sql): string.append(sql)
+				case let .identifier(ident): string.append(ident.name)
 			}
 		})
 	}

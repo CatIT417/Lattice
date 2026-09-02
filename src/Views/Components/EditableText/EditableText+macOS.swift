@@ -361,10 +361,6 @@ extension EditableTextView {
 extension EditableTextView.Coordinator: NSTextViewDelegate {
 	// MARK: - Focus/Edit Mode Transitions
 
-	func textDidBeginEditing(_ notification: Notification) {
-		guard let textView = notification.object as? NSTextView else { return }
-	}
-
 	func textViewDidChangeSelection(_ notification: Notification) {
 		guard let textView = notification.object as? NSTextView else { return }
 

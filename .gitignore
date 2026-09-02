@@ -58,6 +58,10 @@ DerivedData/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
+!Lattice.xcodeproj/project.xcworkspace/
+!Lattice.xcodeproj/project.xcworkspace/xcshareddata/
+!Lattice.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!Lattice.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 !*.xcworkspace/contents.xcworkspacedata
 /*.gcno
 

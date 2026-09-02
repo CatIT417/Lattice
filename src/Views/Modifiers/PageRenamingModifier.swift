@@ -67,15 +67,17 @@ struct PageRenamingModifier: ViewModifier {
 
 		withErrorReporting {
 			try database.write { db in
-				if let existingPage = try Values(Page.where { $0.title.eq(trimmedTitle) }.exists()).fetchOne(db), existingPage {
+				if let existingPage = try Select(Page.where { $0.title.eq(trimmedTitle) }.exists()).fetchOne(db), existingPage {
 					// TODO: Offer to merge pages
 					error = .existing
 					return
 				}
 
-				try Block.find(page.id).update {
-					$0.title = #bind(trimmedTitle)
-				}.execute(db)
+				try Block.find(page.id)
+					.update {
+						$0.title = #bind(trimmedTitle)
+					}
+					.execute(db)
 			}
 		}
 	}

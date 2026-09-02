@@ -94,8 +94,11 @@ enum Level {
 }
 
 struct OSLogIssueReporter: IssueReporter {
-	func reportIssue(_ message: @autoclosure () -> String?, fileID _: StaticString, filePath: StaticString, line: UInt, column _: UInt) {
-		Logger.app.error(message() ?? "Unexpected developer error in \(filePath):\(line)")
+	func reportIssue(_ message: @autoclosure () -> String?, severity: IssueSeverity, fileID _: StaticString, filePath: StaticString, line: UInt, column _: UInt) {
+		switch severity {
+			case .error: Logger.app.error(message() ?? "Unexpected developer error in \(filePath):\(line)")
+			case .warning: Logger.app.warning(message() ?? "Unexpected developer error in \(filePath):\(line)")
+		}
 	}
 
 	func reportIssue(_ error: any Error, _ message: @autoclosure () -> String?, fileID _: StaticString, filePath: StaticString, line: UInt, column _: UInt) {

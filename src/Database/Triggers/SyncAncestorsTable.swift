@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 final class SyncAncestorsTable: Trigger {
 	/// Registers the SQLite function used by the trigger.
@@ -15,12 +15,14 @@ final class SyncAncestorsTable: Trigger {
 			Self.propagateParentAncestors(for: block)
 		}, when: {
 			$0.parentId.isNot(nil)
-		})).execute(database)
+		}))
+		.execute(database)
 
 		// When moving a block (parent changes)
 		try Block.createTemporaryTrigger(after: .update(of: \.parentId, forEachRow: { _, new in
-			Values($rebuildAncestorsForSubtree(blockId: new.id))
-		}, when: { $0.parentId.neq($1.parentId) })).execute(database)
+			Select($rebuildAncestorsForSubtree(blockId: new.id))
+		}, when: { $0.parentId.neq($1.parentId) }))
+			.execute(database)
 	}
 
 	/// Inserts the parent as the direct ancestor for a new block.
@@ -47,7 +49,7 @@ final class SyncAncestorsTable: Trigger {
 
 /// Rebuilds all ancestor rows for a moved block and its descendants.
 @DatabaseFunction
-func rebuildAncestorsForSubtree(blockId: Block.ID) throws {
+func rebuildAncestorsForSubtree(blockId: Block.ID) {
 	@Dependency(\.defaultDatabase) var database
 
 	withErrorReporting {

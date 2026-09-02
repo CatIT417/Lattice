@@ -8,41 +8,45 @@ final class SyncReferencesTable: Trigger {
 
 	static func install(in db: Database) throws {
 		try Block.createTemporaryTrigger(after: .insert(forEachRow: { block in
-			Values($syncReferencesFromText(
+			Select($syncReferencesFromText(
 				new: block.string.unsafelyUnwrapped,
 				forBlockID: block.id,
 				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId.eq(block.id) }.exists()
 			))
 		}, when: { block in
 			block.string.isNot(nil)
-		})).execute(db)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.string, forEachRow: { _, block in
-			Values($syncReferencesFromText(
+			Select($syncReferencesFromText(
 				new: block.string.unsafelyUnwrapped,
 				forBlockID: block.id,
 				hasExistingReferencesInDatabase: Reference.where { $0.sourceBlockId.eq(block.id) }.exists()
 			))
 		}, when: { old, new in
 			new.string.isNot(nil) && old.string.neq(new.string)
-		})).execute(db)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.title, forEachRow: { old, new in
-			Values($updatePageTitleInReferences(old: old.title.unsafelyUnwrapped, new: new.title.unsafelyUnwrapped, forPageID: new.id))
+			Select($updatePageTitleInReferences(old: old.title.unsafelyUnwrapped, new: new.title.unsafelyUnwrapped, forPageID: new.id))
 		}, when: { old, new in
 			new.title.isNot(nil) && old.title.neq(new.title) && Reference.where { $0.targetBlockId.eq(new.id) }.exists()
-		})).execute(db)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(before: .delete(forEachRow: { block in
-			Values($cleanReferencesForDeletedPage(title: block.title.unsafelyUnwrapped, forPageID: block.id))
+			Select($cleanReferencesForDeletedPage(title: block.title.unsafelyUnwrapped, forPageID: block.id))
 		}, when: { block in
 			block.title.isNot(nil) && Reference.where { $0.targetBlockId.eq(block.id) }.exists()
-		})).execute(db)
+		}))
+		.execute(db)
 	}
 }
 
 @DatabaseFunction
-func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasExistingReferencesInDatabase: Bool) throws {
+func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasExistingReferencesInDatabase: Bool) {
 	@Dependency(\.uuid) var uuid
 	@Dependency(\.defaultDatabase) var database
 
@@ -60,13 +64,14 @@ func syncReferencesFromText(new: String, forBlockID blockID: Paragraph.ID, hasEx
 				for reference in references {
 					Reference(id: uuid(), sourceBlockId: blockID, targetBlockId: reference.targetID, kind: reference.kind)
 				}
-			}.execute(db)
+			}
+			.execute(db)
 		}
 	}
 }
 
 @DatabaseFunction
-func cleanReferencesForDeletedPage(title: String, forPageID pageID: Page.ID) throws {
+func cleanReferencesForDeletedPage(title: String, forPageID pageID: Page.ID) {
 	@Dependency(\.defaultDatabase) var database
 
 	withErrorReporting {
@@ -110,16 +115,18 @@ func cleanReferencesForDeletedPage(title: String, forPageID pageID: Page.ID) thr
 				let updated = mutable as String
 				guard updated != original else { continue }
 
-				try Block.find(block.id).update {
-					$0.string = #bind(updated)
-				}.execute(db)
+				try Block.find(block.id)
+					.update {
+						$0.string = #bind(updated)
+					}
+					.execute(db)
 			}
 		}
 	}
 }
 
 @DatabaseFunction
-func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Page.ID) throws {
+func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Page.ID) {
 	@Dependency(\.defaultDatabase) var database
 
 	withErrorReporting {
@@ -151,9 +158,11 @@ func updatePageTitleInReferences(old: String, new: String, forPageID pageID: Pag
 				let updated = mutable as String
 				guard updated != original else { continue }
 
-				try Block.find(block.id).update {
-					$0.string = #bind(updated)
-				}.execute(db)
+				try Block.find(block.id)
+					.update {
+						$0.string = #bind(updated)
+					}
+					.execute(db)
 			}
 		}
 	}
