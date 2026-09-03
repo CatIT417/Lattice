@@ -6,20 +6,20 @@ import SQLiteData
 import DependenciesTestSupport
 
 extension Tests {
-	@Suite("Database/Triggers/AvoidDuplicatePages", .dependencies {
+	@Suite("Database/Maintenance/MergeDuplicatePages", .dependencies {
 		try $0.bootstrapDatabase()
 		$0.date = .constant(.distantPast)
 	})
-	struct AvoidDuplicatePagesTest {
+	struct MergeDuplicatePagesTest {
 		@FetchAll(Paragraph.order(by: \.string)) var paragraphs
 		@Dependency(\.defaultDatabase) var database
 	}
 }
 
-extension Tests.AvoidDuplicatePagesTest {
-	@Test("Inserting a duplicate Page merges it into the oldest Page")
-	func insertingDuplicatePageMergesIntoOldest() async throws {
-		let (firstPage, duplicatePage, rootParagraph, childParagraph) = try await database.write { db in
+extension Tests.MergeDuplicatePagesTest {
+	@Test("Merging a duplicate Page moves its Paragraphs into the oldest Page")
+	func mergingDuplicatePageMovesParagraphsIntoOldest() throws {
+		let (firstPage, duplicatePage, rootParagraph, childParagraph) = try database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Duplicate Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
 			}
@@ -47,33 +47,30 @@ extension Tests.AvoidDuplicatePagesTest {
 			return (firstPage, duplicatePage, rootParagraph, childParagraph)
 		}
 
-		let pages = try await waitForPages(title: "Duplicate Title", expectedCount: 1)
-		#expect(pages.count == 1)
+		let merges = try database.write { try MergeDuplicatePages.run(in: $0) }
+		expectNoDifference(merges, [.init(loser: duplicatePage.id, keeper: firstPage.id)])
 
-		let keeper = try #require(pages.first)
-		expectNoDifference(keeper.id, firstPage.id)
-
-		let duplicateExists = try await database.read { db in
-			try Select(Page.find(duplicatePage.id).exists()).fetchOne(db)
+		let pages = try database.read { db in
+			try Page.where { $0.title.eq("Duplicate Title") }.fetchAll(db)
 		}
-		#expect(duplicateExists == false)
+		expectNoDifference(pages.map(\.id), [firstPage.id])
 
-		let updatedRoot = try #require(await database.read { db in
+		let updatedRoot = try #require(database.read { db in
 			try Paragraph.find(rootParagraph.id).fetchOne(db)
 		})
 		expectNoDifference(updatedRoot.pageId, firstPage.id)
 		expectNoDifference(updatedRoot.parentId, firstPage.id)
 
-		let updatedChild = try #require(await database.read { db in
+		let updatedChild = try #require(database.read { db in
 			try Paragraph.find(childParagraph.id).fetchOne(db)
 		})
 		expectNoDifference(updatedChild.pageId, firstPage.id)
 		expectNoDifference(updatedChild.parentId, rootParagraph.id)
 	}
 
-	@Test("Updating a Page title to an existing title merges pages")
-	func updatingTitleMergesPages() async throws {
-		let (firstPage, secondPage, rootParagraph) = try await database.write { db in
+	@Test("Pages renamed to an existing title are merged")
+	func renamedPagesAreMerged() throws {
+		let (firstPage, secondPage, rootParagraph) = try database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
 			}
@@ -95,22 +92,17 @@ extension Tests.AvoidDuplicatePagesTest {
 			return (firstPage, secondPage, rootParagraph)
 		}
 
-		try await database.write { db in
+		try database.write { db in
 			try Block.find(secondPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
+			try MergeDuplicatePages.run(in: db)
 		}
 
-		let pages = try await waitForPages(title: "Shared Title", expectedCount: 1)
-		#expect(pages.count == 1)
-
-		let keeper = try #require(pages.first)
-		expectNoDifference(keeper.id, firstPage.id)
-
-		let duplicateExists = try await database.read { db in
-			try Select(Page.find(secondPage.id).exists()).fetchOne(db)
+		let pages = try database.read { db in
+			try Page.where { $0.title.eq("Shared Title") }.fetchAll(db)
 		}
-		#expect(duplicateExists == false)
+		expectNoDifference(pages.map(\.id), [firstPage.id])
 
-		let updatedRoot = try #require(await database.read { db in
+		let updatedRoot = try #require(database.read { db in
 			try Paragraph.find(rootParagraph.id).fetchOne(db)
 		})
 		expectNoDifference(updatedRoot.pageId, firstPage.id)
@@ -118,8 +110,8 @@ extension Tests.AvoidDuplicatePagesTest {
 	}
 
 	@Test("Merging a referenced duplicate Page repoints the Reference")
-	func mergingReferencedDuplicateRepointsReference() async throws {
-		let (keeper, duplicatePage, paragraph, reference) = try await database.write { db in
+	func mergingReferencedDuplicateRepointsReference() throws {
+		let (keeper, duplicatePage, paragraph, reference) = try database.write { db in
 			let keeper = try Page.insert {
 				Page(title: "Keeper Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
 			}
@@ -151,15 +143,17 @@ extension Tests.AvoidDuplicatePagesTest {
 
 		expectNoDifference(reference.targetBlockId, duplicatePage.id)
 
-		try await database.write { db in
+		try database.write { db in
 			try Block.find(keeper.id).update { $0.title = #bind("Duplicate Title") }.execute(db)
+			try MergeDuplicatePages.run(in: db)
 		}
 
-		let pages = try await waitForPages(title: "Duplicate Title", expectedCount: 1)
-		let survivingPage = try #require(pages.first)
-		expectNoDifference(survivingPage.id, keeper.id)
+		let pages = try database.read { db in
+			try Page.where { $0.title.eq("Duplicate Title") }.fetchAll(db)
+		}
+		expectNoDifference(pages.map(\.id), [keeper.id])
 
-		let (updatedParagraph, references) = try await database.read { db in
+		let (updatedParagraph, references) = try database.read { db in
 			try (
 				Paragraph.find(paragraph.id).fetchOne(db),
 				Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
@@ -174,8 +168,8 @@ extension Tests.AvoidDuplicatePagesTest {
 	}
 
 	@Test("Merging three Pages keeps one Page with all Paragraphs attached")
-	func mergingThreePagesKeepsAllParagraphs() async throws {
-		let (firstPage, secondPage, thirdPage, paragraphIDs) = try await database.write { db in
+	func mergingThreePagesKeepsAllParagraphs() throws {
+		let (firstPage, secondPage, thirdPage, paragraphIDs) = try database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
 			}
@@ -215,16 +209,23 @@ extension Tests.AvoidDuplicatePagesTest {
 			return (firstPage, secondPage, thirdPage, [firstParagraph.id, secondParagraph.id, thirdParagraph.id])
 		}
 
-		try await database.write { db in
+		let merges = try database.write { db in
 			try Block.find(secondPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
 			try Block.find(thirdPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
+			return try MergeDuplicatePages.run(in: db)
 		}
 
-		let pages = try await waitForPages(title: "Shared Title", expectedCount: 1)
-		let survivingPage = try #require(pages.first)
-		expectNoDifference(survivingPage.id, firstPage.id)
+		expectNoDifference(merges, [
+			.init(loser: secondPage.id, keeper: firstPage.id),
+			.init(loser: thirdPage.id, keeper: firstPage.id),
+		])
 
-		let attachedParagraphs = try await database.read { db in
+		let pages = try database.read { db in
+			try Page.where { $0.title.eq("Shared Title") }.fetchAll(db)
+		}
+		expectNoDifference(pages.map(\.id), [firstPage.id])
+
+		let attachedParagraphs = try database.read { db in
 			try Paragraph.order(by: \.string).fetchAll(db)
 		}
 
@@ -269,10 +270,8 @@ extension Tests.AvoidDuplicatePagesTest {
 		await expectDifference($paragraphs) {
 			try await database.write { db in
 				try Block.find(duplicatePage.id).update { $0.title = #bind("Shared Title") }.execute(db)
+				try MergeDuplicatePages.run(in: db)
 			}
-
-			let pages = try await waitForPages(title: "Shared Title", expectedCount: 1)
-			expectNoDifference(pages.count, 1)
 		} changes: { paragraphs in
 			tap(&paragraphs[0]) {
 				$0.pageId = keeper.id
@@ -295,28 +294,54 @@ extension Tests.AvoidDuplicatePagesTest {
 
 		expectNoDifference(paragraphs.map(\.order).sorted(), Array(0 ..< 6))
 	}
-}
 
-extension Tests.AvoidDuplicatePagesTest {
-	private func waitForPages(
-		title: String,
-		expectedCount: Int,
-		timeout: TimeInterval = 1.0
-	) async throws -> [Page] {
-		let deadline = Date().addingTimeInterval(timeout)
-		var pages: [Page] = []
-
-		while Date() < deadline {
-			pages = try await database.read { db in
-				try Page.where { $0.title.eq(title) }
-					.order { $0.createdAt.asc() }
-					.fetchAll(db)
+	@Test("The keeper is the oldest Page, with the smallest id breaking ties")
+	func keeperIsChosenByCreatedAtThenID() throws {
+		let (first, second, third) = try database.write { db in
+			let first = try Page.insert {
+				Page(title: "Tie", createdAt: Date(timeIntervalSince1970: 50), updatedAt: Date(timeIntervalSince1970: 50))
 			}
+			.returning(\.self)
+			.fetchOne(db)!
 
-			if pages.count == expectedCount { return pages }
-			try await Task.sleep(for: .seconds(0.5))
+			let second = try Page.insert {
+				Page(title: "Tie", createdAt: Date(timeIntervalSince1970: 50), updatedAt: Date(timeIntervalSince1970: 50))
+			}
+			.returning(\.self)
+			.fetchOne(db)!
+
+			let third = try Page.insert {
+				Page(title: "Tie", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
+			}
+			.returning(\.self)
+			.fetchOne(db)!
+
+			return (first, second, third)
 		}
 
-		return pages
+		#expect(first.id < second.id)
+
+		let merges = try database.write { try MergeDuplicatePages.run(in: $0) }
+		expectNoDifference(merges, [
+			.init(loser: first.id, keeper: third.id),
+			.init(loser: second.id, keeper: third.id),
+		])
+	}
+
+	@Test("Running the merge on an already merged database does nothing")
+	func runIsIdempotent() throws {
+		try database.write { db in
+			try Page.insert {
+				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
+				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
+			}
+			.execute(db)
+		}
+
+		let first = try database.write { try MergeDuplicatePages.run(in: $0) }
+		let second = try database.write { try MergeDuplicatePages.run(in: $0) }
+
+		expectNoDifference(first.count, 1)
+		expectNoDifference(second, [])
 	}
 }

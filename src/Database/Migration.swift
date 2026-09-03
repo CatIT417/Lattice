@@ -77,7 +77,7 @@ extension DatabaseMigrator {
 extension GRDB.TableDefinition {
 	@discardableResult
 	func primaryUUID(_ name: String) -> ColumnDefinition {
-		column(name, .text).primaryKey(onConflict: .replace).notNull().defaults(sql: "(uuid())")
+		column(name, .text).primaryKey().notNull().defaults(sql: "(uuid())")
 	}
 
 	@discardableResult

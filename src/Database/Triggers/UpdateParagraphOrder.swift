@@ -15,8 +15,9 @@ final class UpdateParagraphOrder: Trigger {
 
 			TriggerGuard.decrement()
 		}, when: { block in
-			block.string.isNot(nil)
-		})).execute(db)
+			!SyncEngine.$isSynchronizing && block.string.isNot(nil)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.parentId, forEachRow: { old, new in
 			TriggerGuard.increment()
@@ -36,8 +37,9 @@ final class UpdateParagraphOrder: Trigger {
 
 			TriggerGuard.decrement()
 		}, when: { old, new in
-			new.string.isNot(nil) && old.parentId.neq(new.parentId)
-		})).execute(db)
+			!SyncEngine.$isSynchronizing && new.string.isNot(nil) && old.parentId.neq(new.parentId)
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update(of: \.order, forEachRow: { old, new in
 			// Moving down: shift (old, new] down by 1
@@ -65,8 +67,9 @@ final class UpdateParagraphOrder: Trigger {
 			// Clamp to max order in parent
 			Self.clampToMaxOrder(for: new)
 		}, when: { old, new in
-			new.string.isNot(nil) && old.parentId.eq(new.parentId) && !TriggerGuard.isActive
-		})).execute(db)
+			!SyncEngine.$isSynchronizing && new.string.isNot(nil) && old.parentId.eq(new.parentId) && !TriggerGuard.isActive
+		}))
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .delete(forEachRow: { paragraph in
 			TriggerGuard.increment()
@@ -77,8 +80,9 @@ final class UpdateParagraphOrder: Trigger {
 
 			TriggerGuard.decrement()
 		}, when: { block in
-			block.string.isNot(nil)
-		})).execute(db)
+			!SyncEngine.$isSynchronizing && block.string.isNot(nil)
+		}))
+		.execute(db)
 	}
 
 	@QueryFragmentBuilder<any Statement> private static func clampToMaxOrder<AliasName>(for paragraph: TableAlias<Block, AliasName>.TableColumns) -> [QueryFragment] {
@@ -90,7 +94,6 @@ final class UpdateParagraphOrder: Trigger {
 		// Finally, we clamp the inserted paragraph's order to not exceed the max if needed
 		Block
 			.where { $0.id.eq(paragraph.id) && $0.order > maxOrder }
-			.where { _ in !SyncEngine.$isSynchronizing }
 			.update { $0.order = maxOrder }
 	}
 }

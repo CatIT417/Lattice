@@ -48,8 +48,6 @@ func makeDatabase() throws -> any DatabaseWriter {
 }
 
 func prepareDatabase(_ database: any DatabaseWriter) throws {
-	@Dependency(\.context) var context
-
 	var migrator = DatabaseMigrator()
 	#if DEBUG
 	if Bundle.main.isDev { migrator.eraseDatabaseOnSchemaChange = true }
@@ -71,15 +69,10 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 
 		TouchTimestamps.self,
 		SyncAncestorsTable.self,
-		AvoidDuplicatePages.self,
 		SyncReferencesTable.self,
 		UpdateParagraphOrder.self,
 		SyncBlocksFTSTable.self,
 	])
-
-	if context == .live, Bundle.main.isDev {
-		Task { seedDatabase() }
-	}
 }
 
 func seedDatabase() {

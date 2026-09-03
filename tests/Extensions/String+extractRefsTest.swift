@@ -127,8 +127,15 @@ extension Tests.StringExtractRefsTest {
 		let text = "[[My Page]] #myTag ((\(uuidString)))"
 		let refs = text.extractRefs()
 
+		try database.write { db in
+			let hostPage = try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)!
+			try Paragraph.insert {
+				Paragraph(id: UUID(uuidString: uuidString)!, string: "Target", parentId: hostPage.id, pageId: hostPage.id, order: 0)
+			}.execute(db)
+		}
+
 		let resolved = try database.write { db in
-			try refs.map { try $0.resolved(using: db) }
+			try refs.compactMap { try $0.resolved(using: db, createMissingPages: true) }
 		}
 
 		let tagResolved = try #require(resolved.first { $0.kind == .tag })
@@ -154,9 +161,9 @@ extension Tests.StringExtractRefsTest {
 		let refs = "[[\(dailyTitle)]]".extractRefs()
 		let ref = try #require(refs.first)
 
-		let resolved = try database.write { db in
-			try ref.resolved(using: db)
-		}
+		let resolved = try #require(database.write { db in
+			try ref.resolved(using: db, createMissingPages: true)
+		})
 
 		let page = try #require(database.read { db in
 			try Page.find(resolved.targetID).fetchOne(db)
@@ -165,6 +172,26 @@ extension Tests.StringExtractRefsTest {
 		#expect(resolved.kind == .pageLink)
 		expectNoDifference(page.dailyNoteDate, day)
 		expectNoDifference(page.title, dailyTitle)
+	}
+
+	@Test("TextRef.resolved does not create pages when asked not to", .dependencies { try $0.bootstrapDatabase() })
+	func textRefResolvedWithoutCreatingPages() throws {
+		let existing = try #require(database.write { db in
+			try Page.insert { Page(title: "Existing Page") }.returning(\.self).fetchOne(db)
+		})
+
+		let refs = "[[Existing Page]] [[Missing Page]] ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))".extractRefs()
+
+		let resolved = try database.write { db in
+			try refs.map { try $0.resolved(using: db, createMissingPages: false) }
+		}
+
+		expectNoDifference(resolved.map { $0?.targetID }, [existing.id, nil, nil])
+
+		let missingPageExists = try database.read { db in
+			try Select(Page.where { $0.title.eq("Missing Page") }.exists()).fetchOne(db)
+		}
+		expectNoDifference(missingPageExists, false)
 	}
 
 	@Test("extractRefs ignores references inside markdown link labels")

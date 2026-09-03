@@ -69,4 +69,19 @@ extension Tests.PageTest {
 
 		expectNoDifference(page.id, secondPage.id)
 	}
+
+	@Test("Page.findOrCreate treats a daily-note title as the daily note")
+	func findOrCreateDailyNoteTitle() throws {
+		let day = DayOfYear(day: 5, month: 9, year: 2026)
+
+		let page = try database.write { db in
+			try Page.findOrCreate(title: day.title(), in: db)
+		}
+		expectNoDifference(page.dailyNoteDate, day)
+
+		let dailyNote = try database.write { db in
+			try Page.createDailyNote(for: day, in: db)
+		}
+		expectNoDifference(dailyNote.id, page.id)
+	}
 }

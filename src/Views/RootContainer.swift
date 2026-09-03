@@ -8,6 +8,7 @@ struct RootContainer: View {
 	@Dependency(\.defaultDatabase) var database
 	@Dependency(\.defaultSyncEngine) var syncEngine
 	@State private var router = Router(level: 0, identifierTab: nil)
+	@State private var duplicatePagesWatcher = DuplicatePagesWatcher()
 	@Shared(.appStorage("sidebarCustomizations")) var tabViewCustomization = TabViewCustomization()
 
 	#if os(iOS)
@@ -27,7 +28,10 @@ struct RootContainer: View {
 			}
 		}
 		.postNotificationOnStateChange()
-		.onAppear { createDailyNoteIfNeeded() }
+		.onAppear {
+			createDailyNoteIfNeeded()
+			duplicatePagesWatcher.start()
+		}
 		.tabViewSearchActivation(.searchTabSelection)
 		.tabViewCustomization(Binding($tabViewCustomization))
 	}
@@ -50,7 +54,10 @@ struct RootContainer: View {
 		}
 		.tabViewStyle(.sidebarAdaptable)
 		.clearInitialResponderOnLaunch()
-		.onAppear { createDailyNoteIfNeeded() }
+		.onAppear {
+			createDailyNoteIfNeeded()
+			duplicatePagesWatcher.start()
+		}
 		.tabViewSearchActivation(.searchTabSelection)
 		.tabViewCustomization(Binding($tabViewCustomization))
 	}

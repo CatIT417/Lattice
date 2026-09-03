@@ -30,6 +30,7 @@ struct LatticeApp: App {
 		}
 		#endif
 
+		IssueReporters.current = IssueReporters.current + [SyncHealthIssueReporter()]
 		#if !DEBUG
 		IssueReporters.current = IssueReporters.current + [OSLogIssueReporter()]
 		#endif
@@ -38,6 +39,8 @@ struct LatticeApp: App {
 			try prepareDependencies {
 				try $0.bootstrapDatabase()
 			}
+
+			Task.detached(priority: .utility) { DatabaseBackups.backup() }
 		} catch {
 			reportIssue(error)
 			initializationError = error

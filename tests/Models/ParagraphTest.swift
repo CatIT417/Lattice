@@ -62,3 +62,31 @@ extension Tests.ParagraphTest {
 		expectNoDifference(Set([first.id, firstChild.id, grandchild.id, third.id]), Set(result.map(\.id)))
 	}
 }
+
+extension Tests.ParagraphTest {
+	@Test("Inserting a Paragraph with an existing id fails instead of replacing it")
+	func insertingDuplicateIDFails() throws {
+		let page = try #require(database.write { db in
+			try Page.insert { Page(title: "Root") }.returning(\.self).fetchOne(db)
+		})
+
+		let paragraph = try #require(database.write { db in
+			try Paragraph.insert {
+				Paragraph(string: "Original", parentId: page.id, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db)
+		})
+
+		#expect(throws: (any Error).self) {
+			try database.write { db in
+				try Paragraph.insert {
+					Paragraph(id: paragraph.id, string: "Replacement", parentId: page.id, pageId: page.id, order: 0)
+				}.execute(db)
+			}
+		}
+
+		let stored = try #require(database.read { db in
+			try Paragraph.find(paragraph.id).fetchOne(db)
+		})
+		expectNoDifference(stored.string, "Original")
+	}
+}

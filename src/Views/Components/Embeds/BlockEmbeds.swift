@@ -38,14 +38,17 @@ struct BlockEmbeds: View {
 				}
 			}
 
-			var entries: [CachedLinkMetadata] = []
+			var _entries: [CachedLinkMetadata] = []
 
 			for await result in group {
 				switch result {
 					case let .failure(error): Logger.app.error("Failed to fetch embed metadata: \(error)", error: error)
-					case let .success((url, metadata)): entries.append(CachedLinkMetadata(url: url, metadata: metadata))
+					case let .success((url, metadata)): _entries.append(CachedLinkMetadata(url: url, metadata: metadata))
 				}
 			}
+
+			let entries = _entries
+			guard !entries.isEmpty else { return }
 
 			await withErrorReporting {
 				try await database.write { db in

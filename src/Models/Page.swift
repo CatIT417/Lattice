@@ -87,6 +87,10 @@ extension Page {
 
 		let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
+		if let day = DayOfYear(title: title) {
+			return try createDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt, in: db)
+		}
+
 		let newlyCreatedBlock = try #sql("""
 		INSERT INTO \(Block.self) (title, createdAt, updatedAt)
 		SELECT \(bind: title), \(bind: createdAt ?? now), \(bind: updatedAt ?? now)
