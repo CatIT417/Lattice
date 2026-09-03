@@ -86,4 +86,58 @@ extension Tests.MakePagesViewWritableTest {
 		}
 		#expect(blockExistsAfterDelete == false)
 	}
+
+	@Test("Deleting a page deletes its whole subtree and the subtree's derived rows")
+	func deletingPageDeletesSubtree() throws {
+		let (page, paragraph, child) = try database.write { db in
+			let page = try #require(try Page.insert { Page(title: "Subtree Root") }.returning(\.self).fetchOne(db))
+			let paragraph = try #require(try Paragraph.insert {
+				Paragraph(string: "Paragraph [[Subtree Root]]", parentId: page.id, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db))
+			let child = try #require(try Paragraph.insert {
+				Paragraph(string: "Child", parentId: paragraph.id, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db))
+
+			return (page, paragraph, child)
+		}
+
+		try database.write { db in
+			try Page.find(page.id).delete().execute(db)
+		}
+
+		let (blocks, ancestors, references) = try database.read { db in
+			(
+				try Block.where { $0.id.in([page.id, paragraph.id, child.id]) }.fetchCount(db),
+				try Ancestor.where { $0.blockId.in([paragraph.id, child.id]) }.fetchCount(db),
+				try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchCount(db)
+			)
+		}
+		expectNoDifference(blocks, 0)
+		expectNoDifference(ancestors, 0)
+		expectNoDifference(references, 0)
+	}
+
+	@Test("Deleting a page also deletes paragraphs whose parent has not arrived")
+	func deletingPageDeletesOrphanedParagraphs() throws {
+		@Dependency(\.uuid) var uuid
+		let missingParentID = uuid()
+
+		let (page, orphan) = try database.write { db in
+			let page = try #require(try Page.insert { Page(title: "Orphan Delete Root") }.returning(\.self).fetchOne(db))
+			let orphan = try #require(try Paragraph.insert {
+				Paragraph(string: "Orphan", parentId: missingParentID, pageId: page.id, order: 0)
+			}.returning(\.self).fetchOne(db))
+
+			return (page, orphan)
+		}
+
+		try database.write { db in
+			try Page.find(page.id).delete().execute(db)
+		}
+
+		let orphanExists = try database.read { db in
+			try Select(Block.find(orphan.id).exists()).fetchOne(db)
+		}
+		expectNoDifference(orphanExists, false)
+	}
 }

@@ -766,10 +766,10 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		C01155032F26CD1A00317095 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/m1guelpf/sqlite-data";
+			repositoryURL = "https://github.com/pointfreeco/sqlite-data";
 			requirement = {
-				branch = recursion;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.12.0;
 			};
 		};
 		C013D7E12F3C23A200D4F59A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {

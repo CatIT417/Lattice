@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 @Table
 struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
@@ -110,5 +110,10 @@ extension Block.TableColumns {
 
 	var isParagraph: some QueryExpression<Bool> {
 		string.isNot(nil)
+	}
+
+	/// The block itself and every descendant recorded in `blockAncestors`.
+	func isInSubtree(rootedAt root: some QueryExpression<UUID>) -> some QueryExpression<Bool> {
+		id.eq(root) || id.in(Ancestor.where { $0.ancestorId.eq(root) }.select(\.blockId))
 	}
 }

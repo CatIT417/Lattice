@@ -69,6 +69,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 
 		TouchTimestamps.self,
 		SyncAncestorsTable.self,
+		CleanupDerivedRows.self,
 		SyncReferencesTable.self,
 		UpdateParagraphOrder.self,
 		SyncBlocksFTSTable.self,

@@ -5,8 +5,8 @@ final class CreateReferencesTable: Migration {
 		// Links between blocks (the [[wiki links]] and ((block refs)))
 		try db.create(table: "blockReferences") { table in
 			table.id()
-			table.column("sourceBlockId", .integer).notNull().indexed().references("blocks", column: "id", onDelete: .cascade)
-			table.column("targetBlockId", .integer).notNull().indexed().references("blocks", column: "id", onDelete: .cascade)
+			table.column("sourceBlockId", .text).notNull().indexed()
+			table.column("targetBlockId", .text).notNull().indexed()
 			table.column("kind", .text).notNull() // 'page_link', 'block_ref', 'block_embed', 'tag'
 			table.column("createdAt", .datetime).notNull().defaults(sql: "(now())")
 

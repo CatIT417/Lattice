@@ -10,10 +10,14 @@ struct DiagnosticsScreen: View {
 	@State private var lastMergeCount: Int?
 	@State private var health = SyncHealth.shared
 
+	@FetchOne(Page.all.count()) private var pageCount = 0
+	@FetchOne(Paragraph.all.count()) private var paragraphCount = 0
+
 	var body: some View {
 		NavigationStack {
 			List {
 				syncSection
+				contentSection
 				issuesSection
 				maintenanceSection
 				backupsSection
@@ -43,6 +47,13 @@ struct DiagnosticsScreen: View {
 					await withErrorReporting { try await syncEngine.syncChanges() }
 				}
 			}
+		}
+	}
+
+	private var contentSection: some View {
+		Section("Content") {
+			LabeledContent("Pages", value: "\(pageCount)")
+			LabeledContent("Paragraphs", value: "\(paragraphCount)")
 		}
 	}
 

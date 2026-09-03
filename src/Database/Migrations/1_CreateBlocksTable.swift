@@ -1,3 +1,4 @@
+import GRDB
 import SQLiteData
 
 final class CreateBlocksTable: Migration {
@@ -11,9 +12,10 @@ final class CreateBlocksTable: Migration {
 			table.column("dailyNoteDate", .text) // If this page is a daily note, the date in "YYYY-MM-DD" format
 
 			// Hierarchy
-			table.column("parentId", .integer).references("blocks", column: "id", onDelete: .cascade)
-			table.column("pageId", .integer).indexed().references("blocks", column: "id", onDelete: .cascade) // Root page for this block
-			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings
+			table.column("parentId", .text)
+			table.column("pageId", .text).indexed() // Root page for this block
+			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings (replaced by `position`)
+			table.column("position", .text) // Fractional order key among siblings
 
 			// Display options
 			table.column("heading", .integer) // 1, 2, or 3 (NULL = normal)
@@ -28,6 +30,10 @@ final class CreateBlocksTable: Migration {
 			table.column("createdAt", .datetime).notNull().defaults(sql: "(now())")
 			table.column("updatedAt", .datetime).notNull().defaults(sql: "(now())").indexed()
 
+			// Soft delete
+			table.column("deletedAt", .datetime)
+			table.column("mergedInto", .text) // The page this page was merged into
+
 			// Constraints
 			table.constraint(#sql("CHECK (title IS NULL OR length(title) >= 3)")) // Enforce minimum title length for pages
 			table.constraint(#sql("CHECK (title IS NOT NULL OR parentId IS NOT NULL)")) // Pages have title, blocks have parent
@@ -36,10 +42,11 @@ final class CreateBlocksTable: Migration {
 		}
 
 		// Indexes for common queries
-
 		try db.create(indexOn: "blocks", columns: ["parentId", "order"])
-		try db.create(indexOn: "blocks", columns: ["title"], condition: "title IS NOT NULL")
-		try db.create(indexOn: "blocks", columns: ["dailyNoteDate"], condition: "dailyNoteDate IS NOT NULL")
+		try db.create(indexOn: "blocks", columns: ["parentId", "position"])
+		try db.create(indexOn: "blocks", columns: ["title"], condition: GRDB.Column("title") != nil)
+		try db.create(indexOn: "blocks", columns: ["deletedAt"], condition: GRDB.Column("deletedAt") != nil)
+		try db.create(indexOn: "blocks", columns: ["dailyNoteDate"], condition: GRDB.Column("dailyNoteDate") != nil)
 	}
 
 	static func down(_ db: Database) throws {

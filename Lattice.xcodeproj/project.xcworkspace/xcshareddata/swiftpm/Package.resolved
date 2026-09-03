@@ -1,5 +1,5 @@
 {
-  "originHash" : "7d3b881f5d0d915e5816872072569a81084e4eb35910a7808278db4d03c4e179",
+  "originHash" : "77d825c2f604b77ca6ea44e0117229b1a9998c65338ddf4ee62cb0e0eb2c533d",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -58,10 +58,10 @@
     {
       "identity" : "sqlite-data",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/m1guelpf/sqlite-data",
+      "location" : "https://github.com/pointfreeco/sqlite-data",
       "state" : {
-        "branch" : "recursion",
-        "revision" : "182b41597e19a24af392c8c44fa8b2d4996308c9"
+        "revision" : "164bb5f223738af3d5da7a1b8de14e67e4d9cd5d",
+        "version" : "1.12.0"
       }
     },
     {
@@ -168,8 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-perception",
       "state" : {
-        "revision" : "25ac73741c3436605d61eceb5207e896973918e7",
-        "version" : "2.0.10"
+        "revision" : "597afd46249f4a71885b95d26b26cc5b893daf32",
+        "version" : "2.0.12"
       }
     },
     {
@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-sharing",
       "state" : {
-        "revision" : "e47a2f545bafa3c0c702600f3e6ce02b3d566b6f",
-        "version" : "2.8.2"
+        "revision" : "3552faf8a6c18ce896ec5a72bd8c34755f0f03e0",
+        "version" : "2.10.1"
       }
     },
     {

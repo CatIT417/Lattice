@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 final class MakeParagraphsViewWritable: Trigger {
 	static func install(in database: Database) throws {
@@ -20,13 +20,16 @@ final class MakeParagraphsViewWritable: Trigger {
 					updatedAt: paragraph.updatedAt
 				)
 			}
-		})).execute(database)
+		}))
+		.execute(database)
 
 		// We intentionally do not support updates to paragraphs via the view.
 		// Updates should be done on the Block table directly.
 
+		// Deleting a paragraph takes its whole subtree, simulating a "delete cascade".
 		try Paragraph.createTemporaryTrigger(insteadOf: .delete(forEachRow: { paragraph in
-			Block.find(paragraph.id).delete()
-		})).execute(database)
+			Block.where { $0.isInSubtree(rootedAt: paragraph.id) }.delete()
+		}))
+		.execute(database)
 	}
 }

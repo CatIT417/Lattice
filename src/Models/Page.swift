@@ -71,7 +71,7 @@ extension Page {
 		 SELECT 1 FROM \(Block.self)
 		 WHERE \(Block.dailyNoteDate) = \(bind: page.dailyNoteDate!)
 		)
-		RETURNING *;
+		RETURNING \(Block.columns);
 		""", as: Block.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
@@ -98,7 +98,7 @@ extension Page {
 			SELECT 1 FROM \(Block.self)
 			WHERE \(Block.title) = \(bind: title)
 		)
-		RETURNING *;
+		RETURNING \(Block.columns);
 		""", as: Block.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }

@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 final class MakePagesViewWritable: Trigger {
 	static func install(in database: Database) throws {
@@ -14,13 +14,16 @@ final class MakePagesViewWritable: Trigger {
 					updatedAt: page.updatedAt
 				)
 			}
-		})).execute(database)
+		}))
+		.execute(database)
 
 		// We intentionally do not support updates to pages via the view.
 		// Updates should be done on the Block table directly.
 
+		// Deleting a page takes its whole subtree, simulating a "delete cascade".
 		try Page.createTemporaryTrigger(insteadOf: .delete(forEachRow: { page in
-			Block.find(page.id).delete()
-		})).execute(database)
+			Block.where { $0.isInSubtree(rootedAt: page.id) || $0.pageId.eq(page.id.asOptional) }.delete()
+		}))
+		.execute(database)
 	}
 }

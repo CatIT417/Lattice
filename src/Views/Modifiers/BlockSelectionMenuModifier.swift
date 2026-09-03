@@ -104,7 +104,7 @@ struct SelectionToolbar: UIViewRepresentable {
 		@Dependency(\.defaultDatabase) var database
 		withErrorReporting {
 			try database.write { db in
-				try Block.where {
+				try Paragraph.where {
 					$0.id.in(selectionCoordinator.highlightedIDs)
 				}
 				.delete()
