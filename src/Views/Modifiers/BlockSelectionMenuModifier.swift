@@ -106,6 +106,7 @@ struct SelectionToolbar: UIViewRepresentable {
 			try database.write { db in
 				try Paragraph.where {
 					$0.id.in(selectionCoordinator.highlightedIDs)
+						&& $0.id.notIn(Ancestor.where { $0.ancestorId.in(selectionCoordinator.highlightedIDs) }.select(\.blockId))
 				}
 				.delete()
 				.execute(db)

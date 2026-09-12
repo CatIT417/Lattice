@@ -3,6 +3,8 @@ import SQLiteData
 import Foundation
 import CustomDump
 import DependenciesTestSupport
+import SQLite3
+import Synchronization
 
 @testable import LatticeDev
 
@@ -78,9 +80,9 @@ extension Tests.RoamImporterTest {
 		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
 	}
 
-	@Test("Falls back to title parsing when UID is not a date")
-	func dailyPageFromTitle() {
-		let result = RoamImporter.parseDailyDate(uid: "abc123", title: "January 18th, 2026")
+	@Test("Falls back to title parsing when UID is not a date", arguments: ["January 18th, 2026", "2026-01-18"])
+	func dailyPageFromTitle(title: String) {
+		let result = RoamImporter.parseDailyDate(uid: "abc123", title: title)
 		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
 	}
 
@@ -288,6 +290,75 @@ extension Tests.RoamImporterTest {
 		#expect(nested[0].string == "Nested")
 	}
 
+	@Test("Bulk import uses bounded inserts and no rank reads for new nested groups")
+	func batchImport() throws {
+		let existing = try database.write { db in
+			let page = try Page.findOrCreate(title: "Batch Import", in: db)
+			let alias = Block(title: page.title, mergedInto: page.id)
+			let hidden = Block(string: "Hidden", parentId: alias.id, order: 10 * ParagraphOrder.gap, deletedAt: Date())
+			try Block.insert { [alias, hidden] }.execute(db)
+			return page
+		}
+		let roots = (0 ..< 60).map { index -> [String: Any] in
+			["uid": "root-\(index)", "string": "Root \(index)", "children": [
+				["uid": "first-\(index)", "string": "First \(index)"],
+				["uid": "second-\(index)", "string": "Second \(index)"],
+			]]
+		}
+		let data = try JSONSerialization.data(withJSONObject: [["uid": "page", "title": existing.title, "children": roots]])
+		let prepared = try preparedPages(from: String(decoding: data, as: UTF8.self))
+		let statements = Mutex<[String]>([])
+		let previousLimit = try database.write { db in
+			db.trace(options: .profile) { event in
+				if case let .profile(statement, _) = event {
+					statements.withLock { $0.append(statement.sql) }
+				}
+			}
+			return sqlite3_limit(db.sqliteConnection, SQLITE_LIMIT_VARIABLE_NUMBER, 260)
+		}
+		defer {
+			try? database.write { db in
+				db.trace()
+				sqlite3_limit(db.sqliteConnection, SQLITE_LIMIT_VARIABLE_NUMBER, previousLimit)
+			}
+		}
+
+		let result = try RoamImporter.execute(pages: prepared)
+		let queries = statements.withLock { $0 }
+		let inserts = queries.filter { $0.hasPrefix("INSERT INTO \"paragraphs\"") }
+		#expect(inserts.count > 1)
+		#expect(inserts.count < 12)
+		let rankReads = queries.filter { $0.hasPrefix("SELECT \"blocks\".\"order\"") }
+		#expect(rankReads.count <= 2)
+		expectNoDifference(result.imported.map(\.id), [existing.id])
+		let children = try children(of: existing.id)
+		expectNoDifference(children.map(\.string), (0 ..< 60).map { "Root \($0)" })
+		#expect(children[0].order > 10 * ParagraphOrder.gap)
+		for (index, child) in children.enumerated() {
+			let nested = try self.children(of: child.id)
+			expectNoDifference(nested.map(\.string), ["First \(index)", "Second \(index)"])
+			#expect(nested[0].order < nested[1].order)
+			#expect(nested.allSatisfy { $0.pageId == existing.id })
+		}
+	}
+
+	@Test("Import batches for the same page append in source order")
+	func repeatedDestination() throws {
+		let json = """
+		[
+			{"uid": "page1", "title": "Same Page", "children": [
+				{"uid": "a", "string": "First"}, {"uid": "b", "string": "Second"}
+			]},
+			{"uid": "page2", "title": "Same Page", "children": [
+				{"uid": "c", "string": "Third"}, {"uid": "d", "string": "Fourth"}
+			]}
+		]
+		"""
+		let result = try executeImport(from: json)
+		#expect(result.imported[0].id == result.imported[1].id)
+		expectNoDifference(try children(of: result.imported[0].id).map(\.string), ["First", "Second", "Third", "Fourth"])
+	}
+
 	@Test("Imports a daily note page")
 	func importDailyNote() throws {
 		let json = """
@@ -404,8 +475,10 @@ extension Tests.RoamImporterTest {
 		#expect(children[0].string == "Replacement")
 	}
 
-	@Test("Keeps existing page timestamps on replace conflicts")
-	func keepsExistingPageTimestampsOnReplace() throws {
+	@Test("Replacing page contents records a local edit", .dependencies {
+		$0.date = .constant(Date(timeIntervalSince1970: 1_000))
+	})
+	func replacingPageUpdatesModificationTime() throws {
 		let originalCreatedAt = Date(timeIntervalSince1970: 100)
 		let originalUpdatedAt = Date(timeIntervalSince1970: 200)
 
@@ -438,7 +511,7 @@ extension Tests.RoamImporterTest {
 
 		let page = try requiredPage(title: "Timestamp Conflict")
 		expectNoDifference(page.createdAt, originalCreatedAt)
-		expectNoDifference(page.updatedAt, originalUpdatedAt)
+		expectNoDifference(page.updatedAt, Date(timeIntervalSince1970: 1_000))
 	}
 
 	@Test("Skips pages with skip resolution")

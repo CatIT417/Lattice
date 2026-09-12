@@ -28,6 +28,11 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 	}
 
 	init?(title: String, calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) {
+		if let day = Self(rawValue: title) {
+			self = day
+			return
+		}
+
 		guard title.last?.isNumber == true, title.contains(", ") else { return nil }
 
 		let stripped = title.replacingOccurrences(of: #"(\d{1,2})(st|nd|rd|th)"#, with: "$1", options: .regularExpression)
@@ -45,6 +50,7 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 	}
 
 	init?(rawValue: String) {
+		guard rawValue.utf8.count == 10 else { return nil }
 		let parts = rawValue.split(separator: "-", omittingEmptySubsequences: false)
 		guard parts.count == 3, let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]) else { return nil }
 
@@ -56,8 +62,9 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 			$0.calendar = Calendar(identifier: .gregorian)
 		}
 
-		guard components.date != nil else { return nil }
+		guard components.isValidDate else { return nil }
 		self.init(day: day, month: month, year: year)
+		guard self.rawValue == rawValue else { return nil }
 	}
 
 	var rawValue: String {

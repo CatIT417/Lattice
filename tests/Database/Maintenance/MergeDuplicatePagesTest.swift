@@ -17,8 +17,8 @@ extension Tests {
 }
 
 extension Tests.MergeDuplicatePagesTest {
-	@Test("Merging a duplicate Page moves its Paragraphs into the oldest Page")
-	func mergingDuplicatePageMovesParagraphsIntoOldest() throws {
+	@Test("Merging a duplicate Page moves its Paragraphs into the Page with the smallest ID")
+	func mergingDuplicatePageMovesParagraphsIntoSmallestID() throws {
 		let (firstPage, duplicatePage, rootParagraph, childParagraph) = try database.write { db in
 			let firstPage = try Page.insert {
 				Page(title: "Duplicate Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
@@ -109,7 +109,7 @@ extension Tests.MergeDuplicatePagesTest {
 		expectNoDifference(updatedRoot.parentId, firstPage.id)
 	}
 
-	@Test("Merging a referenced duplicate Page repoints the Reference")
+	@Test("Merging a duplicate Page resolves the same reference key")
 	func mergingReferencedDuplicateRepointsReference() throws {
 		let (keeper, duplicatePage, paragraph, reference) = try database.write { db in
 			let keeper = try Page.insert {
@@ -141,7 +141,7 @@ extension Tests.MergeDuplicatePagesTest {
 			return (keeper, duplicatePage, paragraph, reference)
 		}
 
-		expectNoDifference(reference.targetBlockId, duplicatePage.id)
+		expectNoDifference(reference.targetKey, duplicatePage.title)
 
 		try database.write { db in
 			try Block.find(keeper.id).update { $0.title = #bind("Duplicate Title") }.execute(db)
@@ -162,9 +162,8 @@ extension Tests.MergeDuplicatePagesTest {
 
 		try expectNoDifference(#require(updatedParagraph), paragraph)
 
-		var expectedReference = reference
-		expectedReference.targetBlockId = keeper.id
-		expectNoDifference(references, [expectedReference])
+		expectNoDifference(references, [reference])
+		#expect(try database.read { try Backlink.fetchOne($0)?.toBlock } == keeper.id)
 	}
 
 	@Test("Merging three Pages keeps one Page with all Paragraphs attached")
@@ -236,8 +235,8 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 	}
 
-	@Test("Merging Pages with colliding Paragraph orders produces a gap-free order")
-	func mergingPagesWithOrderCollisionsProducesGapFreeOrder() async throws {
+	@Test("Merging pages appends their children in order")
+	func mergingPagesPreservesSiblingOrder() async throws {
 		let (keeper, duplicatePage) = try await database.write { db in
 			let keeper = try Page.insert {
 				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
@@ -265,38 +264,18 @@ extension Tests.MergeDuplicatePagesTest {
 			return (keeper, duplicatePage)
 		}
 
-		try await $paragraphs.load()
-
-		await expectDifference($paragraphs) {
-			try await database.write { db in
-				try Block.find(duplicatePage.id).update { $0.title = #bind("Shared Title") }.execute(db)
-				try MergeDuplicatePages.run(in: db)
-			}
-		} changes: { paragraphs in
-			tap(&paragraphs[0]) {
-				$0.pageId = keeper.id
-				$0.parentId = keeper.id
-				$0.order = 2
-			}
-			tap(&paragraphs[1]) {
-				$0.pageId = keeper.id
-				$0.parentId = keeper.id
-			}
-			tap(&paragraphs[2]) {
-				$0.pageId = keeper.id
-				$0.parentId = keeper.id
-				$0.order = 0
-			}
-			tap(&paragraphs[3]) { $0.order = 3 }
-			tap(&paragraphs[4]) { $0.order = 4 }
-			tap(&paragraphs[5]) { $0.order = 5 }
+		try await database.write { db in
+			try Block.find(duplicatePage.id).update { $0.title = #bind("Shared Title") }.execute(db)
+			try MergeDuplicatePages.run(in: db)
+			let rows = try Paragraph.where { $0.parentId.eq(keeper.id) }.order { ($0.order, $0.id) }.fetchAll(db)
+			expectNoDifference(rows.map(\.string), ["Keeper 0", "Keeper 1", "Keeper 2", "Duplicate 0", "Duplicate 1", "Duplicate 2"])
+			#expect(try Block.find(duplicatePage.id).fetchOne(db)?.mergedInto == keeper.id)
+			#expect(try Block.find(duplicatePage.id).fetchOne(db)?.deletedAt == nil)
 		}
-
-		expectNoDifference(paragraphs.map(\.order).sorted(), Array(0 ..< 6))
 	}
 
-	@Test("The keeper is the oldest Page, with the smallest id breaking ties")
-	func keeperIsChosenByCreatedAtThenID() throws {
+	@Test("The keeper is the smallest ID regardless of creation date")
+	func keeperIsChosenByID() throws {
 		let (first, second, third) = try database.write { db in
 			let first = try Page.insert {
 				Page(title: "Tie", createdAt: Date(timeIntervalSince1970: 50), updatedAt: Date(timeIntervalSince1970: 50))
@@ -323,9 +302,90 @@ extension Tests.MergeDuplicatePagesTest {
 
 		let merges = try database.write { try MergeDuplicatePages.run(in: $0) }
 		expectNoDifference(merges, [
-			.init(loser: first.id, keeper: third.id),
-			.init(loser: second.id, keeper: third.id),
+			.init(loser: second.id, keeper: first.id),
+			.init(loser: third.id, keeper: first.id),
 		])
+	}
+
+	@Test("Merge candidate reads stay constant as unrelated pages increase", arguments: [0, 256])
+	func boundedPageReads(unrelatedCount: Int) throws {
+		try database.write { db in
+			let keeper = Block(id: UUID(1), title: "Duplicate")
+			let loser = Block(id: UUID(2), title: "Duplicate")
+			let unrelated = (0 ..< unrelatedCount).map {
+				Block(id: UUID(100 + $0), title: "Unrelated \($0)")
+			}
+			try Block.insert { [keeper, loser] + unrelated }.execute(db)
+			var pageReads: [String] = []
+			db.trace(options: .profile) { event in
+				if case let .profile(statement, _) = event,
+				   statement.sql.hasPrefix("SELECT"), statement.sql.contains("FROM \"pages\"") {
+					pageReads.append(statement.sql)
+				}
+			}
+			defer { db.trace() }
+			expectNoDifference(try MergeDuplicatePages.run(in: db), [.init(loser: loser.id, keeper: keeper.id)])
+			#expect(pageReads.count == 1)
+		}
+	}
+
+	@Test("Duplicate dates merge across title formats and exclude deleted pages")
+	func duplicateDateCandidates() throws {
+		try database.write { db in
+			let day = DayOfYear(day: 5, month: 9, year: 2026)
+			let deleted = Block(id: UUID(1), title: day.title(), dailyNoteDate: day, deletedAt: Date(timeIntervalSince1970: 100))
+			let keeper = Block(id: UUID(2), title: day.rawValue, dailyNoteDate: day)
+			let loser = Block(id: UUID(3), title: day.title(), dailyNoteDate: day)
+			let child = Block(id: UUID(4), string: "Daily", parentId: loser.id, order: 0)
+			try Block.insert { [deleted, keeper, loser, child] }.execute(db)
+			#expect(try MergeDuplicatePages.hasPendingWork(in: db))
+			expectNoDifference(try MergeDuplicatePages.run(in: db), [.init(loser: loser.id, keeper: keeper.id)])
+			#expect(try Block.find(child.id).fetchOne(db)?.parentId == keeper.id)
+			#expect(try Block.find(deleted.id).fetchOne(db) == deleted)
+			#expect(try !MergeDuplicatePages.hasPendingWork(in: db))
+		}
+	}
+
+	@Test("Redirect children move in batches with bounded rank reads", arguments: [false, true])
+	func batchRedirectChildren(requiresRepair: Bool) throws {
+		try database.write { db in
+			let first = Block(id: UUID(1), title: "First Page")
+			let second = Block(id: UUID(2), title: "Second Page")
+			let alias = Block(id: UUID(3), title: first.title, mergedInto: first.id)
+			let olderAlias = Block(id: UUID(4), title: first.title, mergedInto: alias.id)
+			let otherAlias = Block(id: UUID(5), title: second.title, mergedInto: second.id)
+			let existing = Block(id: UUID(6), string: "Existing", parentId: first.id,
+				order: requiresRepair ? Int.max - ParagraphOrder.gap : 10 * ParagraphOrder.gap)
+			let moved = (0 ..< 40).map { index in
+				Block(id: UUID(100 + index), string: "Moved \(index)",
+					parentId: index < 20 ? alias.id : olderAlias.id, order: index / 2,
+					deletedAt: index == 7 ? Date(timeIntervalSince1970: 100) : nil)
+			}
+			let nested = Block(id: UUID(200), string: "Nested", parentId: moved[0].id, order: 0)
+			let other = Block(id: UUID(201), string: "Other", parentId: otherAlias.id, order: 0)
+			try Block.insert { [first, second, alias, olderAlias, otherAlias, existing] + moved + [nested, other] }.execute(db)
+			var rankReads = 0
+			db.trace(options: .profile) { event in
+				if case let .profile(statement, _) = event,
+				   statement.sql.hasPrefix("SELECT \"blocks\".\"order\"") {
+					rankReads += 1
+				}
+			}
+			defer { db.trace() }
+			expectNoDifference(try MergeDuplicatePages.run(in: db), [])
+			#expect(rankReads <= 5)
+			expectNoDifference(try Block.where { $0.parentId.eq(first.id) }.order { ($0.order, $0.id) }.select(\.id).fetchAll(db),
+				[existing.id] + moved.map(\.id))
+			#expect(try Block.find(moved[7].id).fetchOne(db)?.deletedAt == moved[7].deletedAt)
+			#expect(try Paragraph.find(moved[7].id).fetchOne(db) == nil)
+			#expect(try Paragraph.find(nested.id).fetchOne(db)?.parentId == moved[0].id)
+			#expect(try Paragraph.find(nested.id).fetchOne(db)?.pageId == first.id)
+			#expect(try Block.find(other.id).fetchOne(db)?.parentId == second.id)
+			#expect(try !MergeDuplicatePages.hasPendingWork(in: db))
+			let changes = db.totalChangesCount
+			expectNoDifference(try MergeDuplicatePages.run(in: db), [])
+			#expect(db.totalChangesCount == changes)
+		}
 	}
 
 	@Test("Running the merge on an already merged database does nothing")

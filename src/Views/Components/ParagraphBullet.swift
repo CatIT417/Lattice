@@ -3,6 +3,7 @@ import SwiftUI
 struct ParagraphBullet: View {
 	var paragraph: Paragraph
 
+	@Environment(\.blockTree) private var blockTree
 	@Environment(\.rootBlockID) private var rootBlockID
 	@Environment(\.colorScheme) private var colorScheme
 
@@ -15,7 +16,7 @@ struct ParagraphBullet: View {
 	}
 
 	var numberBullet: some View {
-		Text("\(paragraph.order + 1).")
+		Text("\((blockTree.children(of: paragraph.parentId).firstIndex(where: { $0.id == paragraph.id }) ?? 0) + 1).")
 			.foregroundStyle(.secondary)
 	}
 

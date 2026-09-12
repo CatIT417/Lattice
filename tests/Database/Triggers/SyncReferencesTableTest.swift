@@ -1,625 +1,229 @@
 import Testing
-import SQLiteData
-import Foundation
+import GRDB
 import CustomDump
+import Foundation
+import SQLiteData
 import DependenciesTestSupport
 
 @testable import LatticeDev
 
 extension Tests {
-	@Suite("Database/Triggers/SyncReferencesTable", .dependencies {
-		try $0.bootstrapDatabase()
-		$0.date = .constant(.distantPast)
-	})
+	@Suite("Database/Triggers/SyncReferencesTable", .dependencies { try $0.bootstrapDatabase() })
 	struct SyncReferencesTableTest {
 		@Dependency(\.defaultDatabase) var database
+
+		@Test("Repeated references have one key for each kind")
+		func indexesKeys() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let missing = UUID(900)
+				let source = Block(string: "[[Target]] [[Target]] #[[Target]] ((\(missing))) ((bad-id))", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				let references = try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchAll(db)
+				expectNoDifference(Set(references.map(\.targetKey)), ["Target", missing.uuidString])
+				expectNoDifference(Set(references.map(\.kind)), [.pageLink, .tag, .blockRef])
+				#expect(try Page.where { $0.title.eq("Target") }.fetchCount(db) == 1)
+				#expect(try Backlink.fetchCount(db) == 2)
+				try Block.find(source.id).update { $0.string = #bind("No references") }.execute(db)
+				#expect(try Reference.fetchCount(db) == 0)
+			}
+		}
+
+		@Test("A missing UUID target resolves on arrival without a source edit")
+		func lateBlock() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let target = Block(string: "Target", parentId: page.id)
+				let source = Block(string: "((\(target.id.uuidString.lowercased())))", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				let storedSource = try Block.find(source.id).fetchOne(db)
+				let keys = try Reference.fetchAll(db)
+				#expect(try Backlink.fetchCount(db) == 0)
+				try Block.insert { target }.execute(db)
+				#expect(try Backlink.fetchOne(db)?.toBlock == target.id)
+				expectNoDifference(try Reference.fetchAll(db), keys)
+				expectNoDifference(try Block.find(source.id).fetchOne(db), storedSource)
+			}
+		}
+
+		@Test("An unresolved title resolves on arrival without another index pass")
+		func latePage() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let source = Block(string: "[[Late Page]] [[Still Missing]]", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				try Block.where { $0.title.unsafelyUnwrapped.in(["Late Page", "Still Missing"]) }.delete().execute(db)
+				let keys = try Reference.fetchAll(db)
+				#expect(try Page.fetchCount(db) == 1)
+				let target = Block(title: "Late Page")
+				try Block.insert { target }.execute(db)
+				#expect(try Backlink.fetchOne(db)?.toBlock == target.id)
+				expectNoDifference(try Reference.fetchAll(db), keys)
+				#expect(try Page.fetchCount(db) == 2)
+			}
+		}
+
+		@Test("Local renames keep mixed references and UTF-16 ranges correct")
+		func rename() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let source = Block(string: "👨‍👩‍👧‍👦 [[Old Title]] #[[Old Title]] [[Other]]", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				let target = try #require(try Page.where { $0.title.eq("Old Title") }.fetchOne(db))
+				try Block.find(target.id).update { $0.title = #bind("New") }.execute(db)
+				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New]] #New [[Other]]")
+				expectNoDifference(Set(try Reference.fetchAll(db).map(\.targetKey)), ["New", "Other"])
+			}
+		}
+
+		@Test("Renaming either duplicate keeps one page and updates all known title references", arguments: [100, 101])
+		func renameDuplicate(renamedID: Int) throws {
+			try database.write { db in
+				let keeper = Block(id: UUID(100), title: "Old Title")
+				let loser = Block(id: UUID(101), title: "Old Title")
+				let deleted = Block(id: UUID(99), title: "Old Title", deletedAt: Date(timeIntervalSince1970: 500))
+				let first = Block(string: "First [[Old Title]]", parentId: keeper.id)
+				let second = Block(string: "Second #[[Old Title]]", parentId: loser.id)
+				try Block.insert { [keeper, loser, deleted, first, second] }.execute(db)
+				try Block.find(UUID(renamedID)).update { $0.title = #bind("New Title") }.execute(db)
+				#expect(try Page.fetchCount(db) == 1)
+				#expect(try Page.fetchOne(db)?.id == keeper.id)
+				#expect(try Page.fetchOne(db)?.title == "New Title")
+				#expect(try Block.find(loser.id).fetchOne(db)?.mergedInto == keeper.id)
+				#expect(try Block.find(deleted.id).fetchOne(db)?.title == "Old Title")
+				expectNoDifference(try Paragraph.find(first.id).fetchOne(db)?.string, "First [[New Title]]")
+				expectNoDifference(try Paragraph.find(second.id).fetchOne(db)?.string, "Second #[[New Title]]")
+				#expect(try Paragraph.where { $0.pageId.eq(keeper.id) }.fetchCount(db) == 2)
+				#expect(try Backlink.where { $0.toBlock.eq(keeper.id) }.fetchCount(db) == 2)
+				try MergeDuplicatePages.run(in: db)
+				#expect(try Page.fetchCount(db) == 1)
+				#expect(try Backlink.where { $0.toBlock.eq(keeper.id) }.fetchCount(db) == 2)
+			}
+		}
+
+		@Test("A rename merges all copies of its old title and leaves other duplicate groups alone")
+		func renameOnlyMergesOldTitle() throws {
+			try database.write { db in
+				let pages = [
+					Block(id: UUID(100), title: "Old Title"),
+					Block(id: UUID(101), title: "Old Title"),
+					Block(id: UUID(102), title: "Old Title"),
+					Block(id: UUID(200), title: "Other Title"),
+					Block(id: UUID(201), title: "Other Title"),
+				]
+				try Block.insert { pages }.execute(db)
+				try Block.find(UUID(102)).update { $0.title = #bind("New Title") }.execute(db)
+				expectNoDifference(try Page.order(by: \.id).select(\.id).fetchAll(db), [UUID(100), UUID(200), UUID(201)])
+				#expect(try Page.find(UUID(100)).fetchOne(db)?.title == "New Title")
+				#expect(try Block.find(UUID(101)).fetchOne(db)?.mergedInto == UUID(100))
+				#expect(try Block.find(UUID(102)).fetchOne(db)?.mergedInto == UUID(100))
+				#expect(try Block.find(UUID(101)).fetchOne(db)?.title == "Old Title")
+				#expect(try Block.find(UUID(200)).fetchOne(db)?.mergedInto == nil)
+				#expect(try Block.find(UUID(201)).fetchOne(db)?.mergedInto == nil)
+			}
+		}
+
+		@Test("A failed reference rewrite rolls back the rename and its merge", arguments: [100, 101])
+		func failedRenameRollsBackMerge(renamedID: Int) throws {
+			try database.write { db in
+				let keeper = Block(id: UUID(100), title: "Old Title")
+				let loser = Block(id: UUID(101), title: "Old Title")
+				let source = Block(string: "[[Old Title]]", parentId: loser.id)
+				try Block.insert { [keeper, loser, source] }.execute(db)
+				let blocks = try Block.order(by: \.id).fetchAll(db)
+				let references = try Reference.fetchAll(db)
+				let hierarchy = try BlockHierarchy.order(by: \.blockId).fetchAll(db)
+				let function = SyncReferencesTable().$updatePageTitleInReferences
+				db.add(function: GRDB.DatabaseFunction(function.name, argumentCount: 2) { _ in
+					throw DatabaseError(message: "Reference rewriting failed.")
+				})
+				defer { db.add(function: function) }
+				#expect(throws: DatabaseError.self) {
+					try Block.find(UUID(renamedID)).update { $0.title = #bind("New Title") }.execute(db)
+				}
+				expectNoDifference(try Block.order(by: \.id).fetchAll(db), blocks)
+				expectNoDifference(try Reference.fetchAll(db), references)
+				expectNoDifference(try BlockHierarchy.order(by: \.blockId).fetchAll(db), hierarchy)
+			}
+		}
+
+		@Test("Deleting a target preserves source text and a new page resolves the title")
+		func deleteAndRecreate() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let source = Block(string: "[[Target]] #Target", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				let storedSource = try Block.find(source.id).fetchOne(db)
+				let target = try #require(try Page.where { $0.title.eq("Target") }.fetchOne(db))
+				let child = Block(string: "Old contents", parentId: target.id)
+				try Block.insert { child }.execute(db)
+				let keys = try Reference.fetchAll(db)
+				try Page.find(target.id).delete().execute(db)
+				#expect(try Backlink.fetchCount(db) == 0)
+				expectNoDifference(try Block.find(source.id).fetchOne(db), storedSource)
+				expectNoDifference(try Reference.fetchAll(db), keys)
+				let replacement = try Page.findOrCreate(title: "Target", in: db)
+				#expect(replacement.id != target.id)
+				#expect(try Paragraph.where { $0.pageId.eq(replacement.id) }.fetchCount(db) == 0)
+				#expect(try Block.find(target.id).fetchOne(db)?.deletedAt != nil)
+				#expect(try Backlink.where { $0.toBlock.eq(replacement.id) }.fetchCount(db) == 2)
+			}
+		}
+
+		@Test("Daily references use a date key and a replacement note starts empty", arguments: [false, true])
+		func dailyReplacement(useISO: Bool) throws {
+			try database.write { db in
+				let day = DayOfYear(day: 5, month: 9, year: 2026)
+				let page = Block(title: "Source")
+				let source = Block(string: "[[\(useISO ? day.rawValue : day.title())]]", parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				let key = try #require(try Reference.fetchOne(db))
+				#expect(key.kind == .pageLink)
+				#expect(key.targetKey == day.rawValue)
+				let first = try Page.createDailyNote(for: day, in: db)
+				try Block.insert { Block(string: "Old", parentId: first.id) }.execute(db)
+				try Page.find(first.id).delete().execute(db)
+				let second = try Page.createDailyNote(for: day, in: db)
+				#expect(second.id != first.id)
+				#expect(try Paragraph.where { $0.pageId.eq(second.id) }.fetchCount(db) == 0)
+				#expect(try Backlink.fetchOne(db)?.toBlock == second.id)
+			}
+		}
 	}
 }
 
 extension Tests.SyncReferencesTableTest {
-	@Test("Inserting a Paragraph with references creates pages and references")
-	func insertingParagraphCreatesReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Megalopolis]] again #onPlex", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let pageLinkPage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
-		})
-
-		let tagPage = try #require(database.read { db in
-			try Page.where { $0.title.eq("onPlex") }.fetchOne(db)
-		})
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [
-			Reference(id: UUID(4), sourceBlockId: paragraph.id, targetBlockId: pageLinkPage.id, kind: .pageLink),
-			Reference(id: UUID(5), sourceBlockId: paragraph.id, targetBlockId: tagPage.id, kind: .tag),
-		])
-	}
-
-	@Test("Updating a Paragraph string replaces references")
-	func updatingParagraphStringReplacesReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Megalopolis]] again #onPlex", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
+	@Test("Both date formats share a key and resolve when the daily note arrives")
+	func dailyAliasesResolveOnArrival() throws {
 		try database.write { db in
-			try Block.find(paragraph.id).update {
-				$0.string = #bind("Saw [[Tenet]] once again")
-			}.execute(db)
+			let day = DayOfYear(day: 5, month: 9, year: 2026)
+			let page = Block(title: "Source")
+			let source = Block(string: "[[\(day.title())]] [[\(day.rawValue)]] #[[\(day.title())]] #\(day.rawValue)", parentId: page.id)
+			try Block.insert { [page, source] }.execute(db)
+			let target = try #require(try Page.where { $0.dailyNoteDate.eq(day) }.fetchOne(db))
+			let keys = try Reference.order(by: \.kind).fetchAll(db)
+			expectNoDifference(keys.map(\.targetKey), [day.rawValue, day.rawValue])
+			expectNoDifference(Set(keys.map(\.kind)), [.pageLink, .tag])
+			try Block.find(target.id).delete().execute(db)
+			#expect(try Backlink.fetchCount(db) == 0)
+			let replacement = Block(id: UUID(900), title: "Daily note", dailyNoteDate: day)
+			let duplicate = Block(id: UUID(901), title: day.title(), dailyNoteDate: day)
+			try Block.insert { [replacement, duplicate] }.execute(db)
+			expectNoDifference(try Backlink.select(\.toBlock).fetchAll(db), [replacement.id, replacement.id])
+			expectNoDifference(try Reference.order(by: \.kind).fetchAll(db), keys)
 		}
-
-		let newPage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Tenet") }.fetchOne(db)
-		})
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [
-			Reference(id: UUID(7), sourceBlockId: paragraph.id, targetBlockId: newPage.id, kind: .pageLink),
-		])
 	}
 
-	@Test("Renaming a Page updates wiki link references")
-	func renamingPageUpdatesWikiLinks() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let referencedPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Meglopolis") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Meglopolis]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
+	@Test("A page title that is a UUID stays separate from a block reference")
+	func uuidTitleAndBlockReference() throws {
 		try database.write { db in
-			try Block.find(referencedPage.id).update { $0.title = #bind("Megalopolis") }.execute(db)
+			let page = Block(title: "Source")
+			let target = Block(id: UUID(900), string: "Target", parentId: page.id)
+			let source = Block(string: "[[\(target.id)]] ((\(target.id)))", parentId: page.id)
+			try Block.insert { [page, target, source] }.execute(db)
+			let titleTarget = try #require(try Page.where { $0.title.eq(target.id.uuidString) }.fetchOne(db))
+			#expect(try Backlink.where { $0.kind.eq(Reference.Kind.pageLink) }.fetchOne(db)?.toBlock == titleTarget.id)
+			#expect(try Backlink.where { $0.kind.eq(Reference.Kind.blockRef) }.fetchOne(db)?.toBlock == target.id)
 		}
-
-		let updatedParagraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(updatedParagraph.string, "Saw [[Megalopolis]]")
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [
-			Reference(id: UUID(4), sourceBlockId: paragraph.id, targetBlockId: referencedPage.id, kind: .pageLink),
-		])
-	}
-
-	@Test("Renaming a tag page updates tag syntax")
-	func renamingTagPageUpdatesTagSyntax() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favorite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw Megalopolis #cinema", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).update { $0.title = #bind("On Plex") }.execute(db)
-		}
-
-		let updatedParagraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(updatedParagraph.string, "Saw Megalopolis #[[On Plex]]")
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [
-			Reference(id: UUID(4), sourceBlockId: paragraph.id, targetBlockId: tagPage.id, kind: .tag),
-		])
-	}
-
-	@Test("Bracketed tags don't also create page link references")
-	func bracketedTagsDontCreatePageLinkReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Loved #[[Megalopolis]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
-		})
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [
-			Reference(id: UUID(3), sourceBlockId: paragraph.id, targetBlockId: tagPage.id, kind: .tag),
-		])
-	}
-
-	@Test("Renaming a page updates all references in a block with mixed kinds")
-	func renamingPageUpdatesAllReferencesInBlock() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let referencedPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Old") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Read [[Old]] and #Old and [[Old]] again", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(referencedPage.id).update { $0.title = #bind("New Title") }.execute(db)
-		}
-
-		let updatedParagraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(updatedParagraph.string, "Read [[New Title]] and #[[New Title]] and [[New Title]] again")
-	}
-
-	@Test("Renaming a tag page to a simple title removes brackets")
-	func renamingTagPageToSimpleTitleRemovesBrackets() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Old Tag") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Watch #[[Old Tag]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).update { $0.title = #bind("NewTag") }.execute(db)
-		}
-
-		let updatedParagraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(updatedParagraph.string, "Watch #NewTag")
-	}
-
-	@Test("A page stripped of all its references properly deletes them")
-	func deletingAllReferencesFromParagraphDeletesThem() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Megalopolis]] again #onPlex", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(paragraph.id).update {
-				$0.string = #bind("Haven't seen any movies recently.")
-			}.execute(db)
-		}
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [])
-	}
-
-	@Test("Deleting a page removes all references")
-	func deletingAPageRemovesAllReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Megalopolis]] again", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let referencePage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(referencePage.id).delete().execute(db)
-		}
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references, [])
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "Saw Megalopolis again")
-	}
-
-	@Test("Deleting a page removes tag syntax with leading space")
-	func deletingPageRemovesTagWithLeadingSpace() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw Megalopolis #cinema", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).delete().execute(db)
-		}
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "Saw Megalopolis")
-	}
-
-	@Test("Deleting a page removes tag syntax with trailing space")
-	func deletingPageRemovesTagWithTrailingSpace() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "#cinema is great", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).delete().execute(db)
-		}
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "is great")
-	}
-
-	@Test("Deleting a page removes bracketed tag syntax")
-	func deletingPageRemovesBracketedTag() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "On Plex") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw Megalopolis #[[On Plex]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).delete().execute(db)
-		}
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "Saw Megalopolis")
-	}
-
-	@Test("Deleting a page cleans up mixed reference kinds")
-	func deletingPageCleansMixedReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let referencedPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Old") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Read [[Old]] and #Old and [[Old]] again", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(referencedPage.id).delete().execute(db)
-		}
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "Read Old and and Old again")
-	}
-
-	@Test("Deleting a page cleans up references across multiple blocks")
-	func deletingPageCleansMultipleBlocks() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph1 = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Saw [[Megalopolis]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph2 = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Also [[Megalopolis]] was good", parentId: hostPage.id, pageId: hostPage.id, order: 1)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let referencePage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Megalopolis") }.fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(referencePage.id).delete().execute(db)
-		}
-
-		paragraph1 = try #require(database.read { db in
-			try Paragraph.find(paragraph1.id).fetchOne(db)
-		})
-
-		paragraph2 = try #require(database.read { db in
-			try Paragraph.find(paragraph2.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph1.string, "Saw Megalopolis")
-		expectNoDifference(paragraph2.string, "Also Megalopolis was good")
-	}
-
-	@Test("Deleting a page with a sole tag reference leaves empty string")
-	func deletingPageWithSoleTagLeavesEmptyString() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Favourite Movies") }.returning(\.self).fetchOne(db)
-		})
-
-		let tagPage = try #require(database.write { db in
-			try Page.insert { Page(title: "cinema") }.returning(\.self).fetchOne(db)
-		})
-
-		var paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "#cinema", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Block.find(tagPage.id).delete().execute(db)
-		}
-
-		paragraph = try #require(database.read { db in
-			try Paragraph.find(paragraph.id).fetchOne(db)
-		})
-
-		expectNoDifference(paragraph.string, "")
-	}
-}
-
-// MARK: - Out-of-order arrival
-
-extension Tests.SyncReferencesTableTest {
-	@Test("A dangling block ref is skipped without dropping the block's other references")
-	func danglingBlockRefIsSkipped() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "See [[Target Page]] and ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let targetPage = try #require(database.read { db in
-			try Page.where { $0.title.eq("Target Page") }.fetchOne(db)
-		})
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references.map(\.targetBlockId), [targetPage.id])
-		expectNoDifference(references.map(\.kind), [.pageLink])
-	}
-
-	@Test("Inserting a Page picks up references from Paragraphs that already mention it")
-	func insertingPageReextractsReferences() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "See [[Late Page]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		// Simulate the paragraph having arrived before its page: drop the auto-created page and its reference.
-		try database.write { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.delete().execute(db)
-			try Block.where { $0.title.eq("Late Page") }.delete().execute(db)
-		}
-
-		let referencesBefore = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-		expectNoDifference(referencesBefore, [])
-
-		let latePage = try #require(database.write { db in
-			try Page.insert { Page(title: "Late Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references.map(\.targetBlockId), [latePage.id])
-		expectNoDifference(references.map(\.kind), [.pageLink])
-	}
-
-	@Test("Inserting a block picks up ((refs)) from Paragraphs that already point at it")
-	func insertingBlockReextractsBlockRefs() throws {
-		let targetID = UUID(uuidString: "B7E2C4D6-9A1F-4C3E-8D2B-5F6A7B8C9D0E")!
-
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let source = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "See ((\(targetID.uuidString)))", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let referencesBefore = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchAll(db)
-		}
-		expectNoDifference(referencesBefore, [])
-
-		try database.write { db in
-			try Paragraph.insert {
-				Paragraph(id: targetID, string: "Target", parentId: hostPage.id, pageId: hostPage.id, order: 1)
-			}.execute(db)
-		}
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references.map(\.targetBlockId), [targetID])
-		expectNoDifference(references.map(\.kind), [.blockRef])
-	}
-}
-
-// MARK: - Catch-up scans
-
-extension Tests.SyncReferencesTableTest {
-	@Test("Renaming a Page picks up references from Paragraphs that already mention the new title")
-	func renamingPageReextractsReferences() throws {
-		let (hostPage, renamedPage) = try database.write { db in
-			let hostPage = try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)!
-			let renamedPage = try Page.insert { Page(title: "Old Title") }.returning(\.self).fetchOne(db)!
-			return (hostPage, renamedPage)
-		}
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "See [[New Title]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		// Simulate the rewritten paragraph having arrived before the rename: drop the auto-created page and its reference.
-		try database.write { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.delete().execute(db)
-			try Block.where { $0.title.eq("New Title") }.delete().execute(db)
-		}
-
-		try database.write { db in
-			try Block.find(renamedPage.id).update { $0.title = #bind("New Title") }.execute(db)
-		}
-
-		let references = try database.read { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db)
-		}
-
-		expectNoDifference(references.map(\.targetBlockId), [renamedPage.id])
-		expectNoDifference(references.map(\.kind), [.pageLink])
-	}
-
-	@Test("A catch-up scan never creates the other pages a Paragraph mentions")
-	func catchUpScanDoesNotCreatePages() throws {
-		let hostPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Host Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "See [[Alpha]] and [[Beta]]", parentId: hostPage.id, pageId: hostPage.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		// Simulate the paragraph having arrived before both pages.
-		try database.write { db in
-			try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.delete().execute(db)
-			try Page.where { $0.title.in(["Alpha", "Beta"]) }.delete().execute(db)
-		}
-
-		let alpha = try #require(database.write { db in
-			try Page.insert { Page(title: "Alpha") }.returning(\.self).fetchOne(db)
-		})
-
-		let (references, betaExists) = try database.read { db in
-			try (
-				Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchAll(db),
-				Select(Page.where { $0.title.eq("Beta") }.exists()).fetchOne(db)
-			)
-		}
-
-		expectNoDifference(references.map(\.targetBlockId), [alpha.id])
-		expectNoDifference(betaExists, false)
 	}
 }

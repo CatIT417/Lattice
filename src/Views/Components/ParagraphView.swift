@@ -58,11 +58,11 @@ struct ParagraphView: View {
 						.offset(x: -16)
 						.allowsHitTesting(isHovering)
 						#if os(macOS)
-							.pointerStyle(.link)
+						.pointerStyle(.link)
 						#else
-							.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
-								xHeight
-							}
+						.alignmentGuide(.firstTextBaseline) { [xHeight = CTFontGetXHeight(font)] _ in
+							xHeight
+						}
 						#endif
 					}
 				}
@@ -121,19 +121,19 @@ struct ParagraphView: View {
 			.contentShape(Rectangle().inset(.leading, by: -15))
 			.hovering($isHovering.animation())
 			#if os(iOS)
-				.padding(.horizontal, 10)
-				.contextMenu { ParagraphMenu(paragraph: paragraph) }
-				.background(
-					RoundedRectangle(cornerRadius: 6)
-						.fill(selectionCoordinator.isHighlighted(paragraph.id) ? Color.blue.opacity(0.2) : .clear)
-				)
-				.padding(.horizontal, -10)
-				.onSwipeLeft {
-					let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
-					withAnimation(selectionCoordinator.animation) {
-						selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
-					}
+			.padding(.horizontal, 10)
+			.contextMenu { ParagraphMenu(paragraph: paragraph) }
+			.background(
+				RoundedRectangle(cornerRadius: 6)
+					.fill(selectionCoordinator.isHighlighted(paragraph.id) ? Color.blue.opacity(0.2) : .clear)
+			)
+			.padding(.horizontal, -10)
+			.onSwipeLeft {
+				let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
+				withAnimation(selectionCoordinator.animation) {
+					selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
 				}
+			}
 			#endif
 
 			if paragraph.isOpen || paragraph.id == rootBlockID {
@@ -197,24 +197,16 @@ struct ParagraphView: View {
 	}
 
 	private func changeOrder(cursorPosition: Int, delta: Int, currentText: String) -> Bool {
-		let siblings = blockTree.children(of: paragraph.parentId)
-		guard paragraph.order + delta >= 0, paragraph.order + delta < siblings.count else {
-			return false
-		}
-
-		withErrorReporting {
+		let moved = withErrorReporting {
 			try database.write { db in
-				try Block.find(paragraph.id)
-					.update {
-						$0.order += delta
-
-						if currentText != paragraph.string {
-							$0.string = #bind(currentText)
-						}
-					}
-					.execute(db)
+				guard try ParagraphOrder.move(paragraph.id, direction: delta < 0 ? .up : .down, in: db) else { return false }
+				if currentText != paragraph.string {
+					try Block.find(paragraph.id).update { $0.string = #bind(currentText) }.execute(db)
+				}
+				return true
 			}
-		}
+		} ?? false
+		guard moved else { return false }
 
 		blockCoordinator.request(for: paragraph.id, at: cursorPosition, expectsNewText: currentText != paragraph.string, startingInMode: .raw)
 		return true
@@ -234,15 +226,14 @@ struct ParagraphView: View {
 
 		let newBlockId = withErrorReporting {
 			try database.write { db in
-				try Paragraph.insert {
-					Paragraph(
-						string: text ?? "",
-						parentId: isRootParagraph ? paragraph.id : paragraph.parentId,
-						pageId: paragraph.pageId,
-						order: isRootParagraph ? 0 : paragraph.order + 1,
-						viewType: .bullet
-					)
-				}.returning(\.id).fetchOne(db)
+				let parentId = isRootParagraph ? paragraph.id : paragraph.parentId
+				let ordering = try ParagraphOrder(parentId: parentId, in: db)
+				let order = try ordering.rank(after: isRootParagraph ? nil : paragraph.id, in: db)
+				return try Block.insert {
+					Block(string: text ?? "", parentId: parentId, order: order)
+				}
+				.returning(\.id)
+				.fetchOne(db)
 			}
 		}
 
@@ -262,9 +253,12 @@ struct ParagraphView: View {
 					return
 				}
 
+				let ordering = try ParagraphOrder(parentId: parentBlock.parentId, in: db)
+				let order = try ordering.rank(after: parentBlock.id, excluding: paragraph.id, in: db)
+
 				try Block.find(paragraph.id)
 					.update {
-						$0.order = parentBlock.order + 1
+						$0.order = #bind(order)
 						$0.parentId = #bind(parentBlock.parentId)
 
 						// TODO: If siblings are numbered, convert this block to numbered too
@@ -288,15 +282,12 @@ struct ParagraphView: View {
 
 		withErrorReporting {
 			try database.write { db in
-				let maxOrder = try Paragraph
-					.where { $0.parentId.eq(previousSibling.id) }
-					.order { $0.order.desc() }
-					.fetchOne(db)?
-					.order
+				let ordering = try ParagraphOrder(parentId: previousSibling.id, in: db)
+				let order = try ordering.rank(excluding: paragraph.id, in: db)
 
 				try Block.find(paragraph.id)
 					.update {
-						$0.order = (maxOrder ?? -1) + 1
+						$0.order = #bind(order)
 						$0.parentId = #bind(previousSibling.id)
 
 						if paragraph.viewType == .numbered {

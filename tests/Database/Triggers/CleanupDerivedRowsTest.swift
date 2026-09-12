@@ -14,7 +14,7 @@ extension Tests {
 }
 
 extension Tests.CleanupDerivedRowsTest {
-	@Test("Deleting a block removes its ancestor rows and its references in both directions")
+	@Test("Physical deletion removes source indexes and retains unresolved target keys")
 	func deletingBlockRemovesDerivedRows() throws {
 		let (target, source) = try database.write { db in
 			let page = try #require(try Page.insert { Page(title: "Cleanup Root") }.returning(\.self).fetchOne(db))
@@ -34,22 +34,22 @@ extension Tests.CleanupDerivedRowsTest {
 		expectNoDifference(referencesBefore, 2)
 
 		try database.write { db in
-			try Paragraph.find(target.id).delete().execute(db)
+			try Block.find(target.id).delete().execute(db)
 		}
 
 		let (targetAncestors, referencesToTarget, referencesFromSource) = try database.read { db in
 			(
 				try Ancestor.where { $0.blockId.eq(target.id) || $0.ancestorId.eq(target.id) }.fetchCount(db),
-				try Reference.where { $0.targetBlockId.eq(target.id) }.fetchCount(db),
+				try Reference.where { $0.kind.in([Reference.Kind.blockRef, .blockEmbed]) && $0.targetKey.eq(target.id.uuidString) }.fetchCount(db),
 				try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchCount(db)
 			)
 		}
 		expectNoDifference(targetAncestors, 0)
-		expectNoDifference(referencesToTarget, 0)
-		expectNoDifference(referencesFromSource, 1)
+		expectNoDifference(referencesToTarget, 1)
+		expectNoDifference(referencesFromSource, 2)
 
 		try database.write { db in
-			try Paragraph.find(source.id).delete().execute(db)
+			try Block.find(source.id).delete().execute(db)
 		}
 
 		let referencesAfter = try database.read { db in

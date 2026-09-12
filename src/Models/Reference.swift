@@ -3,7 +3,7 @@ import Foundation
 
 /// Links between blocks (the [[wiki links]] and ((block refs)))
 @Table("blockReferences")
-struct Reference: Identifiable, Equatable, Hashable, Sendable {
+struct Reference: Equatable, Hashable, Sendable {
 	enum Kind: String, Equatable, Hashable, Sendable, QueryBindable {
 		case tag
 		case pageLink = "page_link"
@@ -32,21 +32,18 @@ struct Reference: Identifiable, Equatable, Hashable, Sendable {
 		}
 	}
 
-	let id: UUID
-	var sourceBlockId: Block.ID
-	var targetBlockId: Block.ID
-	var kind: Kind
+	let sourceBlockId: Block.ID
+	let kind: Kind
+	let targetKey: String
 
-	var createdAt: Date
-
-	init(id: UUID? = nil, sourceBlockId: Block.ID, targetBlockId: Block.ID, kind: Kind, createdAt: Date? = nil) {
-		@Dependency(\.uuid) var uuid
-		@Dependency(\.date.now) var now
-
-		self.kind = kind
-		self.id = id ?? uuid()
+	init?(sourceBlockId: Block.ID, reference: TextRef) {
 		self.sourceBlockId = sourceBlockId
-		self.targetBlockId = targetBlockId
-		self.createdAt = createdAt ?? now
+		kind = reference.kind
+		if kind.isBlock {
+			guard let id = UUID(uuidString: reference.target) else { return nil }
+			targetKey = id.uuidString
+		} else {
+			targetKey = DayOfYear(title: reference.target)?.rawValue ?? reference.target
+		}
 	}
 }

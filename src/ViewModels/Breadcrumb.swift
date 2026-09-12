@@ -21,12 +21,34 @@ struct Breadcrumb: Identifiable {
 		}
 	}
 
-	static func forBlock(id: Block.ID) -> Select<Breadcrumb, Ancestor, Block> {
-		Ancestor
+	@Selection
+	fileprivate struct PathRow {
+		let id: Block.ID
+		let title: String?
+		let string: String?
+		let isPage: Bool
+		let depth: Int
+	}
+
+	static func forBlock(id: Block.ID) -> some PartialSelectStatement<Breadcrumb> {
+		let page = BlockHierarchy
+			.where { $0.blockId.eq(id) && $0.isVisible }
+			.join(Page.all) { $0.pageId.eq($1.id) }
+			.select { _, pages in
+				PathRow.Columns(id: pages.id, title: pages.title.asOptional, string: String?.none, isPage: true, depth: 0)
+			}
+		let parents = Ancestor
 			.where { $0.blockId.eq(id) }
-			.order { $0.depth.desc() }
-			.join(Block.all) { $0.ancestorId.eq($1.id) }
-			.select { Breadcrumb.Columns(id: $1.id, title: $1.title, string: $1.string) }
-			.asSelect()
+			.join(Paragraph.all) { $0.ancestorId.eq($1.id) }
+			.select { ancestors, paragraphs in
+				PathRow.Columns(id: paragraphs.id, title: String?.none, string: paragraphs.string.asOptional, isPage: false, depth: ancestors.depth)
+			}
+		return With {
+			page.union(all: true, parents)
+		} query: {
+			PathRow
+				.order { ($0.isPage.desc(), $0.depth.desc()) }
+				.select { Breadcrumb.Columns(id: $0.id, title: $0.title, string: $0.string) }
+		}
 	}
 }

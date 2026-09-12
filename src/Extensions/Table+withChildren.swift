@@ -22,13 +22,26 @@ struct WithChildrenRequest<Model: HasChildren>: FetchKeyRequest {
 	let id: Model.PrimaryKey
 
 	func fetch(_ db: Database) throws -> Model.WithChildren? {
-		guard let block = try Model.find(id).fetchOne(db) else { return nil }
+		let resolvedID: UUID
+		if Model.self == Page.self {
+			guard let original = try Block.find(id).fetchOne(db), original.title != nil, original.deletedAt == nil,
+				  let pageId = try BlockHierarchy.find(id).fetchOne(db)?.pageId else { return nil }
+			resolvedID = pageId
+		} else {
+			resolvedID = id
+		}
+		guard let block = try Model.find(resolvedID).fetchOne(db) else { return nil }
 
-		let paragraphs = try Ancestor
-			.where { $0.ancestorId.eq(id) }
-			.join(Paragraph.all) { $0.blockId.eq($1.id) }
-			.select { _, paragraphs in paragraphs }
-			.fetchAll(db)
+		let paragraphs: [Paragraph]
+		if Model.self == Page.self {
+			paragraphs = try Paragraph.where { $0.pageId.eq(resolvedID) }.fetchAll(db)
+		} else {
+			paragraphs = try Ancestor
+				.where { $0.ancestorId.eq(resolvedID) }
+				.join(Paragraph.all) { $0.blockId.eq($1.id) }
+				.select { _, paragraphs in paragraphs }
+				.fetchAll(db)
+		}
 
 		return Model.WithChildren(block: block, tree: BlockTree(paragraphs: paragraphs))
 	}

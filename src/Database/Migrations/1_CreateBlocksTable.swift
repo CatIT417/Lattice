@@ -14,8 +14,7 @@ final class CreateBlocksTable: Migration {
 			// Hierarchy
 			table.column("parentId", .text)
 			table.column("pageId", .text).indexed() // Root page for this block
-			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings (replaced by `position`)
-			table.column("position", .text) // Fractional order key among siblings
+			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings
 
 			// Display options
 			table.column("heading", .integer) // 1, 2, or 3 (NULL = normal)
@@ -42,8 +41,7 @@ final class CreateBlocksTable: Migration {
 		}
 
 		// Indexes for common queries
-		try db.create(indexOn: "blocks", columns: ["parentId", "order"])
-		try db.create(indexOn: "blocks", columns: ["parentId", "position"])
+		try db.create(indexOn: "blocks", columns: ["parentId", "order", "id"])
 		try db.create(indexOn: "blocks", columns: ["title"], condition: GRDB.Column("title") != nil)
 		try db.create(indexOn: "blocks", columns: ["deletedAt"], condition: GRDB.Column("deletedAt") != nil)
 		try db.create(indexOn: "blocks", columns: ["dailyNoteDate"], condition: GRDB.Column("dailyNoteDate") != nil)

@@ -12,7 +12,7 @@ struct PageScreen: View {
 	@State private var willRenamePage = false
 
 	var hasNoChildren: Bool {
-		pageWithContent?.tree.children(of: pageId).isEmpty ?? true
+		pageWithContent.map { $0.tree.children(of: $0.block.id).isEmpty } ?? true
 	}
 
 	init(pageId: Page.ID) {
@@ -92,7 +92,7 @@ struct PageScreen: View {
 
 						Button(role: .cancel) {}
 					} message: {
-						Text("Any blocks referencing this page will have their content altered as well.")
+						Text("This page and its contents will be hidden.")
 					}
 					.toolbarRole(.editor)
 					.navigationTitle(page.title)
@@ -118,7 +118,7 @@ struct PageScreen: View {
 	func deletePage() {
 		withErrorReporting {
 			try database.write { db in
-				try Page.find(pageId).delete().execute(db)
+				try Page.find(pageWithContent?.block.id ?? pageId).delete().execute(db)
 			}
 
 			router.navigationStackPath.removeAll(where: { $0 == .page(id: pageId) })

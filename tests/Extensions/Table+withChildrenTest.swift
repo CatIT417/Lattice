@@ -13,6 +13,33 @@ extension Tests {
 }
 
 extension Tests.TableWithChildrenTest {
+	@Test("A paragraph ID is not a page ID")
+	func pageRejectsParagraphID() throws {
+		try database.write { db in
+			let page = Block(title: "Page")
+			let paragraph = Block(string: "Paragraph", parentId: page.id)
+			try Block.insert { [page, paragraph] }.execute(db)
+			#expect(try Page.withChildren(id: paragraph.id).fetch(db) == nil)
+			#expect(try Page.withChildren(id: page.id).fetch(db)?.block.id == page.id)
+		}
+	}
+
+	@Test("A page root stops ancestry even when it has a stored parent")
+	func ancestryStopsAtPage() throws {
+		try database.write { db in
+			let outer = Block(title: "Outer page")
+			let parent = Block(string: "Parent", parentId: outer.id)
+			let inner = Block(title: "Inner page", parentId: parent.id)
+			let child = Block(string: "Child", parentId: inner.id)
+			try Block.insert { [outer, parent, inner, child] }.execute(db)
+			#expect(try Ancestor.where { $0.blockId.eq(inner.id) }.fetchCount(db) == 0)
+			expectNoDifference(try Ancestor.where { $0.blockId.eq(child.id) }.select(\.ancestorId).fetchAll(db), [inner.id])
+			#expect(try Paragraph.withChildren(id: parent.id).fetch(db)?.tree.get(byID: child.id) == nil)
+			#expect(try Page.withChildren(id: inner.id).fetch(db)?.tree.get(byID: child.id)?.id == child.id)
+			expectNoDifference(try Breadcrumb.forBlock(id: child.id).fetchAll(db).map(\.id), [inner.id])
+		}
+	}
+
 	@Test("Page.withChildren returns the full descendant tree")
 	func pageWithChildrenReturnsTree() throws {
 		let page = try #require(database.write { db in

@@ -39,20 +39,20 @@ struct SearchScreen: View {
 		ForEach(search.results) { block in
 			NavigationButton(push: block.destination) {
 				Group {
-					switch block.kind {
-						case let .page(page): Text(page.title)
-						case let .paragraph(paragraph):
+					if let title = block.title {
+						Text(title)
+					} else if let string = block.string {
 							VStack(alignment: .leading, spacing: 4) {
-								BreadcrumbsView(blockId: paragraph.id)
+								BreadcrumbsView(blockId: block.id)
 									.environment(\.isNavigationEnabled, false)
 
 								HStack(alignment: .firstTextBaseline) {
-									if let todoState = paragraph.string.todoState {
+									if let todoState = string.todoState {
 										Image(systemName: todoState == .done ? "checkmark.square.fill" : "square")
 									}
 
 									RenderAsLabel(
-										text: buildAttributedString(from: paragraph.string.strippingTodoPrefix()).attributedString
+										text: buildAttributedString(from: string.strippingTodoPrefix()).attributedString
 									)
 								}
 							}

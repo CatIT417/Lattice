@@ -2,20 +2,21 @@ import SwiftUI
 import SQLiteData
 
 struct BlockScreen: View {
-	@FetchOne var block: Block?
+	@FetchOne var page: Page?
+	@FetchOne var paragraph: Paragraph?
 	@Environment(Router.self) var router
 
 	init(blockID: Block.ID) {
-		_block = FetchOne(Block.find(blockID))
+		_page = FetchOne(Page.where { $0.id.in(BlockHierarchy.where { $0.blockId.eq(blockID) }.select { $0.pageId.unsafelyUnwrapped }) && Block.where { $0.id.eq(blockID) && $0.isPage && $0.deletedAt.is(nil) }.exists() })
+		_paragraph = FetchOne(Paragraph.find(blockID))
 	}
 
 	var body: some View {
 		Group {
-			if let block {
-				switch block.kind {
-					case let .page(page): PageScreen(pageId: page.id)
-					case let .paragraph(paragraph): ParagraphScreen(paragraphId: paragraph.id)
-				}
+			if let paragraph {
+				ParagraphScreen(paragraphId: paragraph.id)
+			} else if let page {
+				PageScreen(pageId: page.id)
 			} else {
 				ProgressView()
 					.onAppear { router.pop() }

@@ -43,9 +43,9 @@ extension Backlink {
 			.where { $0.pageId.neq(pageId) }
 			.where {
 				$0.id.notIn(
-					Reference
-						.select(\.sourceBlockId)
-						.where { $0.targetBlockId.eq(pageId) }
+					Backlink
+						.select(\.fromBlock)
+						.where { $0.toBlock.eq(pageId) }
 				)
 			}
 			.group(by: \.pageId)
@@ -67,9 +67,9 @@ extension Backlink {
 			.where { $0.pageId.neq(pageId) }
 			.where {
 				$0.id.notIn(
-					Reference
-						.select(\.sourceBlockId)
-						.where { $0.targetBlockId.eq(pageId) }
+					Backlink
+						.select(\.fromBlock)
+						.where { $0.toBlock.eq(pageId) }
 				)
 			}
 			.join(BlockText.all) { $0.id.eq($1.blockID) }

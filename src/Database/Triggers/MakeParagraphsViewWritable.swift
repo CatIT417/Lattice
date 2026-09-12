@@ -9,7 +9,6 @@ final class MakeParagraphsViewWritable: Trigger {
 					id: paragraph.id,
 					string: paragraph.string.asOptional,
 					parentId: paragraph.parentId.asOptional,
-					pageId: paragraph.pageId.asOptional,
 					order: paragraph.order,
 					heading: paragraph.heading,
 					viewType: paragraph.viewType,
@@ -26,9 +25,8 @@ final class MakeParagraphsViewWritable: Trigger {
 		// We intentionally do not support updates to paragraphs via the view.
 		// Updates should be done on the Block table directly.
 
-		// Deleting a paragraph takes its whole subtree, simulating a "delete cascade".
 		try Paragraph.createTemporaryTrigger(insteadOf: .delete(forEachRow: { paragraph in
-			Block.where { $0.isInSubtree(rootedAt: paragraph.id) }.delete()
+			Block.where { $0.id.eq(paragraph.id) }.update { $0.deletedAt = $now().asOptional }
 		}))
 		.execute(database)
 	}

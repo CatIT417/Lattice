@@ -77,7 +77,7 @@ fileprivate func buildParagraphs(_ tree: Outline, parentId: Block.ID, pageId: Pa
 	var records = [any Table]()
 
 	for (order, entry) in tree.entries.enumerated() {
-		let paragraph = Paragraph(string: entry.key, parentId: parentId, pageId: pageId, order: order)
+		let paragraph = Paragraph(string: entry.key, parentId: parentId, pageId: pageId, order: order * ParagraphOrder.gap)
 		records.append(paragraph)
 
 		if !entry.value.entries.isEmpty {

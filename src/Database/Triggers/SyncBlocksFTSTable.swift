@@ -6,7 +6,8 @@ final class SyncBlocksFTSTable: Trigger {
 			BlockText.insert {
 				BlockText.Columns(blockID: block.id, title: block.title, string: block.string)
 			}
-		}).execute(db)
+		})
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .update {
 			($0.title, $0.string)
@@ -15,10 +16,12 @@ final class SyncBlocksFTSTable: Trigger {
 				$0.title = block.title
 				$0.string = block.string
 			}
-		}).execute(db)
+		})
+		.execute(db)
 
 		try Block.createTemporaryTrigger(after: .delete { block in
 			BlockText.where { $0.blockID.eq(block.id) }.delete()
-		}).execute(db)
+		})
+		.execute(db)
 	}
 }

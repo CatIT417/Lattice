@@ -20,9 +20,8 @@ final class MakePagesViewWritable: Trigger {
 		// We intentionally do not support updates to pages via the view.
 		// Updates should be done on the Block table directly.
 
-		// Deleting a page takes its whole subtree, simulating a "delete cascade".
 		try Page.createTemporaryTrigger(insteadOf: .delete(forEachRow: { page in
-			Block.where { $0.isInSubtree(rootedAt: page.id) || $0.pageId.eq(page.id.asOptional) }.delete()
+			Block.where { $0.id.eq(page.id) }.update { $0.deletedAt = $now().asOptional }
 		}))
 		.execute(database)
 	}

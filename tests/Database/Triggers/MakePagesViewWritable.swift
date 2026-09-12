@@ -45,7 +45,7 @@ extension Tests.MakePagesViewWritableTest {
 
 		expectNoDifference(block.order, 0)
 		expectNoDifference(block.string, nil)
-		expectNoDifference(block.pageId, nil)
+		expectNoDifference(try database.read { try BlockHierarchy.find(block.id).fetchOne($0)?.pageId }, page.id)
 		expectNoDifference(block.isOpen, true)
 		expectNoDifference(block.heading, nil)
 		expectNoDifference(block.parentId, nil)
@@ -61,12 +61,12 @@ extension Tests.MakePagesViewWritableTest {
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Page.find(page.id).update { $0.title = "Updated Title" }.execute(db)
+				try Page.find(page.id).update { $0.title = #bind("Updated Title") }.execute(db)
 			}
 		}
 	}
 
-	@Test("Deleting from the Pages view deletes the corresponding Block")
+	@Test("Deleting a page sets its deletion marker")
 	func canDeleteFromPages() throws {
 		let page = try #require(database.write { db in
 			try Page.insert { Page(title: "Test Page") }.returning(\.self).fetchOne(db)
@@ -84,10 +84,11 @@ extension Tests.MakePagesViewWritableTest {
 		let blockExistsAfterDelete = try database.read { db in
 			try Select(Block.find(page.id).exists()).fetchOne(db)
 		}
-		#expect(blockExistsAfterDelete == false)
+		#expect(blockExistsAfterDelete == true)
+		#expect(try database.read { try Page.find(page.id).fetchOne($0) } == nil)
 	}
 
-	@Test("Deleting a page deletes its whole subtree and the subtree's derived rows")
+	@Test("Deleting a page hides its subtree and retains the local indexes")
 	func deletingPageDeletesSubtree() throws {
 		let (page, paragraph, child) = try database.write { db in
 			let page = try #require(try Page.insert { Page(title: "Subtree Root") }.returning(\.self).fetchOne(db))
@@ -112,12 +113,14 @@ extension Tests.MakePagesViewWritableTest {
 				try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchCount(db)
 			)
 		}
-		expectNoDifference(blocks, 0)
-		expectNoDifference(ancestors, 0)
-		expectNoDifference(references, 0)
+		expectNoDifference(blocks, 3)
+		expectNoDifference(ancestors, 3)
+		expectNoDifference(references, 1)
+		#expect(try database.read { try Paragraph.fetchCount($0) } == 0)
+		#expect(try database.read { try Block.find(child.id).fetchOne($0)?.deletedAt } == nil)
 	}
 
-	@Test("Deleting a page also deletes paragraphs whose parent has not arrived")
+	@Test("Deleting a page retains paragraphs whose parent has not arrived")
 	func deletingPageDeletesOrphanedParagraphs() throws {
 		@Dependency(\.uuid) var uuid
 		let missingParentID = uuid()
@@ -138,6 +141,7 @@ extension Tests.MakePagesViewWritableTest {
 		let orphanExists = try database.read { db in
 			try Select(Block.find(orphan.id).exists()).fetchOne(db)
 		}
-		expectNoDifference(orphanExists, false)
+		expectNoDifference(orphanExists, true)
+		#expect(try database.read { try Paragraph.find(orphan.id).fetchOne($0) } == nil)
 	}
 }

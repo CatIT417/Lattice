@@ -14,9 +14,9 @@ fileprivate nonisolated let logger = Logger(category: "Maintenance")
 		@Dependency(\.defaultDatabase) var database
 
 		cancellable = ValueObservation
-			.tracking { db in try MergeDuplicatePages.duplicateTitles.fetchAll(db) }
-			.start(in: database, scheduling: .async(onQueue: .main), onError: { reportIssue($0) }) { [weak self] titles in
-				guard !titles.isEmpty else { return }
+			.tracking { db in try MergeDuplicatePages.hasPendingWork(in: db) }
+			.start(in: database, scheduling: .async(onQueue: .main), onError: { reportIssue($0) }) { [weak self] needsMerge in
+				guard needsMerge else { return }
 
 				Task { @MainActor in self?.queueMerge() }
 			}

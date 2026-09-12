@@ -51,7 +51,7 @@ final class SearchResults {
 				}
 
 				return try await $results.load(
-					Block
+					Block.where(\.isVisible)
 						.join(BlockText.all) { $0.id.eq($1.blockID) }
 						.where { $1.match(searchText.trimmingCharacters(in: .whitespacesAndNewlines).quoted()) }
 						.order { $1.bm25([\.title: 3]) }

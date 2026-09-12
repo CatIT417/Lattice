@@ -57,7 +57,7 @@ extension Tests.MakeParagraphsViewWritableTest {
 		expectNoDifference(paragraph.props, block.props)
 		expectNoDifference(paragraph.order, block.order)
 		expectNoDifference(paragraph.string, block.string)
-		expectNoDifference(paragraph.pageId, block.pageId)
+		expectNoDifference(try database.read { try BlockHierarchy.find(block.id).fetchOne($0)?.pageId }, page.id)
 		expectNoDifference(paragraph.isOpen, block.isOpen)
 		expectNoDifference(paragraph.heading, block.heading)
 		expectNoDifference(paragraph.parentId, block.parentId)
@@ -82,12 +82,12 @@ extension Tests.MakeParagraphsViewWritableTest {
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Paragraph.find(paragraph.id).update { $0.string = "Updated Paragraph" }.execute(db)
+				try Paragraph.find(paragraph.id).update { $0.string = #bind("Updated Paragraph") }.execute(db)
 			}
 		}
 	}
 
-	@Test("Deleting from the Paragraphs view deletes the corresponding Block")
+	@Test("Deleting a paragraph sets its deletion marker")
 	func canDeleteFromParagraphs() throws {
 		let paragraph = try #require(database.write { db in
 			try Paragraph.insert { Paragraph(string: "My Paragraph", parentId: page.id, pageId: page.id, order: 0) }.returning(\.self).fetchOne(db)
@@ -105,6 +105,8 @@ extension Tests.MakeParagraphsViewWritableTest {
 		let blockExistsAfterDelete = try database.read { db in
 			try Select(Block.find(paragraph.id).exists()).fetchOne(db)
 		}
-		#expect(blockExistsAfterDelete == false)
+		#expect(blockExistsAfterDelete == true)
+		#expect(try database.read { try Paragraph.find(paragraph.id).fetchOne($0) } == nil)
+		#expect(try database.read { try Block.find(paragraph.id).fetchOne($0)?.deletedAt } != nil)
 	}
 }

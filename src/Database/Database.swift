@@ -57,9 +57,9 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		CreateBlocksTable.self,
 		CreateReferencesTable.self,
 		CreateAncestorsTable.self,
-		CreateTriggerGuardTable.self,
 		CreateBlocksFTSTable.self,
 		CreateCachedLinkMetadataTable.self,
+		CreateLocalGraphIndexes.self,
 	], in: database)
 
 	try database.setupTriggers([
@@ -67,12 +67,9 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		MakePagesViewWritable.self,
 		MakeParagraphsViewWritable.self,
 
-		TouchTimestamps.self,
-		SyncAncestorsTable.self,
-		CleanupDerivedRows.self,
-		SyncReferencesTable.self,
-		UpdateParagraphOrder.self,
 		SyncBlocksFTSTable.self,
+		SyncAncestorsTable.self,
+		SyncReferencesTable.self,
 	])
 }
 

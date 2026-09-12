@@ -14,7 +14,7 @@ struct BlockTree {
 		}
 
 		paragraphsById = indexed
-		childrenByParentId = grouped.mapValues { $0.sorted(using: KeyPathComparator(\.order, order: .forward)) }
+		childrenByParentId = grouped.mapValues { $0.sorted(by: Paragraph.ordered) }
 	}
 
 	private init(childrenByParentId: [Block.ID: [Paragraph]], paragraphsById: [Block.ID: Paragraph]) {
@@ -42,7 +42,9 @@ struct BlockTree {
 	}
 
 	func previousSibling(for paragraph: Paragraph) -> Paragraph? {
-		children(of: paragraph.parentId).filter { $0.order < paragraph.order }.last
+		let siblings = children(of: paragraph.parentId)
+		guard let index = siblings.firstIndex(where: { $0.id == paragraph.id }), index > 0 else { return nil }
+		return siblings[index - 1]
 	}
 
 	func previousBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
@@ -101,8 +103,9 @@ struct BlockTree {
 	}
 
 	private func nextSiblingOrAncestorSibling(for paragraph: Paragraph) -> Block.ID? {
-		if let nextSibling = children(of: paragraph.parentId).first(where: { $0.order > paragraph.order }) {
-			return nextSibling.id
+		let siblings = children(of: paragraph.parentId)
+		if let index = siblings.firstIndex(where: { $0.id == paragraph.id }), index + 1 < siblings.count {
+			return siblings[index + 1].id
 		}
 
 		guard paragraph.parentId != paragraph.pageId else { return nil }

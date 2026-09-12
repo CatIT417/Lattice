@@ -89,9 +89,6 @@ struct RoamImporter {
 		var imported = [ImportedPage]()
 
 		try database.write { db in
-			// Defer foreign key checks until the end of the transaction to ensure insert order doesn't cause conflicts.
-			try #sql("PRAGMA defer_foreign_keys = ON").execute(db)
-
 			var resolvedPages = [(page: Page, prepared: PreparedPage)]()
 
 			for prepared in pages {
@@ -103,29 +100,25 @@ struct RoamImporter {
 
 			for (page, prepared) in resolvedPages {
 				if prepared.resolution == .replace {
-					try Paragraph.where { $0.pageId.eq(page.id) }.delete().execute(db)
+					try Paragraph.where { $0.parentId.eq(page.id) }.delete().execute(db)
 				}
 
-				let orderOffset = try prepared.resolution == .merge
-					? (Paragraph.where { $0.parentId.eq(page.id) }
-						.select { $0.order.max() }
-						.fetchOne(db)
-						.flatMap { $0 } ?? -1) + 1
-					: 0
-
-				try Paragraph.insert {
-					for paragraph in prepared.paragraphs {
-						tap(paragraph) {
-							$0.pageId = page.id
-							$0.string = rewriteRefs(in: $0.string, uidMapping: uidMapping, titleRenames: titleRenames)
-
-							if paragraph.parentIsPage {
-								$0.parentId = page.id
-								$0.order += orderOffset
-							}
-						}
-					}
-				}.execute(db)
+				let ordering = try ParagraphOrder(parentId: page.id, in: db)
+				let rootRanks = try ordering.appendRanks(count: prepared.paragraphs.count(where: \.parentIsPage), in: db)
+				let spacing = min(ParagraphOrder.gap, Int.max / max(prepared.paragraphs.count, 1))
+				let paragraphs = prepared.paragraphs.map { paragraph in
+					var paragraph = paragraph
+					paragraph.order = paragraph.parentIsPage ? rootRanks[paragraph.order] : paragraph.order * spacing
+					if paragraph.parentIsPage { paragraph.parentId = page.id }
+					paragraph.string = rewriteRefs(in: paragraph.string, uidMapping: uidMapping, titleRenames: titleRenames)
+					return paragraph
+				}
+				let batchSize = max(1, db.maximumStatementArgumentCount / Paragraph.TableColumns.allColumns.count)
+				for start in stride(from: 0, to: paragraphs.count, by: batchSize) {
+					try Paragraph.insert {
+						Array(paragraphs[start ..< min(start + batchSize, paragraphs.count)])
+					}.execute(db)
+				}
 
 				imported.append(ImportedPage(id: page.id, title: page.title))
 			}

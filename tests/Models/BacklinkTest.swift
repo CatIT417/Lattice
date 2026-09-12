@@ -12,6 +12,24 @@ extension Tests {
 }
 
 extension Tests.BacklinkTest {
+	@Test("Block references and embeds resolve only visible paragraphs", arguments: [Reference.Kind.blockRef, .blockEmbed])
+	func paragraphTargetsOnly(kind: Reference.Kind) throws {
+		try database.write { db in
+			let page = Block(title: "Target Page")
+			let alias = Block(title: "Alias", mergedInto: page.id)
+			let target = Block(string: "Target", parentId: page.id)
+			let source = Block(string: "((\(target.id))) ((\(page.id))) ((\(alias.id)))", parentId: page.id)
+			try Block.insert { [page, alias, target, source] }.execute(db)
+			try Reference.update { $0.kind = #bind(kind) }.execute(db)
+			let keys = try Reference.fetchAll(db)
+			#expect(keys.count == 3)
+			#expect(try Backlink.select(\.toBlock).fetchAll(db) == [target.id])
+			try Paragraph.find(target.id).delete().execute(db)
+			#expect(try Backlink.fetchCount(db) == 0)
+			#expect(Set(try Reference.fetchAll(db)) == Set(keys))
+		}
+	}
+
 	@Test("Unlinked reference count matches the grouped query")
 	func unlinkedReferenceCountMatchesGroupedQuery() throws {
 		let target = Page(title: "Target Page")

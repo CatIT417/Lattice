@@ -24,11 +24,6 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		}
 	}
 
-	enum Kind: Equatable, Hashable, Sendable {
-		case page(Page)
-		case paragraph(Paragraph)
-	}
-
 	/// Internal entity ID (like Roam's e-id)
 	let id: UUID
 
@@ -43,9 +38,6 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 
 	/// ID of parent block (NULL for root pages)
 	var parentId: Block.ID?
-
-	/// Root page for this block
-	var pageId: Block.ID?
 
 	/// Position among siblings
 	var order: Int = 0
@@ -68,21 +60,14 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var createdAt: Date
 	var updatedAt: Date
 
-	var kind: Kind {
-		if let page = Page(block: self) { return .page(page) }
-		if let paragraph = Paragraph(block: self) { return .paragraph(paragraph) }
-
-		fatalError("Invalid Block: \(self)")
-	}
+	var deletedAt: Date?
+	var mergedInto: Block.ID?
 
 	var destination: Destination.Pages {
-		switch kind {
-			case let .page(page): .page(id: page.id)
-			case let .paragraph(paragraph): .block(id: paragraph.id)
-		}
+		title == nil ? .block(id: id) : .page(id: id)
 	}
 
-	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: DayOfYear? = nil, parentId: Block.ID? = nil, pageId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: DayOfYear? = nil, parentId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil, deletedAt: Date? = nil, mergedInto: Block.ID? = nil) {
 		@Dependency(\.uuid) var uuid
 		@Dependency(\.date.now) var now
 
@@ -92,7 +77,6 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		self.order = order
 		self.isOpen = isOpen
 		self.string = string
-		self.pageId = pageId
 		self.heading = heading
 		self.parentId = parentId
 		self.viewType = viewType
@@ -100,10 +84,16 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		self.createdAt = createdAt ?? now
 		self.updatedAt = updatedAt ?? now
 		self.dailyNoteDate = dailyNoteDate
+		self.deletedAt = deletedAt
+		self.mergedInto = mergedInto
 	}
 }
 
 extension Block.TableColumns {
+	var isVisible: some QueryExpression<Bool> {
+		id.in(BlockHierarchy.where(\.isVisible).select(\.blockId))
+	}
+
 	var isPage: some QueryExpression<Bool> {
 		title.isNot(nil)
 	}

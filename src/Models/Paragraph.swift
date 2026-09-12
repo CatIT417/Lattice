@@ -1,5 +1,5 @@
-import SQLiteData
 import Foundation
+import SQLiteData
 
 @Table
 struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChildren {
@@ -13,7 +13,7 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 	var parentId: Block.ID
 
 	/// Root page for this block
-	var pageId: Page.ID
+	let pageId: Page.ID
 
 	/// Position among siblings
 	var order: Int = 0
@@ -58,8 +58,8 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 		self.updatedAt = updatedAt ?? now
 	}
 
-	init?(block: Block) {
-		guard let string = block.string, let parentId = block.parentId, let pageId = block.pageId else {
+	init?(block: Block, pageId: Page.ID) {
+		guard let string = block.string, let parentId = block.parentId else {
 			return nil
 		}
 
@@ -90,25 +90,29 @@ extension Paragraph {
 		@Dependency(\.defaultDatabase) var database
 
 		return try database.read { db in
-			try Paragraph
-				.group(by: \.id)
-				.where { $0.id.in(blockIDs) }
-				.join(Page.all) { $0.pageId.eq($1.id) }
-				.leftJoin(Ancestor.all) { $0.id.eq($2.blockId) }
-				.leftJoin(Block.all) { $2.ancestorId.eq($3.id) }
-				.order { paragraphs, pages, ancestors, blocks in
-					(
-						pages.createdAt.desc(),
-						#sql("""
-						COALESCE(
-						 GROUP_CONCAT(printf('%08d', \(blocks.order)), '/' ORDER BY \(ancestors.depth) DESC),
-						 ''
-						) || '/' || printf('%08d', \(paragraphs.order))
-						""")
-					)
+			let paragraphs = try Paragraph
+				.where {
+					$0.id.in(blockIDs) || $0.id.in(Ancestor.where { $0.blockId.in(blockIDs) }.select(\.ancestorId))
 				}
-				.select { paragraphs, _, _, _ in paragraphs }
+				.join(Page.all) { $0.pageId.eq($1.id) }
+				.order { paragraphs, pages in (pages.createdAt.desc(), pages.id, paragraphs.order, paragraphs.id) }
+				.select { paragraphs, _ in paragraphs }
 				.fetchAll(db)
+
+			var result: [Paragraph] = []
+			let children = Dictionary(grouping: paragraphs, by: \.parentId)
+			var stack = Array(paragraphs.filter(\.parentIsPage).reversed())
+
+			while let paragraph = stack.popLast() {
+				if blockIDs.contains(paragraph.id) { result.append(paragraph) }
+				stack.append(contentsOf: (children[paragraph.id] ?? []).reversed())
+			}
+
+			return result
 		}
+	}
+
+	static func ordered(_ lhs: Paragraph, _ rhs: Paragraph) -> Bool {
+		lhs.order == rhs.order ? lhs.id.uuidString < rhs.id.uuidString : lhs.order < rhs.order
 	}
 }

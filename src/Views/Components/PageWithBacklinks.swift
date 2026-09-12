@@ -23,7 +23,7 @@ struct PageWithBacklinks: View {
 					guard seen.insert(id).inserted else { return nil }
 					return tree.get(byID: id)
 				}
-				.sorted(using: KeyPathComparator(\.order, order: .forward))
+				.sorted(by: Paragraph.ordered)
 		}
 	}
 

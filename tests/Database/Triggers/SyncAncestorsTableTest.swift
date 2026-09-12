@@ -133,8 +133,7 @@ extension Tests.SyncAncestorsTableTest {
 		}
 		expectNoDifference(selfRows, 0)
 
-		let tree = try #require(database.read { db in try Paragraph.withChildren(id: first).fetch(db) }).tree
-		expectNoDifference(tree.children(of: first).map(\.id), [second])
-		expectNoDifference(tree.children(of: second).map(\.id), [])
+		#expect(try database.read { try Paragraph.withChildren(id: first).fetch($0) } == nil)
+		#expect(try database.read { try BlockHierarchy.where(\.isVisible).fetchCount($0) } == 1)
 	}
 }

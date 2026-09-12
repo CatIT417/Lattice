@@ -57,39 +57,3 @@ extension String {
 			.sorted { $0.range.lowerBound < $1.range.lowerBound }
 	}
 }
-
-extension TextRef {
-	struct Resolved {
-		var targetID: UUID
-		var kind: Reference.Kind
-	}
-
-	enum ResolvingError: Error {
-		case unexpectedKind(Reference.Kind)
-	}
-
-	/// Resolves the reference to the id of the block it points at.
-	///
-	/// - Parameter createMissingPages: When true, `[[links]]` and `#tags` to pages that do not exist yet create the page.
-	/// - Returns: `nil` when the target cannot be resolved without creating it, or when a `((block ref))` points at a block that does not exist.
-	func resolved(using db: Database, createMissingPages: Bool) throws -> Resolved? {
-		guard kind.isPage else {
-			if !kind.isBlock { throw ResolvingError.unexpectedKind(kind) }
-
-			guard let id = UUID(uuidString: target), let blockExists = try Select(Block.find(id).exists()).fetchOne(db), blockExists else {
-				return nil
-			}
-
-			return Resolved(targetID: id, kind: kind)
-		}
-
-		if createMissingPages {
-			return try Resolved(targetID: Page.findOrCreate(title: target, in: db).id, kind: kind)
-		}
-
-		let page = if let day = DayOfYear(title: target) { try Page.where { $0.dailyNoteDate.eq(day) }.fetchOne(db) }
-		else { try Page.where { $0.title.eq(target) }.fetchOne(db) }
-
-		return page.map { Resolved(targetID: $0.id, kind: kind) }
-	}
-}

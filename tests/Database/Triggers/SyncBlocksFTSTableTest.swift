@@ -95,7 +95,7 @@ extension Tests.SyncBlocksFTSTableTest {
 		})
 
 		try database.write { db in
-			try Page.find(page.id).delete().execute(db)
+			try Block.find(page.id).delete().execute(db)
 		}
 
 		let ftsRow = try database.read { db in

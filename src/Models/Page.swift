@@ -64,18 +64,18 @@ extension Page {
 	static func createDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
 		let page = newDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt)
 
-		let newlyCreatedBlock = try #sql("""
-		INSERT INTO \(Block.self) (title, dailyNoteDate, createdAt, updatedAt)
-		SELECT \(bind: page.title), \(bind: page.dailyNoteDate!), \(bind: page.createdAt), \(bind: page.updatedAt)
-		WHERE NOT EXISTS (
-		 SELECT 1 FROM \(Block.self)
-		 WHERE \(Block.dailyNoteDate) = \(bind: page.dailyNoteDate!)
-		)
-		RETURNING \(Block.columns);
-		""", as: Block.self).fetchOne(db)
+		let newlyCreatedBlock = try Block.insert {
+			($0.title, $0.dailyNoteDate, $0.createdAt, $0.updatedAt)
+		} select: {
+			Select(Optional(page.title), page.dailyNoteDate, page.createdAt, page.updatedAt).where { _, _, _, _ in
+				!Block.where {
+					$0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) && $0.deletedAt.is(nil) && $0.mergedInto.is(nil)
+				}.exists()
+			}
+		}.returning(\.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) }.fetchOne(db)!
+		return try Page.where { $0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) }.order(by: \.id).fetchOne(db)!
 	}
 }
 
@@ -91,18 +91,18 @@ extension Page {
 			return try createDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt, in: db)
 		}
 
-		let newlyCreatedBlock = try #sql("""
-		INSERT INTO \(Block.self) (title, createdAt, updatedAt)
-		SELECT \(bind: title), \(bind: createdAt ?? now), \(bind: updatedAt ?? now)
-		WHERE NOT EXISTS (
-			SELECT 1 FROM \(Block.self)
-			WHERE \(Block.title) = \(bind: title)
-		)
-		RETURNING \(Block.columns);
-		""", as: Block.self).fetchOne(db)
+		let newlyCreatedBlock = try Block.insert {
+			($0.title, $0.createdAt, $0.updatedAt)
+		} select: {
+			Select(Optional(title), createdAt ?? now, updatedAt ?? now).where { _, _, _ in
+				!Block.where {
+					$0.title.eq(title) && $0.deletedAt.is(nil) && $0.mergedInto.is(nil)
+				}.exists()
+			}
+		}.returning(\.self).fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.title.eq(title) }.fetchOne(db)!
+		return try Page.where { $0.title.eq(title) }.order(by: \.id).fetchOne(db)!
 	}
 }
 
