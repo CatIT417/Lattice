@@ -13,7 +13,7 @@ final class CreateBlocksTable: Migration {
 
 			// Hierarchy
 			table.column("parentId", .text)
-			table.column("pageId", .text).indexed() // Root page for this block
+			table.column("pageId", .text).indexed() // deprecated, remains in schema for backwards compatibility
 			table.column("order", .integer).notNull().defaults(to: 0) // Position among siblings
 
 			// Display options

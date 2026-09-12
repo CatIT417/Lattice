@@ -94,7 +94,7 @@ struct RoamImporter {
 			for prepared in pages {
 				guard prepared.resolution != .skip else { skipped += 1; continue }
 
-				let page = try findExistingPage(prepared).fetchOne(db) ?? createPage(prepared, in: db)
+				let page = try findExistingPage(prepared).order(by: \.id).fetchOne(db) ?? createPage(prepared, in: db)
 				resolvedPages.append((page, prepared))
 			}
 

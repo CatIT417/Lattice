@@ -63,7 +63,7 @@ struct ParagraphOrder {
 		guard count > 0 else { return [] }
 
 		// find the largest `order` value among the siblings. if there are none, fall back to `-gap` so the first `order` becomes 0
-		let base = try rawSiblings
+		let base: Int = try rawSiblings
 			.order { $0.order.desc() }
 			.limit(1)
 			.select(\.order)
