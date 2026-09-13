@@ -1,15 +1,12 @@
-import Combine
 import SwiftUI
 import SQLiteData
 
 fileprivate let dailyPageBatchSize = 30
 fileprivate let dailyPageLoadThreshold = 5
 
-fileprivate func dailyPagesQuery(for date: Date, limit: Int) -> SelectOf<Page> {
-	let day: DayOfYear? = DayOfYear(date)
-
-	return Page
-		.where { $0.dailyNoteDate.isNot(nil) && $0.dailyNoteDate <= day }
+fileprivate func dailyPagesQuery(for day: DayOfYear, limit: Int) -> SelectOf<Page> {
+	Page
+		.where { $0.dailyNoteDate.isNot(nil) && $0.dailyNoteDate <= Optional(day) }
 		.order(by: { $0.dailyNoteDate.desc() })
 		.limit(limit)
 }
@@ -20,11 +17,11 @@ struct DailyPagesScreen: View {
 		let limit: Int
 	}
 
-	@State private var currentDate = Date()
-	@State private var pageLimit = dailyPageBatchSize
-	let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+	let currentDay: DayOfYear
 
-	@FetchAll(dailyPagesQuery(for: Date(), limit: dailyPageBatchSize)) private var pages
+	@State private var pageLimit = dailyPageBatchSize
+
+	@FetchAll(Page.none) private var pages
 	var body: some View {
 		ScrollView {
 			LazyVStack {
@@ -45,15 +42,10 @@ struct DailyPagesScreen: View {
 		}
 		.unfocusBlockOnBackgroundTap()
 		.referenceSuggestionsOverlay()
-		.task(id: QueryID(day: DayOfYear(currentDate), limit: pageLimit)) {
+		.task(id: QueryID(day: currentDay, limit: pageLimit)) {
 			let _ = await withErrorReporting {
-				try await $pages.load(dailyPagesQuery(for: currentDate, limit: pageLimit)).task
+				try await $pages.load(dailyPagesQuery(for: currentDay, limit: pageLimit)).task
 			}
-		}
-		.onReceive(timer) { newDate in
-			if Calendar.current.isDate(currentDate, equalTo: newDate, toGranularity: .day) { return }
-
-			currentDate = newDate
 		}
 		#if os(iOS)
 		.blockSelectionMenu()
@@ -82,6 +74,6 @@ struct DailyPagesScreen: View {
 #Preview {
 	let _ = previewData()
 
-	DailyPagesScreen()
+	DailyPagesScreen(currentDay: .today)
 		.preview()
 }

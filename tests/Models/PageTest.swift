@@ -24,6 +24,38 @@ extension Tests.PageTest {
 		expectNoDifference(DayOfYear(day: 3, month: 2, year: 2026), page.dailyNoteDate)
 	}
 
+	@Test("Concurrent daily note requests return the same page")
+	func concurrentDailyNoteCreation() async throws {
+		let day = DayOfYear(day: 13, month: 9, year: 2026)
+		async let firstRequest = database.write { try Page.createDailyNote(for: day, in: $0) }
+		async let secondRequest = database.write { try Page.createDailyNote(for: day, in: $0) }
+		let (first, second) = try await (firstRequest, secondRequest)
+
+		expectNoDifference(first, second)
+		let pages = try await database.read { try Page.fetchAll($0) }
+		expectNoDifference(pages, [first])
+	}
+
+	@Test("Repeated daily note requests preserve the page and its contents")
+	func dailyNoteCreationPreservesContent() async throws {
+		let day = DayOfYear(day: 13, month: 9, year: 2026)
+		let page = try await database.write { db in
+			let page = try Page.createDailyNote(for: day, in: db)
+			try Paragraph.insert { Paragraph(string: "Keep this note", parentId: page.id, pageId: page.id, order: 0) }.execute(db)
+			return page
+		}
+		let before = try await database.read { try Block.order(by: \.id).fetchAll($0) }
+		let later = page.createdAt.addingTimeInterval(60)
+
+		let existing = try await database.write {
+			try Page.createDailyNote(for: day, createdAt: later, updatedAt: later, in: $0)
+		}
+
+		expectNoDifference(existing.id, page.id)
+		let after = try await database.read { try Block.order(by: \.id).fetchAll($0) }
+		expectNoDifference(after, before)
+	}
+
 	@Test("Creating a page with an invalid title fails", arguments: ["AB", " AB ", "Bad [Title", "Bad ]Title"])
 	func invalidTitle(title: String) throws {
 		#expect(throws: DatabaseError.self) {
