@@ -279,8 +279,8 @@ extension View {
 	VStack {}
 		.sheet(isPresented: $showing) {
 			FailedPagesSheet(pages: [
-				.init(title: "S", reason: .titleTooShort),
-				.init(title: "AB", reason: .titleTooShort),
+				.init(title: "S", reason: .tooShort),
+				.init(title: "AB", reason: .tooShort),
 			])
 		}
 }

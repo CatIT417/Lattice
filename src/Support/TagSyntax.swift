@@ -8,7 +8,7 @@ enum TagSyntax {
 		return title.unicodeScalars.allSatisfy { simpleAllowedScalars.contains($0) }
 	}
 
-	static func makeTagReference(for title: String) -> String {
-		isSimpleTag(title) ? "#\(title)" : "#[[\(title)]]"
+	static func makeTagReference(for title: String, bracketed: Bool = false) -> String {
+		!bracketed && isSimpleTag(title) ? "#\(title)" : "#[[\(title)]]"
 	}
 }

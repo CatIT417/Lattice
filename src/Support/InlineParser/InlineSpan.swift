@@ -62,7 +62,7 @@ extension InlineSpan.Kind {
 		// page link (`[[page]]`)
 		if destination.hasPrefix("[["), destination.hasSuffix("]]") {
 			let title = String(destination.dropFirst(2).dropLast(2))
-			guard !title.isEmpty, title.contains(where: { !$0.isWhitespace }) else { return nil }
+			guard (try? Page.validateTitle(title)) != nil else { return nil }
 			return (.pageLink, title)
 		}
 
@@ -76,14 +76,14 @@ extension InlineSpan.Kind {
 		// tag (`#[[tag]]`)
 		if destination.hasPrefix("#[["), destination.hasSuffix("]]") {
 			let tag = String(destination.dropFirst(3).dropLast(2))
-			guard !tag.isEmpty, tag.contains(where: { !$0.isWhitespace }) else { return nil }
+			guard (try? Page.validateTitle(tag)) != nil else { return nil }
 			return (.tag, tag)
 		}
 
 		// tag (`#tag`)
 		if destination.hasPrefix("#") {
 			let tag = String(destination.dropFirst())
-			guard !tag.isEmpty else { return nil }
+			guard (try? Page.validateTitle(tag)) != nil else { return nil }
 			return (.tag, tag)
 		}
 

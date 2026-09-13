@@ -102,11 +102,11 @@ extension Tests.RoamImporterTest {
 // MARK: - Title Validation
 
 extension Tests.RoamImporterTest {
-	@Test("Marks pages with title < 3 chars as failed")
-	func shortTitleFails() throws {
+	@Test("Import reports invalid titles", arguments: ["AB", " AB ", "Bad [Title", "Bad ]Title"])
+	func invalidTitleFails(title: String) throws {
 		let json = """
 		[
-			{"uid": "p1", "title": "AB", "children": [{"uid": "b1", "string": "block"}]},
+			{"uid": "p1", "title": "\(title)", "children": [{"uid": "b1", "string": "block"}]},
 			{"uid": "p2", "title": "Valid Page", "children": [{"uid": "b2", "string": "block"}]}
 		]
 		"""
@@ -116,7 +116,13 @@ extension Tests.RoamImporterTest {
 		#expect(valid.count == 1)
 		#expect(valid[0].page.title == "Valid Page")
 		#expect(failed.count == 1)
-		#expect(failed[0].title == "AB")
+		#expect(failed[0].title == title)
+		do {
+			try Page.validateTitle(title)
+			Issue.record("The title must be rejected.")
+		} catch {
+			expectNoDifference(failed[0].reason.localizedDescription, error.localizedDescription)
+		}
 	}
 }
 

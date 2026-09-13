@@ -24,11 +24,11 @@ extension Tests.PageTest {
 		expectNoDifference(DayOfYear(day: 3, month: 2, year: 2026), page.dailyNoteDate)
 	}
 
-	@Test("Creating a page with a title shorter than 3 characters fails")
-	func minimumTitleLength() throws {
+	@Test("Creating a page with an invalid title fails", arguments: ["AB", " AB ", "Bad [Title", "Bad ]Title"])
+	func invalidTitle(title: String) throws {
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Page.insert { Page(title: "AB") }.execute(db)
+				try Page.insert { Page(title: title) }.execute(db)
 			}
 		}
 	}
@@ -42,19 +42,20 @@ extension Tests.PageTest {
 		expectNoDifference("ABC", page.title)
 	}
 
-	@Test("Renaming a page to a title shorter than 3 characters fails")
-	func renamingBelowMinimumLength() throws {
+	@Test("An invalid rename preserves the page title", arguments: ["AB", "Bad [Title", "Bad ]Title"])
+	func invalidRename(title: String) throws {
 		try database.write { db in
 			try Page.insert { Page(title: "Test Page") }.execute(db)
 		}
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Page.where { $0.title.eq("Test Page") }
-					.update { $0.title = #bind("AB") }
+				try Block.where { $0.title.eq("Test Page") }
+					.update { $0.title = #bind(title) }
 					.execute(db)
 			}
 		}
+		expectNoDifference(try database.read { try Page.fetchOne($0)?.title }, "Test Page")
 	}
 
 	@Test("Page.findOrCreate returns an existing page if one exists, otherwise creates it")

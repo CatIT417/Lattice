@@ -42,16 +42,34 @@ struct PageScreen: View {
 				}
 				.unfocusBlockOnBackgroundTap()
 				#if os(iOS)
-					.doneButtonOnToolbar()
-					.toolbar {
-						if let dailyNoteDate = page.dailyNoteDate {
-							ToolbarItem {
-								GoToDailyPageButton(currentDate: dailyNoteDate.date())
-							}
+				.doneButtonOnToolbar()
+				.toolbar {
+					if let dailyNoteDate = page.dailyNoteDate {
+						ToolbarItem {
+							GoToDailyPageButton(currentDate: dailyNoteDate.date())
 						}
 					}
-					.toolbarTitleMenu {
-						if !page.isSpecialPage {
+				}
+				.toolbarTitleMenu {
+					if !page.isSpecialPage {
+						if !page.isDailyNote {
+							Button("Rename", systemImage: "pencil") {
+								willRenamePage = true
+							}
+						}
+
+						Button("Delete", systemImage: "trash", role: .destructive) {
+							willDeletePage = true
+						}
+					}
+				}
+				.blockSelectionMenu()
+				#else
+				.toolbar {
+					ShareLink(item: page, preview: SharePreview(page.title))
+
+					if !page.isSpecialPage {
+						Menu {
 							if !page.isDailyNote {
 								Button("Rename", systemImage: "pencil") {
 									willRenamePage = true
@@ -61,48 +79,30 @@ struct PageScreen: View {
 							Button("Delete", systemImage: "trash", role: .destructive) {
 								willDeletePage = true
 							}
+						} label: {
+							Image(systemName: "ellipsis.circle")
 						}
 					}
-					.blockSelectionMenu()
-				#else
-					.toolbar {
-						ShareLink(item: page, preview: SharePreview(page.title))
-
-						if !page.isSpecialPage {
-							Menu {
-								if !page.isDailyNote {
-									Button("Rename", systemImage: "pencil") {
-										willRenamePage = true
-									}
-								}
-
-								Button("Delete", systemImage: "trash", role: .destructive) {
-									willDeletePage = true
-								}
-							} label: {
-								Image(systemName: "ellipsis.circle")
-							}
-						}
-					}
+				}
 				#endif
-					.alert("Are you sure you want to delete this page?", isPresented: $willDeletePage) {
-						Button("Delete", role: .destructive) {
-							deletePage()
-						}
-
-						Button(role: .cancel) {}
-					} message: {
-						Text("This page and its contents will be hidden.")
+				.alert("Are you sure you want to delete this page?", isPresented: $willDeletePage) {
+					Button("Delete", role: .destructive) {
+						deletePage()
 					}
-					.toolbarRole(.editor)
-					.navigationTitle(page.title)
-					.referenceSuggestionsOverlay()
-					.toolbarTitleDisplayMode(.inline)
-					.environment(\.rootBlockID, page.id)
-					.focusedSceneValue(\.currentPage, page)
-					.renamePage(page, active: $willRenamePage)
-					.environment(\.blockTree, pageWithContent.tree)
-					.navigationDocument(page, preview: SharePreview(page.title))
+
+					Button(role: .cancel) {}
+				} message: {
+					Text("This page and its contents will be hidden.")
+				}
+				.toolbarRole(.editor)
+				.navigationTitle(page.title)
+				.referenceSuggestionsOverlay()
+				.toolbarTitleDisplayMode(.inline)
+				.environment(\.rootBlockID, page.id)
+				.focusedSceneValue(\.currentPage, page)
+				.renamePage(page, active: $willRenamePage)
+				.environment(\.blockTree, pageWithContent.tree)
+				.navigationDocument(page, preview: SharePreview(page.title))
 			} else {
 				ProgressView()
 					.onAppear { router.pop() }
@@ -130,7 +130,8 @@ extension PageScreen {
 	struct ByTitle: View {
 		var title: String
 
-		@State var page: Page?
+		@State private var page: Page?
+		@State private var titleError: Page.TitleError?
 		@Dependency(\.defaultDatabase) var database
 
 		init(title: String) {
@@ -140,6 +141,8 @@ extension PageScreen {
 		var body: some View {
 			if let page {
 				PageScreen(pageId: page.id)
+			} else if let titleError {
+				ContentUnavailableView("Invalid Page Title", systemImage: "exclamationmark.triangle", description: Text(titleError.localizedDescription))
 			} else {
 				ProgressView()
 					.onAppear { findOrCreate() }
@@ -147,6 +150,12 @@ extension PageScreen {
 		}
 
 		func findOrCreate() {
+			do { try Page.validateTitle(title) }
+			catch {
+				titleError = error
+				return
+			}
+
 			page = withErrorReporting {
 				try database.write { db in
 					try Page.findOrCreate(title: title, in: db)

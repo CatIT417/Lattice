@@ -12,7 +12,7 @@ struct PageLinkRule: InlineParser.Rule, Sendable {
 		guard let match = remaining.prefixMatch(of: Self.pattern) else { return nil }
 
 		let target = String(match.1)
-		guard target.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 else { return nil }
+		guard (try? Page.validateTitle(target)) != nil else { return nil }
 
 		return InlineSpan(
 			kind: .pageLink,

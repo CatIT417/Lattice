@@ -100,11 +100,7 @@ extension Tests.ReferenceSuggestionContextTest {
 	@Test("replacement for page links leaves cursor after token")
 	func replacementForPageLinksLeavesCursorAfterToken() throws {
 		let context = try #require(referenceSuggestionContext(in: "[[Fe]]", cursorOffset: 4))
-		let replaced = replacingReferenceSuggestion(
-			in: context.fullText,
-			context: context,
-			with: "My Page"
-		)
+		let replaced = try context.replacing(with: "My Page")
 
 		expectNoDifference(replaced.text, "[[My Page]]")
 		expectNoDifference(replaced.cursorOffsetAfterToken, 11)
@@ -113,11 +109,7 @@ extension Tests.ReferenceSuggestionContextTest {
 	@Test("replacement for simple tags uses #title when possible")
 	func replacementForSimpleTagsUsesSimpleSyntax() throws {
 		let context = try #require(referenceSuggestionContext(in: "#fe", cursorOffset: 3))
-		let replaced = replacingReferenceSuggestion(
-			in: context.fullText,
-			context: context,
-			with: "todo_1"
-		)
+		let replaced = try context.replacing(with: "todo_1")
 
 		expectNoDifference(replaced.text, "#todo_1")
 		expectNoDifference(replaced.cursorOffsetAfterToken, 7)
@@ -126,34 +118,25 @@ extension Tests.ReferenceSuggestionContextTest {
 	@Test("replacement for tags falls back to bracketed syntax for spaced titles")
 	func replacementForTagsFallsBackToBracketedSyntaxForSpacedTitles() throws {
 		let context = try #require(referenceSuggestionContext(in: "#tag", cursorOffset: 4))
-		let replaced = replacingReferenceSuggestion(
-			in: context.fullText,
-			context: context,
-			with: "my tag"
-		)
+		let replaced = try context.replacing(with: "my tag")
 
 		expectNoDifference(replaced.text, "#[[my tag]]")
 		expectNoDifference(replaced.cursorOffsetAfterToken, 11)
+	}
+
+	@Test("Tag suggestions preserve their form and the following text", arguments: [
+		("#old more text", 4, "#new more text", 4),
+		("#[[old]]suffix", 6, "#[[new]]suffix", 8),
+		("#[[old]] more text", 6, "#[[new]] more text", 8),
+	])
+	func tagReplacementPreservesForm(text: String, cursor: Int, expected: String, expectedCursor: Int) throws {
+		let context = try #require(ReferenceSuggestions.Context(in: text, cursorOffset: cursor))
+		let replaced = try context.replacing(with: "new")
+		expectNoDifference(replaced.text, expected)
+		expectNoDifference(replaced.cursorOffsetAfterToken, expectedCursor)
 	}
 }
 
 private func referenceSuggestionContext(in text: String, cursorOffset: Int) -> ReferenceSuggestions.Context? {
 	ReferenceSuggestions.Context(in: text, cursorOffset: cursorOffset)
-}
-
-private func replacingReferenceSuggestion(
-	in text: String,
-	context: ReferenceSuggestions.Context,
-	with suggestionTitle: String
-) -> (text: String, cursorOffsetAfterToken: Int) {
-	let replacementToken = switch context.kind {
-		case .pageLink:
-			"[[\(suggestionTitle)]]"
-		case .tagSimple, .tagBracketed:
-			TagSyntax.makeTagReference(for: suggestionTitle)
-	}
-
-	let updatedText = (text as NSString).replacingCharacters(in: context.tokenRange, with: replacementToken)
-	let cursorOffsetAfterToken = context.tokenRange.location + replacementToken.utf16Length
-	return (updatedText, cursorOffsetAfterToken)
 }

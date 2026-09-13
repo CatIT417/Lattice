@@ -38,11 +38,11 @@ struct TextRef {
 		}
 	}
 
-	func replacement(forRenamedPage title: String) -> String? {
+	func replacement(forRenamedPage title: String, in source: String) -> String? {
 		switch kind {
 			case .pageLink: "[[\(title)]]"
 			case .blockRef, .blockEmbed: nil
-			case .tag: TagSyntax.makeTagReference(for: title)
+			case .tag: TagSyntax.makeTagReference(for: title, bracketed: source[range].hasPrefix("#[["))
 		}
 	}
 }

@@ -48,7 +48,7 @@ struct FloatingPageSuggestions: View {
 	private var panelHeight: CGFloat {
 		guard measuredPanelHeight <= 0 else { return measuredPanelHeight }
 
-		let estimatedPromptHeight = (referenceSuggestions.isQueryEmpty || referenceSuggestions.isQueryTooShort) ? Metrics.estimatedPromptHeight : 0
+		let estimatedPromptHeight = (referenceSuggestions.isQueryEmpty || referenceSuggestions.validationError != nil) ? Metrics.estimatedPromptHeight : 0
 		let estimatedListHeight = referenceSuggestions.suggestions.count == 0 ? 0 : minListHeight
 
 		return estimatedPromptHeight + estimatedListHeight + Metrics.panelExtraHeight
@@ -84,8 +84,14 @@ struct FloatingPageSuggestions: View {
 		let suggestions = referenceSuggestions.suggestions
 
 		VStack(alignment: .leading, spacing: 6) {
-			if referenceSuggestions.isQueryEmpty || referenceSuggestions.isQueryTooShort {
+			if referenceSuggestions.isQueryEmpty {
 				Text("Search for a Page")
+					.font(.subheadline)
+					.foregroundStyle(.secondary)
+					.padding(.vertical, 8)
+					.padding(.horizontal, 12)
+			} else if let error = referenceSuggestions.validationError {
+				Text(error.localizedDescription)
 					.font(.subheadline)
 					.foregroundStyle(.secondary)
 					.padding(.vertical, 8)

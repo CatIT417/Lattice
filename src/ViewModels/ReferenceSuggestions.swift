@@ -63,19 +63,22 @@ final class ReferenceSuggestions {
 		return context.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 	}
 
-	var isQueryTooShort: Bool {
-		guard let context else { return false }
-		let trimmed = context.query.trimmingCharacters(in: .whitespacesAndNewlines)
-		return !trimmed.isEmpty && trimmed.count < 3
+	var validationError: Page.TitleError? {
+		guard let context else { return nil }
+		do {
+			try Page.validateTitle(context.query)
+			return nil
+		} catch {
+			return error
+		}
 	}
 
 	var suggestions: [Item] {
-		guard let context else { return [] }
+		guard let context, validationError == nil else { return [] }
 		let trimmed = context.query.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !trimmed.isEmpty, trimmed.count >= 3 else { return [] }
 
 		if fetchedSuggestions.isEmpty {
-			return [Item(title: context.query, isSyntheticNewPage: true)]
+			return [Item(title: trimmed, isSyntheticNewPage: true)]
 		}
 
 		return fetchedSuggestions
@@ -146,7 +149,7 @@ final class ReferenceSuggestions {
 	func acceptSuggestion(withTitle title: String) -> Bool {
 		guard let context else { return false }
 		guard let activeOnTextChanged else { return false }
-		let replacement = replacingReferenceSuggestion(in: context.fullText, context: context, with: title)
+		guard let replacement = try? context.replacing(with: title) else { return false }
 
 		activeOnTextChanged(replacement.text)
 
@@ -178,21 +181,6 @@ final class ReferenceSuggestions {
 		shouldScrollToHighlighted = false
 	}
 
-	private func replacingReferenceSuggestion(
-		in text: String, context: ReferenceSuggestions.Context, with suggestionTitle: String
-	) -> (text: String, cursorOffsetAfterToken: Int) {
-		let replacementToken = switch context.kind {
-			case .pageLink:
-				"[[\(suggestionTitle)]]"
-			case .tagSimple, .tagBracketed:
-				TagSyntax.makeTagReference(for: suggestionTitle)
-		}
-
-		let updatedText = (text as NSString).replacingCharacters(in: context.tokenRange, with: replacementToken)
-		let cursorOffsetAfterToken = context.tokenRange.location + replacementToken.utf16Length
-		return (updatedText, cursorOffsetAfterToken)
-	}
-
 	private func moveHighlightedSuggestion(delta: Int) {
 		guard !suggestions.isEmpty else { return }
 
@@ -202,7 +190,7 @@ final class ReferenceSuggestions {
 
 	private func loadSuggestions(for query: String) {
 		let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-		guard !trimmed.isEmpty, trimmed.count >= 3 else {
+		guard (try? Page.validateTitle(trimmed)) != nil else {
 			loadTask?.cancel()
 			loadTask = nil
 			highlightedIndex = 0
@@ -225,6 +213,18 @@ final class ReferenceSuggestions {
 // MARK: - Reference Context
 
 extension ReferenceSuggestions.Context {
+	func replacing(with title: String) throws(Page.TitleError) -> (text: String, cursorOffsetAfterToken: Int) {
+		let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+		try Page.validateTitle(title)
+		let replacementToken = switch kind {
+			case .pageLink: "[[\(title)]]"
+			case .tagSimple, .tagBracketed: TagSyntax.makeTagReference(for: title, bracketed: kind == .tagBracketed)
+		}
+
+		let updatedText = (fullText as NSString).replacingCharacters(in: tokenRange, with: replacementToken)
+		return (updatedText, tokenRange.location + replacementToken.utf16Length)
+	}
+
 	init?(in text: String, cursorOffset: Int) {
 		let nsText = text as NSString
 		let safeCursorOffset = clamp(cursorOffset, to: 0...nsText.length)

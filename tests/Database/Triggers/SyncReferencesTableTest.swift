@@ -67,12 +67,25 @@ extension Tests {
 		func rename() throws {
 			try database.write { db in
 				let page = Block(title: "Source")
-				let source = Block(string: "👨‍👩‍👧‍👦 [[Old Title]] #[[Old Title]] [[Other]]", parentId: page.id)
+				let source = Block(string: "👨‍👩‍👧‍👦 [[Old]] #[[Old]]suffix #Old more text [[Other]]", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
-				let target = try #require(try Page.where { $0.title.eq("Old Title") }.fetchOne(db))
+				let target = try #require(try Page.where { $0.title.eq("Old") }.fetchOne(db))
 				try Block.find(target.id).update { $0.title = #bind("New") }.execute(db)
-				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New]] #New [[Other]]")
+				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New]] #[[New]]suffix #New more text [[Other]]")
 				expectNoDifference(Set(try Reference.fetchAll(db).map(\.targetKey)), ["New", "Other"])
+			}
+		}
+
+		@Test("Invalid references do not prevent paragraph saves")
+		func invalidReferences() throws {
+			try database.write { db in
+				let page = Block(title: "Source")
+				let text = "[[Bad [Title]] #[[Bad [Title]] [label]([[Bad [Title]]) [label](#[[Bad [Title]]) [[Bad]Title]] [[Valid]]"
+				let source = Block(string: text, parentId: page.id)
+				try Block.insert { [page, source] }.execute(db)
+				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, text)
+				expectNoDifference(try Reference.fetchAll(db).map(\.targetKey), ["Valid"])
+				#expect(try Page.fetchCount(db) == 2)
 			}
 		}
 

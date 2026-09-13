@@ -2,24 +2,12 @@ import SwiftUI
 import SQLiteData
 
 struct PageRenamingModifier: ViewModifier {
-	enum TitleError: Error, LocalizedError {
-		case existing, reserved, isDateTitle
-
-		var errorDescription: String? {
-			switch self {
-				case .existing: "A page with that title already exists."
-				case .reserved: "That title is reserved for special pages."
-				case .isDateTitle: "Titles that look like dates are reserved for daily notes."
-			}
-		}
-	}
-
 	var page: Page
 	@Binding var active: Bool
 	@Dependency(\.defaultDatabase) private var database
 
 	@State private var newTitle: String
-	@State private var error: TitleError?
+	@State private var error: Page.TitleError?
 
 	init(page: Page, active: Binding<Bool>) {
 		self.page = page
@@ -27,10 +15,17 @@ struct PageRenamingModifier: ViewModifier {
 		_newTitle = State(initialValue: page.title)
 	}
 
-	var isValidTitle: Bool {
-		with(newTitle.trimmingCharacters(in: .whitespacesAndNewlines)) { newTitle in
-			newTitle != page.title && newTitle.count >= 3
+	var validationError: Page.TitleError? {
+		do {
+			try Page.validateTitle(newTitle)
+			return nil
+		} catch {
+			return error
 		}
+	}
+
+	var isValidTitle: Bool {
+		newTitle.trimmingCharacters(in: .whitespacesAndNewlines) != page.title && validationError == nil
 	}
 
 	func body(content: Content) -> some View {
@@ -42,7 +37,13 @@ struct PageRenamingModifier: ViewModifier {
 					.disabled(!isValidTitle)
 
 				Button("Cancel", role: .cancel) {}
-			} message: { Text("Any blocks referencing this page will also be updated.") }
+			} message: {
+				if let validationError {
+					Text(validationError.localizedDescription)
+				} else {
+					Text("Any blocks referencing this page will also be updated.")
+				}
+			}
 			.alert(isPresented: $error.isPresent(), error: error) {
 				Button("OK", role: .close) {
 					active = true

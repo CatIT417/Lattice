@@ -63,6 +63,7 @@ extension Page {
 
 	static func createDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
 		let page = newDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt)
+		try validateTitle(page.title)
 
 		let newlyCreatedBlock = try Block.insert {
 			($0.title, $0.dailyNoteDate, $0.createdAt, $0.updatedAt)
@@ -86,6 +87,7 @@ extension Page {
 		@Dependency(\.date.now) var now
 
 		let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+		try validateTitle(title)
 
 		if let day = DayOfYear(title: title) {
 			return try createDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt, in: db)

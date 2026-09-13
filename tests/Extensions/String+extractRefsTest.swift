@@ -114,11 +114,20 @@ extension Tests.StringExtractRefsTest {
 		let tagRef = try #require(refs.first { $0.kind == .tag })
 		let blockRef = try #require(refs.first { $0.kind == .blockRef })
 
-		#expect(blockRef.replacement(forRenamedPage: "Anything") == nil)
-		expectNoDifference(tagRef.replacement(forRenamedPage: "NewTag"), "#NewTag")
-		expectNoDifference(tagRef.replacement(forRenamedPage: "Café"), "#[[Café]]")
-		expectNoDifference(tagRef.replacement(forRenamedPage: "On Plex"), "#[[On Plex]]")
-		expectNoDifference(pageRef.replacement(forRenamedPage: "New Title"), "[[New Title]]")
+		#expect(blockRef.replacement(forRenamedPage: "Anything", in: text) == nil)
+		expectNoDifference(tagRef.replacement(forRenamedPage: "NewTag", in: text), "#[[NewTag]]")
+		expectNoDifference(tagRef.replacement(forRenamedPage: "Café", in: text), "#[[Café]]")
+		expectNoDifference(tagRef.replacement(forRenamedPage: "On Plex", in: text), "#[[On Plex]]")
+		expectNoDifference(pageRef.replacement(forRenamedPage: "New Title", in: text), "[[New Title]]")
+	}
+
+	@Test("Accepted titles retain their target in links and tags", arguments: ["ABC", "C# notes", "Plan (v2)", "Café", "Notes 👨‍👩‍👧‍👦"])
+	func acceptedTitlesRoundTrip(title: String) throws {
+		try Page.validateTitle(title)
+		let texts = ["[[\(title)]]", "#[[\(title)]]", "[label]([[\(title)]])", "[label](#[[\(title)]])"]
+		let refs = texts.flatMap { $0.extractRefs() }
+		expectNoDifference(refs.map(\.target), Array(repeating: title, count: 4))
+		expectNoDifference(refs.map(\.kind), [.pageLink, .tag, .pageLink, .tag])
 	}
 
 	@Test("extractRefs ignores references inside markdown link labels")

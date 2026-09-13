@@ -24,7 +24,7 @@ struct TagRule: InlineParser.Rule, Sendable {
 
 	private func extractTag(match: Regex<Regex<(Substring, Substring)>.RegexOutput>.Match) -> InlineSpan? {
 		let target = String(match.1)
-		guard target.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 else { return nil }
+		guard (try? Page.validateTitle(target)) != nil else { return nil }
 
 		return InlineSpan(
 			kind: .tag,

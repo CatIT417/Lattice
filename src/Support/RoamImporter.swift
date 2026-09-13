@@ -19,17 +19,20 @@ struct RoamImporter {
 		var uidMapping = [String: UUID]()
 
 		for roamPage in roamPages {
-			guard roamPage.title.count >= 3 else {
-				failed.append(FailedPage(title: roamPage.title, reason: .titleTooShort))
+			let title = roamPage.title.trimmingCharacters(in: .whitespacesAndNewlines)
+			do {
+				try Page.validateTitle(title)
+			} catch {
+				failed.append(FailedPage(title: roamPage.title, reason: error))
 				continue
 			}
 
 			let updatedAt = roamPage.editTime.map { Date(millisecondsSince1970: $0) }
 			let createdAt = roamPage.createTime.map { Date(millisecondsSince1970: $0) }
 
-			var page = Page(title: roamPage.title, createdAt: createdAt, updatedAt: updatedAt)
+			var page = Page(title: title, createdAt: createdAt, updatedAt: updatedAt)
 
-			if let dailyDate = Self.parseDailyDate(uid: roamPage.uid, title: roamPage.title) {
+			if let dailyDate = Self.parseDailyDate(uid: roamPage.uid, title: title) {
 				page = Page.newDailyNote(for: dailyDate, createdAt: createdAt, updatedAt: updatedAt)
 			}
 
@@ -45,7 +48,7 @@ struct RoamImporter {
 					pageUIDs: &pageUIDs
 				),
 				blockUIDs: pageUIDs,
-				roamTitle: page.title == roamPage.title ? nil : roamPage.title
+				roamTitle: page.title == title ? nil : title
 			))
 		}
 
@@ -186,7 +189,7 @@ struct RoamImporter {
 		var result = text
 
 		for ref in text.extractRefs().reversed().filter({ $0.kind == .pageLink || $0.kind == .tag }) {
-			if let newTitle = titleRenames[ref.target], let replacement = ref.replacement(forRenamedPage: newTitle) {
+			if let newTitle = titleRenames[ref.target], let replacement = ref.replacement(forRenamedPage: newTitle, in: text) {
 				result.replaceSubrange(ref.range, with: replacement)
 			}
 		}
@@ -307,18 +310,8 @@ extension RoamImporter {
 	}
 
 	struct FailedPage {
-		enum Reason: Error, LocalizedError {
-			case titleTooShort
-
-			var errorDescription: String? {
-				switch self {
-					case .titleTooShort: "Title must be at least 3 characters"
-				}
-			}
-		}
-
 		let title: String
-		let reason: Reason
+		let reason: Page.TitleError
 	}
 
 	struct Result {

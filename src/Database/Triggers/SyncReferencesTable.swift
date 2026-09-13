@@ -98,7 +98,7 @@ struct SyncReferencesTable: Trigger {
 					.sorted { $0.range.location > $1.range.location }
 
 				for item in ranges {
-					guard let replacement = item.ref.replacement(forRenamedPage: new) else { continue }
+					guard let replacement = item.ref.replacement(forRenamedPage: new, in: original) else { continue }
 					mutable.replaceCharacters(in: item.range, with: replacement)
 				}
 
