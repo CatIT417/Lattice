@@ -7,7 +7,7 @@ final class MakePagesViewWritable: Trigger {
 			Block.insert {
 				Block.Columns(
 					id: page.id,
-					title: page.title.asOptional,
+					title: page.canonicalTitle.asOptional,
 					dailyNoteDate: page.dailyNoteDate,
 					props: page.props,
 					createdAt: page.createdAt,

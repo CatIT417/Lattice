@@ -53,10 +53,10 @@ extension Tests.BacklinkTest {
 		}
 
 		let groupedReferences = try database.read { db in
-			try Backlink.unlinkedReferences(forPage: target.id, title: target.title).fetchAll(db)
+			try Backlink.unlinkedReferences(forPage: target.id, title: target.canonicalTitle).fetchAll(db)
 		}
 		let count = try database.read { db in
-			try Backlink.unlinkedReferenceCount(forPage: target.id, title: target.title).fetchOne(db)
+			try Backlink.unlinkedReferenceCount(forPage: target.id, title: target.canonicalTitle).fetchOne(db)
 		}
 
 		#expect(count == 2)

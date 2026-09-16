@@ -40,17 +40,6 @@ struct AttributedStringResult {
 	}
 }
 
-func removeReferences(from text: String) -> String {
-	var result = text
-	let refs = text.extractRefs().sorted { $0.range.lowerBound > $1.range.lowerBound }
-
-	for ref in refs {
-		result.replaceSubrange(ref.range, with: ref.target)
-	}
-
-	return result
-}
-
 /// Characters that can start inline markup — if none are present, parsing can be skipped entirely.
 private let inlineMarkupCharacters: Set<Character> = ["*", "_", "`", "=", "[", "(", "#"]
 
@@ -298,12 +287,22 @@ private extension RenderContext {
 			append(text: span.content, with: attributes, rawStart: spanRawStart, into: result, renderedToRaw: &renderedToRaw)
 			return
 		}
-		result.append(NSAttributedString(string: ref.prefix + span.content, attributes: style.link(ref.url)))
+		let label = ref.kind.isPage ? Page.title(for: span.content) : span.content
+		result.append(NSAttributedString(string: ref.prefix + label, attributes: style.link(ref.url)))
 
 		let rawSpanText = String(sourceText[span.range])
 		let bracketOffset = ref.kind.bracketOffset(for: rawSpanText)
 		appendRawOffsets(for: ref.prefix, from: spanRawStart, into: &renderedToRaw)
-		appendRawOffsets(for: span.content, from: spanRawStart + bracketOffset, into: &renderedToRaw)
+		if label == span.content {
+			appendRawOffsets(for: label, from: spanRawStart + bracketOffset, into: &renderedToRaw)
+		} else {
+			let start = spanRawStart + bracketOffset
+			let end = start + span.content.utf16.count
+			let count = label.utf16.count
+			for offset in 0..<count {
+				renderedToRaw.append(offset < count / 2 ? start : end)
+			}
+		}
 	}
 
 	func appendFavicon(

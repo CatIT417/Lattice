@@ -8,17 +8,27 @@ struct Backlink: Equatable, Hashable, Sendable {
 	var toBlock: Block.ID
 	var kind: Reference.Kind
 	var sourceText: String
-	var fromPageTitle: String
+	@Column("fromPageTitle")
+	var fromPageCanonicalTitle: String
 	var fromPageId: Page.ID
+
+	var fromPageTitle: String {
+		Page.title(for: fromPageCanonicalTitle)
+	}
 }
 
 extension Backlink {
 	@Selection
 	struct GroupedByPage: Identifiable {
 		let pageID: Page.ID
-		let pageTitle: String
+		@Column("pageTitle")
+		let canonicalPageTitle: String
 		@Column(as: [Block.ID].JSONRepresentation.self)
 		var referencedBlockIDs: [Block.ID]
+
+		var pageTitle: String {
+			Page.title(for: canonicalPageTitle)
+		}
 
 		var id: Page.ID {
 			pageID
@@ -32,14 +42,15 @@ extension Backlink {
 			.select {
 				GroupedByPage.Columns(
 					pageID: $0.fromPageId,
-					pageTitle: $0.fromPageTitle,
+					canonicalPageTitle: $0.fromPageCanonicalTitle,
 					referencedBlockIDs: $0.fromBlock.jsonGroupArray(distinct: true)
 				)
 			}
 	}
 
 	static func unlinkedReferences(forPage pageId: Page.ID, title: String) -> some PartialSelectStatement<GroupedByPage> {
-		Paragraph
+		let displayTitle = Page.title(for: title)
+		return Paragraph
 			.where { $0.pageId.neq(pageId) }
 			.where {
 				$0.id.notIn(
@@ -50,20 +61,21 @@ extension Backlink {
 			}
 			.group(by: \.pageId)
 			.join(BlockText.all) { $0.id.eq($1.blockID) }
-			.where { _, blockTexts in blockTexts.match(title.quoted()) }
-			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) }
+			.where { _, blockTexts in blockTexts.match("(\(title.quoted())) OR (\(displayTitle.quoted()))") }
+			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) || $containsOutsideRefs(paragraphs.string, displayTitle) }
 			.join(Page.all) { $0.pageId.eq($2.id) }
 			.select { paragraphs, _, pages in
 				GroupedByPage.Columns(
 					pageID: pages.id,
-					pageTitle: pages.title,
+					canonicalPageTitle: pages.canonicalTitle,
 					referencedBlockIDs: paragraphs.id.jsonGroupArray()
 				)
 			}
 	}
 
 	static func unlinkedReferenceCount(forPage pageId: Page.ID, title: String) -> Select<Int, Paragraph, BlockText> {
-		Paragraph
+		let displayTitle = Page.title(for: title)
+		return Paragraph
 			.where { $0.pageId.neq(pageId) }
 			.where {
 				$0.id.notIn(
@@ -73,8 +85,8 @@ extension Backlink {
 				)
 			}
 			.join(BlockText.all) { $0.id.eq($1.blockID) }
-			.where { _, blockTexts in blockTexts.match(title.quoted()) }
-			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) }
+			.where { _, blockTexts in blockTexts.match("(\(title.quoted())) OR (\(displayTitle.quoted()))") }
+			.where { paragraphs, _ in $containsOutsideRefs(paragraphs.string, title) || $containsOutsideRefs(paragraphs.string, displayTitle) }
 			.count()
 	}
 }

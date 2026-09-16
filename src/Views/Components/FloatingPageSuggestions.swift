@@ -63,17 +63,17 @@ struct FloatingPageSuggestions: View {
 
 		let width = clamp(
 			containerSize.width - (Metrics.horizontalMargin * 2),
-			to: Metrics.minPanelWidth...Metrics.maxPanelWidth
+			to: Metrics.minPanelWidth ... Metrics.maxPanelWidth
 		)
 		let maxX = max(Metrics.horizontalMargin, containerSize.width - width - Metrics.horizontalMargin)
 		let maxY = max(Metrics.verticalMargin, containerSize.height - panelHeight - Metrics.verticalMargin)
 		return PanelPlacement(
-			x: clamp(anchorRect.minX, to: Metrics.horizontalMargin...maxX),
+			x: clamp(anchorRect.minX, to: Metrics.horizontalMargin ... maxX),
 			y: clamp(
 				shouldPlaceAbove
 					? anchorRect.minY - panelHeight - Metrics.panelGap
 					: anchorRect.maxY + Metrics.panelGap,
-				to: Metrics.verticalMargin...maxY
+				to: Metrics.verticalMargin ... maxY
 			),
 			width: width
 		)
@@ -109,7 +109,7 @@ struct FloatingPageSuggestions: View {
 							ForEach(suggestions.indices, id: \.self) { index in
 								let suggestion = suggestions[index]
 
-								Button(action: { referenceSuggestions.acceptSuggestion(withTitle: suggestion.title) }) {
+								Button(action: { referenceSuggestions.acceptSuggestion(withTitle: suggestion.canonicalTitle) }) {
 									HStack(spacing: 6) {
 										Text(suggestion.title)
 											.foregroundStyle(.primary)
@@ -135,9 +135,9 @@ struct FloatingPageSuggestions: View {
 								.id(ScrollTarget.row(index))
 								.buttonStyle(.plain)
 								#if os(macOS)
-									.pointerStyle(.link)
+								.pointerStyle(.link)
 								#else
-									.hoverEffect()
+								.hoverEffect()
 								#endif
 							}
 						}
@@ -174,8 +174,8 @@ struct FloatingPageSuggestions: View {
 	private func topIndexToKeepHighlightedVisible(highlightedIndex: Int, currentTop: Int, totalCount: Int) -> Int {
 		guard totalCount > 0 else { return 0 }
 
-		let safeTop = clamp(currentTop, to: 0...(totalCount - 1))
-		let safeHighlighted = clamp(highlightedIndex, to: 0...(totalCount - 1))
+		let safeTop = clamp(currentTop, to: 0 ... (totalCount - 1))
+		let safeHighlighted = clamp(highlightedIndex, to: 0 ... (totalCount - 1))
 		let currentBottom = min(safeTop + estimatedVisibleRowCount - 1, totalCount - 1)
 
 		if safeHighlighted < safeTop { return safeHighlighted }
@@ -240,15 +240,16 @@ struct FloatingPageSuggestions: View {
 				case .top: 0
 				case let .row(index): index
 			}
-		}.min()
+		}
+		.min()
 
 		guard let minimumVisibleRow else { return }
-		topVisibleIndex = clamp(minimumVisibleRow, to: 0...(suggestionsCount - 1))
+		topVisibleIndex = clamp(minimumVisibleRow, to: 0 ... (suggestionsCount - 1))
 	}
 
 	private func clampedHighlightedIndex(_ index: Int, totalCount: Int) -> Int {
 		guard totalCount > 0 else { return 0 }
-		return clamp(index, to: 0...(totalCount - 1))
+		return clamp(index, to: 0 ... (totalCount - 1))
 	}
 
 	private func scrollTarget(forTopIndex index: Int) -> ScrollTarget {

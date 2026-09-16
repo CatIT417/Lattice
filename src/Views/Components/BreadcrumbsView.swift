@@ -16,11 +16,11 @@ struct BreadcrumbsView: View {
 				ForEach(breadcrumbs, id: \.id) { ancestor in
 					NavigationButton(push: ancestor.page) {
 						HStack(alignment: .firstTextBaseline, spacing: 3) {
-							if let todoState = ancestor.text.todoState {
+							if let todoState = ancestor.string?.todoState {
 								Image(systemName: todoState == .done ? "checkmark.square.fill" : "square")
 							}
 
-							Text(ancestor.text.strippingTodoPrefix())
+							Text(ancestor.text)
 								.lineLimit(1)
 								.foregroundStyle(isNavigationEnabled ? .secondary : .primary)
 						}

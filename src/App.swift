@@ -37,6 +37,7 @@ struct LatticeApp: App {
 
 		do {
 			try prepareDependencies {
+				$0.locale = Locale.current
 				try $0.bootstrapDatabase()
 			}
 

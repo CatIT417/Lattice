@@ -12,7 +12,7 @@ struct PageRenamingModifier: ViewModifier {
 	init(page: Page, active: Binding<Bool>) {
 		self.page = page
 		_active = active
-		_newTitle = State(initialValue: page.title)
+		_newTitle = State(initialValue: page.canonicalTitle)
 	}
 
 	var validationError: Page.TitleError? {
@@ -25,7 +25,7 @@ struct PageRenamingModifier: ViewModifier {
 	}
 
 	var isValidTitle: Bool {
-		newTitle.trimmingCharacters(in: .whitespacesAndNewlines) != page.title && validationError == nil
+		newTitle.trimmingCharacters(in: .whitespacesAndNewlines) != page.canonicalTitle && validationError == nil
 	}
 
 	func body(content: Content) -> some View {
@@ -49,7 +49,7 @@ struct PageRenamingModifier: ViewModifier {
 					active = true
 				}
 			}
-			.onChange(of: page.title) { newTitle = $1 }
+			.onChange(of: page.canonicalTitle) { newTitle = $1 }
 	}
 
 	func renamePage() {
@@ -61,14 +61,14 @@ struct PageRenamingModifier: ViewModifier {
 			return
 		}
 
-		if DayOfYear(title: trimmedTitle) != nil {
+		if DayOfYear(rawValue: trimmedTitle) != nil {
 			error = .isDateTitle
 			return
 		}
 
 		withErrorReporting {
 			try database.write { db in
-				if let existingPage = try Select(Page.where { $0.title.eq(trimmedTitle) }.exists()).fetchOne(db), existingPage {
+				if let existingPage = try Select(Page.where { $0.canonicalTitle.eq(trimmedTitle) }.exists()).fetchOne(db), existingPage {
 					// TODO: Offer to merge pages
 					error = .existing
 					return

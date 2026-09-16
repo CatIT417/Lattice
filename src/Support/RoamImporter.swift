@@ -48,7 +48,7 @@ struct RoamImporter {
 					pageUIDs: &pageUIDs
 				),
 				blockUIDs: pageUIDs,
-				roamTitle: page.title == title ? nil : title
+				roamTitle: page.canonicalTitle == title ? nil : title
 			))
 		}
 
@@ -84,7 +84,7 @@ struct RoamImporter {
 				uidMapping.merge(prepared.blockUIDs) { $1 }
 			}
 			if let roamTitle = prepared.roamTitle {
-				titleRenames[roamTitle] = prepared.page.title
+				titleRenames[roamTitle] = prepared.page.canonicalTitle
 			}
 		}
 
@@ -123,7 +123,7 @@ struct RoamImporter {
 					}.execute(db)
 				}
 
-				imported.append(ImportedPage(id: page.id, title: page.title))
+				imported.append(ImportedPage(id: page.id, canonicalTitle: page.canonicalTitle))
 			}
 		}
 
@@ -134,7 +134,7 @@ struct RoamImporter {
 
 	private static func findExistingPage(_ prepared: PreparedPage) throws -> Where<Page> {
 		Page.where {
-			if !prepared.page.isDailyNote { $0.title.eq(prepared.page.title) }
+			if !prepared.page.isDailyNote { $0.canonicalTitle.eq(prepared.page.canonicalTitle) }
 			else { $0.dailyNoteDate.eq(prepared.page.dailyNoteDate) }
 		}
 	}
@@ -149,7 +149,7 @@ struct RoamImporter {
 			)
 		} else {
 			try Page.findOrCreate(
-				title: prepared.page.title,
+				title: prepared.page.canonicalTitle,
 				createdAt: prepared.page.createdAt,
 				updatedAt: prepared.page.updatedAt,
 				in: db
@@ -180,7 +180,7 @@ struct RoamImporter {
 			}
 		}
 
-		return DayOfYear(title: title)
+		return DayOfYear(rawValue: title)
 	}
 
 	private static let roamBlockRefRegex = try! NSRegularExpression(pattern: #"\(\(([^)]+)\)\)"#)
@@ -306,7 +306,11 @@ extension RoamImporter {
 
 	struct ImportedPage {
 		let id: Page.ID
-		let title: String
+		let canonicalTitle: String
+
+		var title: String {
+			Page.title(for: canonicalTitle)
+		}
 	}
 
 	struct FailedPage {

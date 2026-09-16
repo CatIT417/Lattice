@@ -19,7 +19,7 @@ struct PageView: View {
 				.foregroundStyle(.primary)
 				.buttonStyle(.plain)
 				#if os(macOS)
-					.pointerStyle(.link)
+				.pointerStyle(.link)
 				#endif
 
 				VStack(alignment: .leading, spacing: 12) {

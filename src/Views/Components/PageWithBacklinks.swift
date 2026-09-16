@@ -60,15 +60,15 @@ struct PageWithBacklinks: View {
 			} label: {
 				NavigationButton(push: .page(id: backlinks.pageID)) {
 					Text(backlinks.pageTitle)
-					#if os(iOS)
+						#if os(iOS)
 						.font(.subheadline)
-					#elseif os(macOS)
+						#elseif os(macOS)
 						.font(.title3)
-					#endif
+						#endif
 				}
 				.buttonStyle(.plain)
 				#if os(macOS)
-					.pointerStyle(.link)
+				.pointerStyle(.link)
 				#endif
 			}
 			.disclosureGroupStyle(LeftLabelSectionDisclosureStyle(hidesArrowOnHover: false))

@@ -37,7 +37,7 @@ extension Tests.MakePagesViewWritableTest {
 		expectNoDifference(page.dailyNoteDate, dailyNoteDate)
 
 		expectNoDifference(page.id, block.id)
-		expectNoDifference(page.title, block.title)
+		expectNoDifference(page.canonicalTitle, block.title)
 		expectNoDifference(page.props, block.props)
 		expectNoDifference(page.createdAt, block.createdAt)
 		expectNoDifference(page.updatedAt, block.updatedAt)
@@ -61,7 +61,7 @@ extension Tests.MakePagesViewWritableTest {
 
 		#expect(throws: DatabaseError.self) {
 			try database.write { db in
-				try Page.find(page.id).update { $0.title = #bind("Updated Title") }.execute(db)
+				try Page.find(page.id).update { $0.canonicalTitle = #bind("Updated Title") }.execute(db)
 			}
 		}
 	}

@@ -14,7 +14,7 @@ final class CreateBacklinksView: DatabaseView {
 		let pages = sources(for: [.pageLink, .tag])
 			.join(Page.as(TargetPage.self).all) { reference, _, _, targetPage in
 				targetPage.id.eq(Page.where {
-					$0.dailyNoteDate.eq(reference.targetKey.cast(as: DayOfYear.self)) || ($0.dailyNoteDate.is(nil) && $0.title.eq(reference.targetKey))
+					$0.dailyNoteDate.eq(reference.targetKey.cast(as: DayOfYear.self)) || ($0.dailyNoteDate.is(nil) && $0.canonicalTitle.eq(reference.targetKey))
 				}
 				.select { $0.id.min().unsafelyUnwrapped })
 			}
@@ -24,7 +24,7 @@ final class CreateBacklinksView: DatabaseView {
 					toBlock: targetPage.id,
 					kind: reference.kind,
 					sourceText: paragraph.string,
-					fromPageTitle: page.title,
+					fromPageCanonicalTitle: page.canonicalTitle,
 					fromPageId: page.id
 				)
 			}
@@ -39,7 +39,7 @@ final class CreateBacklinksView: DatabaseView {
 					toBlock: targets.id,
 					kind: references.kind,
 					sourceText: paragraphs.string,
-					fromPageTitle: pages.title,
+					fromPageCanonicalTitle: pages.canonicalTitle,
 					fromPageId: pages.id
 				)
 			}

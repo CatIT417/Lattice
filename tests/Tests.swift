@@ -1,16 +1,16 @@
 import Testing
 import Foundation
+@testable import LatticeDev
 import SQLiteData
 import Dependencies
 import DependenciesTestSupport
-
-@testable import LatticeDev
 
 // MARK: - Base Test Suite
 
 @Suite(.dependencies {
 	$0.uuid = .incrementing
 	$0.date = .init { Date() }
+	$0.locale = Locale(identifier: "en_US")
 })
 struct Tests {}
 

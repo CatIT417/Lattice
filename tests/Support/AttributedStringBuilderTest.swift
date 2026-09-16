@@ -19,22 +19,6 @@ extension Tests {
 private let testFont: PlatformFont = .systemFont(ofSize: 13)
 
 extension Tests.AttributedStringBuilderTest {
-	@Test("removeReferences strips link syntax for page links, tags, and block refs")
-	func removeReferencesStripsLinkSyntax() {
-		let uuid = UUID(uuidString: "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E")!
-		let text = "Intro [[Page One]][[Second]] #tag #[[On Plex]] and ((\(uuid))) outro"
-		let result = removeReferences(from: text)
-
-		expectNoDifference(result, "Intro Page OneSecond tag On Plex and \(uuid) outro")
-	}
-
-	@Test("removeReferences returns the original string when there are no refs")
-	func removeReferencesKeepsPlainText() {
-		let text = "Just plain text."
-
-		expectNoDifference(removeReferences(from: text), text)
-	}
-
 	@Test("buildAttributedString returns plain attributes when there are no refs")
 	func buildAttributedStringNoRefs() {
 		let text = "Plain text"

@@ -8,7 +8,7 @@ enum MergeDuplicatePages {
 	}
 
 	static var duplicateTitles: some PartialSelectStatement<String> {
-		Page.group(by: \.title).having { $0.id.count() > 1 }.select(\.title)
+		Page.group(by: \.canonicalTitle).having { $0.id.count() > 1 }.select(\.canonicalTitle)
 	}
 
 	private static var duplicateDates: some PartialSelectStatement<DayOfYear> {
@@ -51,8 +51,8 @@ enum MergeDuplicatePages {
 		assert(!SyncEngine.isSynchronizing, "Run page merges after the sync transaction.")
 		var merges: [Merge] = []
 		let pages = try Page.where {
-			$0.title.in(duplicateTitles) || $0.dailyNoteDate.unsafelyUnwrapped.in(duplicateDates)
-		}.order(by: \.id).select { ($0.id, $0.title, $0.dailyNoteDate) }.fetchAll(db)
+			$0.canonicalTitle.in(duplicateTitles) || $0.dailyNoteDate.unsafelyUnwrapped.in(duplicateDates)
+		}.order(by: \.id).select { ($0.id, $0.canonicalTitle, $0.dailyNoteDate) }.fetchAll(db)
 		var titles: [String: Page.ID] = [:]
 		var dates: [DayOfYear: Page.ID] = [:]
 		for (id, title, day) in pages {

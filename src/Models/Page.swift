@@ -9,7 +9,8 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	let id: UUID
 
 	/// Page title (NULL for regular blocks)
-	var title: String
+	@Column("title")
+	var canonicalTitle: String
 
 	/// If this page is a daily note, the date in "YYYY-MM-DD" format
 	var dailyNoteDate: DayOfYear?
@@ -25,16 +26,16 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	}
 
 	var isSpecialPage: Bool {
-		Constants.specialPages.contains(title)
+		Constants.specialPages.contains(canonicalTitle)
 	}
 
 	init(id: UUID? = nil, title: String, dailyNoteDate: DayOfYear? = nil, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
 		@Dependency(\.uuid) var uuid
 		@Dependency(\.date.now) var now
 
-		self.id = id ?? uuid()
-		self.title = title
 		self.props = props
+		self.id = id ?? uuid()
+		canonicalTitle = title
 		self.createdAt = createdAt ?? now
 		self.updatedAt = updatedAt ?? now
 		self.dailyNoteDate = dailyNoteDate
@@ -44,7 +45,7 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 		guard let title = block.title else { return nil }
 
 		id = block.id
-		self.title = title
+		canonicalTitle = title
 		props = block.props
 		createdAt = block.createdAt
 		updatedAt = block.updatedAt
@@ -55,25 +56,36 @@ struct Page: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 // MARK: - Daily Notes
 
 extension Page {
+	var title: String {
+		dailyNoteDate?.title ?? canonicalTitle
+	}
+
+	static func title(for canonicalTitle: String) -> String {
+		DayOfYear(rawValue: canonicalTitle)?.title ?? canonicalTitle
+	}
+
 	static func newDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil) -> Page {
 		@Dependency(\.date.now) var now
 
-		return Page(title: day.title(), dailyNoteDate: day, createdAt: createdAt ?? now, updatedAt: updatedAt ?? now)
+		return Page(title: day.rawValue, dailyNoteDate: day, createdAt: createdAt ?? now, updatedAt: updatedAt ?? now)
 	}
 
 	static func createDailyNote(for day: DayOfYear, createdAt: Date? = nil, updatedAt: Date? = nil, in db: Database) throws -> Page {
 		let page = newDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt)
-		try validateTitle(page.title)
+		try validateTitle(page.canonicalTitle)
 
 		let newlyCreatedBlock = try Block.insert {
 			($0.title, $0.dailyNoteDate, $0.createdAt, $0.updatedAt)
 		} select: {
-			Select(Optional(page.title), page.dailyNoteDate, page.createdAt, page.updatedAt).where { _, _, _, _ in
+			Select(Optional(page.canonicalTitle), page.dailyNoteDate, page.createdAt, page.updatedAt).where { _, _, _, _ in
 				!Block.where {
 					$0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) && $0.deletedAt.is(nil) && $0.mergedInto.is(nil)
-				}.exists()
+				}
+				.exists()
 			}
-		}.returning(\.self).fetchOne(db)
+		}
+		.returning(\.self)
+		.fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
 		return try Page.where { $0.dailyNoteDate.eq(#bind(page.dailyNoteDate)) }.order(by: \.id).fetchOne(db)!
@@ -89,7 +101,7 @@ extension Page {
 		let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
 		try validateTitle(title)
 
-		if let day = DayOfYear(title: title) {
+		if let day = DayOfYear(rawValue: title) {
 			return try createDailyNote(for: day, createdAt: createdAt, updatedAt: updatedAt, in: db)
 		}
 
@@ -99,12 +111,15 @@ extension Page {
 			Select(Optional(title), createdAt ?? now, updatedAt ?? now).where { _, _, _ in
 				!Block.where {
 					$0.title.eq(title) && $0.deletedAt.is(nil) && $0.mergedInto.is(nil)
-				}.exists()
+				}
+				.exists()
 			}
-		}.returning(\.self).fetchOne(db)
+		}
+		.returning(\.self)
+		.fetchOne(db)
 
 		if let newlyCreatedBlock, let page = Page(block: newlyCreatedBlock) { return page }
-		return try Page.where { $0.title.eq(title) }.order(by: \.id).fetchOne(db)!
+		return try Page.where { $0.canonicalTitle.eq(title) }.order(by: \.id).fetchOne(db)!
 	}
 }
 
@@ -119,7 +134,7 @@ extension Page: Transferable {
 		#if os(iOS)
 		FileRepresentation(exportedContentType: .text) { page in
 			let markdown = try MarkdownExporter.exportPage(id: page.id)
-			let url = URL.temporaryDirectory.appending(path: "\(page.title).md")
+			let url = URL.temporaryDirectory.appending(path: "\(page.canonicalTitle).md")
 
 			try markdown.write(to: url, atomically: true, encoding: .utf8)
 

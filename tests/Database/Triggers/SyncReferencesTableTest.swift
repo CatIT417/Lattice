@@ -22,7 +22,7 @@ extension Tests {
 				let references = try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchAll(db)
 				expectNoDifference(Set(references.map(\.targetKey)), ["Target", missing.uuidString])
 				expectNoDifference(Set(references.map(\.kind)), [.pageLink, .tag, .blockRef])
-				#expect(try Page.where { $0.title.eq("Target") }.fetchCount(db) == 1)
+				#expect(try Page.where { $0.canonicalTitle.eq("Target") }.fetchCount(db) == 1)
 				#expect(try Backlink.fetchCount(db) == 2)
 				try Block.find(source.id).update { $0.string = #bind("No references") }.execute(db)
 				#expect(try Reference.fetchCount(db) == 0)
@@ -69,7 +69,7 @@ extension Tests {
 				let page = Block(title: "Source")
 				let source = Block(string: "👨‍👩‍👧‍👦 [[Old]] #[[Old]]suffix #Old more text [[Other]]", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
-				let target = try #require(try Page.where { $0.title.eq("Old") }.fetchOne(db))
+				let target = try #require(try Page.where { $0.canonicalTitle.eq("Old") }.fetchOne(db))
 				try Block.find(target.id).update { $0.title = #bind("New") }.execute(db)
 				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New]] #[[New]]suffix #New more text [[Other]]")
 				expectNoDifference(Set(try Reference.fetchAll(db).map(\.targetKey)), ["New", "Other"])
@@ -101,7 +101,7 @@ extension Tests {
 				try Block.find(UUID(renamedID)).update { $0.title = #bind("New Title") }.execute(db)
 				#expect(try Page.fetchCount(db) == 1)
 				#expect(try Page.fetchOne(db)?.id == keeper.id)
-				#expect(try Page.fetchOne(db)?.title == "New Title")
+				#expect(try Page.fetchOne(db)?.canonicalTitle == "New Title")
 				#expect(try Block.find(loser.id).fetchOne(db)?.mergedInto == keeper.id)
 				#expect(try Block.find(deleted.id).fetchOne(db)?.title == "Old Title")
 				expectNoDifference(try Paragraph.find(first.id).fetchOne(db)?.string, "First [[New Title]]")
@@ -127,7 +127,7 @@ extension Tests {
 				try Block.insert { pages }.execute(db)
 				try Block.find(UUID(102)).update { $0.title = #bind("New Title") }.execute(db)
 				expectNoDifference(try Page.order(by: \.id).select(\.id).fetchAll(db), [UUID(100), UUID(200), UUID(201)])
-				#expect(try Page.find(UUID(100)).fetchOne(db)?.title == "New Title")
+				#expect(try Page.find(UUID(100)).fetchOne(db)?.canonicalTitle == "New Title")
 				#expect(try Block.find(UUID(101)).fetchOne(db)?.mergedInto == UUID(100))
 				#expect(try Block.find(UUID(102)).fetchOne(db)?.mergedInto == UUID(100))
 				#expect(try Block.find(UUID(101)).fetchOne(db)?.title == "Old Title")
@@ -167,7 +167,7 @@ extension Tests {
 				let source = Block(string: "[[Target]] #Target", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
 				let storedSource = try Block.find(source.id).fetchOne(db)
-				let target = try #require(try Page.where { $0.title.eq("Target") }.fetchOne(db))
+				let target = try #require(try Page.where { $0.canonicalTitle.eq("Target") }.fetchOne(db))
 				let child = Block(string: "Old contents", parentId: target.id)
 				try Block.insert { child }.execute(db)
 				let keys = try Reference.fetchAll(db)
@@ -183,12 +183,12 @@ extension Tests {
 			}
 		}
 
-		@Test("Daily references use a date key and a replacement note starts empty", arguments: [false, true])
-		func dailyReplacement(useISO: Bool) throws {
+		@Test("Daily references use a date key and a replacement note starts empty")
+		func dailyReplacement() throws {
 			try database.write { db in
 				let day = DayOfYear(day: 5, month: 9, year: 2026)
 				let page = Block(title: "Source")
-				let source = Block(string: "[[\(useISO ? day.rawValue : day.title())]]", parentId: page.id)
+				let source = Block(string: "[[\(day.rawValue)]]", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
 				let key = try #require(try Reference.fetchOne(db))
 				#expect(key.kind == .pageLink)
@@ -206,12 +206,12 @@ extension Tests {
 }
 
 extension Tests.SyncReferencesTableTest {
-	@Test("Both date formats share a key and resolve when the daily note arrives")
-	func dailyAliasesResolveOnArrival() throws {
+	@Test("Daily page links and tags resolve when the note arrives")
+	func dailyReferencesResolveOnArrival() throws {
 		try database.write { db in
 			let day = DayOfYear(day: 5, month: 9, year: 2026)
 			let page = Block(title: "Source")
-			let source = Block(string: "[[\(day.title())]] [[\(day.rawValue)]] #[[\(day.title())]] #\(day.rawValue)", parentId: page.id)
+			let source = Block(string: "[[\(day.rawValue)]] [[\(day.rawValue)]] #[[\(day.rawValue)]] #\(day.rawValue)", parentId: page.id)
 			try Block.insert { [page, source] }.execute(db)
 			let target = try #require(try Page.where { $0.dailyNoteDate.eq(day) }.fetchOne(db))
 			let keys = try Reference.order(by: \.kind).fetchAll(db)
@@ -219,8 +219,8 @@ extension Tests.SyncReferencesTableTest {
 			expectNoDifference(Set(keys.map(\.kind)), [.pageLink, .tag])
 			try Block.find(target.id).delete().execute(db)
 			#expect(try Backlink.fetchCount(db) == 0)
-			let replacement = Block(id: UUID(900), title: "Daily note", dailyNoteDate: day)
-			let duplicate = Block(id: UUID(901), title: day.title(), dailyNoteDate: day)
+			let replacement = Block(id: UUID(900), title: day.rawValue, dailyNoteDate: day)
+			let duplicate = Block(id: UUID(901), title: day.rawValue, dailyNoteDate: day)
 			try Block.insert { [replacement, duplicate] }.execute(db)
 			expectNoDifference(try Backlink.select(\.toBlock).fetchAll(db), [replacement.id, replacement.id])
 			expectNoDifference(try Reference.order(by: \.kind).fetchAll(db), keys)
@@ -234,7 +234,7 @@ extension Tests.SyncReferencesTableTest {
 			let target = Block(id: UUID(900), string: "Target", parentId: page.id)
 			let source = Block(string: "[[\(target.id)]] ((\(target.id)))", parentId: page.id)
 			try Block.insert { [page, target, source] }.execute(db)
-			let titleTarget = try #require(try Page.where { $0.title.eq(target.id.uuidString) }.fetchOne(db))
+			let titleTarget = try #require(try Page.where { $0.canonicalTitle.eq(target.id.uuidString) }.fetchOne(db))
 			#expect(try Backlink.where { $0.kind.eq(Reference.Kind.pageLink) }.fetchOne(db)?.toBlock == titleTarget.id)
 			#expect(try Backlink.where { $0.kind.eq(Reference.Kind.blockRef) }.fetchOne(db)?.toBlock == target.id)
 		}

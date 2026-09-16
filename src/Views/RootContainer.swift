@@ -6,9 +6,11 @@ import SQLiteData
 fileprivate typealias Tabs = Destination.Tabs
 
 struct RootContainer: View {
-	@Environment(\.scenePhase) private var scenePhase
+	@Dependency(\.locale) private var locale
 	@Dependency(\.defaultDatabase) var database
 	@Dependency(\.defaultSyncEngine) var syncEngine
+	@Environment(\.scenePhase) private var scenePhase
+
 	@State private var currentDay = DayOfYear.today
 	@State private var router = Router(level: 0, identifierTab: nil)
 	@State private var duplicatePagesWatcher = DuplicatePagesWatcher()
@@ -66,13 +68,15 @@ struct RootContainer: View {
 			macLayout
 			#endif
 		}
+		.environment(\.locale, locale)
 		.onAppear { duplicatePagesWatcher.start() }
 		.task(id: scenePhase) {
 			guard scenePhase == .active else { return }
 			await refreshToday()
 		}
 		.onReceive(
-			NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
+			NotificationCenter.default
+				.publisher(for: .NSCalendarDayChanged)
 				.merge(with: NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange), NotificationCenter.default.publisher(for: .NSSystemClockDidChange))
 				.receive(on: DispatchQueue.main)
 		) { _ in

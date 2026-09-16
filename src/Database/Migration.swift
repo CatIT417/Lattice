@@ -123,3 +123,11 @@ extension Database {
 		}
 	}
 }
+
+extension Database {
+	func addFunctions(_ functions: [any ScalarDatabaseFunction]) {
+		for function in functions {
+			add(function: function)
+		}
+	}
+}

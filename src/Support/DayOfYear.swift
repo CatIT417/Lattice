@@ -1,11 +1,7 @@
 import Foundation
 import SQLiteData
 
-fileprivate let ordinalFormatter = tap(NumberFormatter()) {
-	$0.numberStyle = .ordinal
-}
-
-struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
+struct DayOfYear: RawRepresentable, Equatable, Hashable, Sendable, Comparable {
 	private let day: Int
 	private let year: Int
 	private let month: Int
@@ -21,32 +17,10 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 		self.month = month
 	}
 
-	init(_ date: Date, calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) {
+	init(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian, timezone: .autoupdatingCurrent)) {
 		let components = calendar.dateComponents([.day, .month, .year], from: date)
 
 		self.init(day: components.day!, month: components.month!, year: components.year!)
-	}
-
-	init?(title: String, calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) {
-		if let day = Self(rawValue: title) {
-			self = day
-			return
-		}
-
-		guard title.last?.isNumber == true, title.contains(", ") else { return nil }
-
-		let stripped = title.replacingOccurrences(of: #"(\d{1,2})(st|nd|rd|th)"#, with: "$1", options: .regularExpression)
-
-		let parser = tap(DateFormatter()) {
-			$0.calendar = calendar
-			$0.dateFormat = "MMMM d, yyyy"
-			$0.timeZone = calendar.timeZone
-		}
-
-		guard let date = parser.date(from: stripped) else { return nil }
-		self.init(date, calendar: calendar)
-
-		guard self.title(using: calendar) == title else { return nil }
 	}
 
 	init?(rawValue: String) {
@@ -71,7 +45,7 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 		String(format: "%04d-%02d-%02d", year, month, day)
 	}
 
-	func date(in calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) -> Date {
+	func date(in calendar: Calendar = Calendar(identifier: .gregorian, timezone: .autoupdatingCurrent)) -> Date {
 		let components = tap(DateComponents()) {
 			$0.day = day
 			$0.year = year
@@ -83,28 +57,19 @@ struct DayOfYear: Equatable, Hashable, Sendable, Comparable {
 		return calendar.startOfDay(for: components.date!)
 	}
 
-	func title(using calendar: Calendar = Self.gregorianCalendar(timeZone: .autoupdatingCurrent)) -> String {
-		let date = date(in: calendar)
+	var title: String {
+		@Dependency(\.locale) var locale
+		let calendar = Calendar(identifier: .gregorian, timezone: .gmt)
 
-		let titleFormatter = tap(DateFormatter()) {
-			$0.dateFormat = "MMMM '<dth>', yyyy"
-			$0.calendar = calendar
-			$0.timeZone = calendar.timeZone
-		}
-
-		return tap(titleFormatter.string(from: date)) {
-			if $0.contains("<dth>"), let ordinal = ordinalFormatter.string(from: NSNumber(value: day)) { $0.replace("<dth>", with: ordinal) }
-		}
+		return date(in: calendar).formatted(Date.FormatStyle(
+			date: .long, time: .omitted,
+			locale: Locale(identifier: locale.identifier),
+			calendar: calendar, timeZone: .gmt
+		))
 	}
 
 	static func < (lhs: Self, rhs: Self) -> Bool {
 		lhs.rawValue < rhs.rawValue
-	}
-
-	fileprivate static func gregorianCalendar(timeZone: TimeZone) -> Calendar {
-		var calendar = Calendar(identifier: .gregorian)
-		calendar.timeZone = timeZone
-		return calendar
 	}
 }
 
@@ -113,17 +78,9 @@ extension DayOfYear: QueryRepresentable, QueryBindable, QueryDecodable, SQLiteTy
 		let string: String
 	}
 
-	var queryOutput: DayOfYear {
-		self
-	}
-
-	static var typeAffinity: SQLiteTypeAffinity {
-		String.typeAffinity
-	}
-
-	var queryBinding: QueryBinding {
-		.text(rawValue)
-	}
+	var queryOutput: DayOfYear { self }
+	var queryBinding: QueryBinding { .text(rawValue) }
+	static var typeAffinity: SQLiteTypeAffinity { String.typeAffinity }
 
 	init(decoder: inout some QueryDecoder) throws {
 		let dayString = try String(decoder: &decoder)

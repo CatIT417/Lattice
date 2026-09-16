@@ -12,10 +12,11 @@ struct UnlinkedReferencesSection: View {
 
 	@State private var isExpanded = false
 	@State private var initialCount: Int?
-	@State private var initialCountQueryID: QueryID?
 	@State private var hasLoadedReferences = false
-	@FetchAll(Backlink.GroupedByPage.none) private var pagesWithUnlinkedRefs: [Backlink.GroupedByPage]
+	@State private var initialCountQueryID: QueryID?
+
 	@Dependency(\.defaultDatabase) private var database
+	@FetchAll(Backlink.GroupedByPage.none) private var pagesWithUnlinkedRefs: [Backlink.GroupedByPage]
 
 	init(forPage pageId: Page.ID, title: String) {
 		self.pageId = pageId
@@ -47,11 +48,11 @@ struct UnlinkedReferencesSection: View {
 					}
 				} label: {
 					Text("\(count) Unlinked References")
-					#if os(iOS)
+						#if os(iOS)
 						.font(.subheadline.weight(.semibold))
-					#elseif os(macOS)
+						#elseif os(macOS)
 						.font(.title3.weight(.semibold))
-					#endif
+						#endif
 						.foregroundStyle(.secondary)
 				}
 				.disclosureGroupStyle(LeftLabelSectionDisclosureStyle(hidesArrowOnHover: true))
@@ -69,7 +70,8 @@ struct UnlinkedReferencesSection: View {
 					try Backlink.unlinkedReferenceCount(
 						forPage: currentQueryID.pageId,
 						title: currentQueryID.title
-					).fetchOne(db) ?? 0
+					)
+					.fetchOne(db) ?? 0
 				}
 			}
 

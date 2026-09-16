@@ -1,4 +1,5 @@
 import GRDB
+import Foundation
 import SQLiteData
 
 final class CreateBlocksFTSTable: Migration {
@@ -7,14 +8,12 @@ final class CreateBlocksFTSTable: Migration {
 			table.column("blockID").notIndexed()
 			table.column("title")
 			table.column("string")
+			table.column("displayTitle")
+			table.column("displayString")
 			table.tokenizer = .init(components: ["trigram"])
 		}
 
-		let existingBlocks = try Block.all.select {
-			BlockText.Columns(blockID: $0.id, title: $0.title, string: $0.string)
-		}.fetchAll(db)
-
-		try BlockText.insert { existingBlocks }.execute(db)
+		try RebuildSearchIndex.populate(in: db)
 	}
 
 	static func down(_ db: Database) throws {

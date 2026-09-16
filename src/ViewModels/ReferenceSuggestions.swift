@@ -19,17 +19,20 @@ final class ReferenceSuggestions {
 
 	@Selection
 	struct Item: Equatable {
-		let title: String
+		@Column("title")
+		let canonicalTitle: String
 		let isSyntheticNewPage: Bool
 
-		static func matchingPages(for query: String, limit: Int) -> Select<Item, Page, BlockText> {
-			Page
-				.join(BlockText.all) { $0.id.eq($1.blockID) }
-				.where { $1.title.match(query.quoted()) }
-				.order { $1.rank }
+		var title: String {
+			Page.title(for: canonicalTitle)
+		}
+
+		static func matchingPages(for query: String, limit: Int) -> Select<Item, BlockText, Page> {
+			BlockText.matching(query, titlesOnly: true)
+				.join(Page.all) { $0.blockID.eq($1.id) }
 				.limit(limit)
-				.select { page, _ in
-					Item.Columns(title: page.title, isSyntheticNewPage: #bind(false))
+				.select { _, page in
+					Item.Columns(canonicalTitle: page.canonicalTitle, isSyntheticNewPage: #bind(false))
 				}
 		}
 	}
@@ -78,7 +81,7 @@ final class ReferenceSuggestions {
 		let trimmed = context.query.trimmingCharacters(in: .whitespacesAndNewlines)
 
 		if fetchedSuggestions.isEmpty {
-			return [Item(title: trimmed, isSyntheticNewPage: true)]
+			return [Item(canonicalTitle: trimmed, isSyntheticNewPage: true)]
 		}
 
 		return fetchedSuggestions
@@ -136,7 +139,7 @@ final class ReferenceSuggestions {
 				guard activeBlockID == blockId else { return false }
 				guard !suggestions.isEmpty else { return false }
 				let index = clamp(highlightedIndex, to: 0...(suggestions.count - 1))
-				return acceptSuggestion(withTitle: suggestions[index].title)
+				return acceptSuggestion(withTitle: suggestions[index].canonicalTitle)
 
 			case .dismiss:
 				guard context != nil, activeBlockID == blockId else { return false }

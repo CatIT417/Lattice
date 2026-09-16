@@ -51,7 +51,7 @@ extension Tests.MergeDuplicatePagesTest {
 		expectNoDifference(merges, [.init(loser: duplicatePage.id, keeper: firstPage.id)])
 
 		let pages = try database.read { db in
-			try Page.where { $0.title.eq("Duplicate Title") }.fetchAll(db)
+			try Page.where { $0.canonicalTitle.eq("Duplicate Title") }.fetchAll(db)
 		}
 		expectNoDifference(pages.map(\.id), [firstPage.id])
 
@@ -98,7 +98,7 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 
 		let pages = try database.read { db in
-			try Page.where { $0.title.eq("Shared Title") }.fetchAll(db)
+			try Page.where { $0.canonicalTitle.eq("Shared Title") }.fetchAll(db)
 		}
 		expectNoDifference(pages.map(\.id), [firstPage.id])
 
@@ -141,7 +141,7 @@ extension Tests.MergeDuplicatePagesTest {
 			return (keeper, duplicatePage, paragraph, reference)
 		}
 
-		expectNoDifference(reference.targetKey, duplicatePage.title)
+		expectNoDifference(reference.targetKey, duplicatePage.canonicalTitle)
 
 		try database.write { db in
 			try Block.find(keeper.id).update { $0.title = #bind("Duplicate Title") }.execute(db)
@@ -149,7 +149,7 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 
 		let pages = try database.read { db in
-			try Page.where { $0.title.eq("Duplicate Title") }.fetchAll(db)
+			try Page.where { $0.canonicalTitle.eq("Duplicate Title") }.fetchAll(db)
 		}
 		expectNoDifference(pages.map(\.id), [keeper.id])
 
@@ -220,7 +220,7 @@ extension Tests.MergeDuplicatePagesTest {
 		])
 
 		let pages = try database.read { db in
-			try Page.where { $0.title.eq("Shared Title") }.fetchAll(db)
+			try Page.where { $0.canonicalTitle.eq("Shared Title") }.fetchAll(db)
 		}
 		expectNoDifference(pages.map(\.id), [firstPage.id])
 
@@ -329,13 +329,13 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 	}
 
-	@Test("Duplicate dates merge across title formats and exclude deleted pages")
+	@Test("Duplicate daily notes merge and exclude deleted pages")
 	func duplicateDateCandidates() throws {
 		try database.write { db in
 			let day = DayOfYear(day: 5, month: 9, year: 2026)
-			let deleted = Block(id: UUID(1), title: day.title(), dailyNoteDate: day, deletedAt: Date(timeIntervalSince1970: 100))
+			let deleted = Block(id: UUID(1), title: day.rawValue, dailyNoteDate: day, deletedAt: Date(timeIntervalSince1970: 100))
 			let keeper = Block(id: UUID(2), title: day.rawValue, dailyNoteDate: day)
-			let loser = Block(id: UUID(3), title: day.title(), dailyNoteDate: day)
+			let loser = Block(id: UUID(3), title: day.rawValue, dailyNoteDate: day)
 			let child = Block(id: UUID(4), string: "Daily", parentId: loser.id, order: 0)
 			try Block.insert { [deleted, keeper, loser, child] }.execute(db)
 			#expect(try MergeDuplicatePages.hasPendingWork(in: db))

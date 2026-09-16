@@ -87,7 +87,7 @@ extension Tests.TableWithChildrenTest {
 		})
 
 		expectNoDifference(page.id, result.block.id)
-		expectNoDifference(page.title, result.block.title)
+		expectNoDifference(page.canonicalTitle, result.block.canonicalTitle)
 		expectNoDifference([first.id, second.id], result.tree.children(of: page.id).map(\.id))
 		expectNoDifference([firstChild.id, secondChild.id], result.tree.children(of: first.id).map(\.id))
 		expectNoDifference([grandchild.id], result.tree.children(of: firstChild.id).map(\.id))

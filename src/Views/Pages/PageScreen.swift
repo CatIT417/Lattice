@@ -35,7 +35,7 @@ struct PageScreen: View {
 						LinkedReferencesSection(forBlockID: page.id)
 							.padding(.top, 12)
 
-						UnlinkedReferencesSection(forPage: page.id, title: page.title)
+						UnlinkedReferencesSection(forPage: page.id, title: page.canonicalTitle)
 					}
 					.frame(maxWidth: .infinity, alignment: .leading)
 					.safeAreaPadding()
@@ -175,7 +175,7 @@ extension PageScreen {
 #Preview("PageScreen.ByTitle existing") {
 	let page = previewData { try Page.fetchOne($0) }
 
-	PageScreen.ByTitle(title: page!.title)
+	PageScreen.ByTitle(title: page!.canonicalTitle)
 		.preview()
 }
 

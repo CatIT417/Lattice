@@ -21,10 +21,11 @@ func makeDatabase() throws -> any DatabaseWriter {
 	let configuration = tap(Configuration()) { config in
 		config.foreignKeysEnabled = true
 		config.prepareDatabase { db in
-			db.add(function: $now)
-			db.add(function: $uuid)
 			try db.attachMetadatabase()
-			db.add(function: $containsOutsideRefs)
+
+			db.addFunctions([
+				$now, $uuid, $searchContains, $searchDisplayTitle, $containsOutsideRefs, $searchDisplayString,
+			])
 			try db.setupViews([CreatePagesView.self, CreateParagraphsView.self, CreateBacklinksView.self])
 
 			#if DEBUG
@@ -61,6 +62,8 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		CreateCachedLinkMetadataTable.self,
 		CreateLocalGraphIndexes.self,
 	], in: database)
+
+	try database.write { try RebuildSearchIndex.run(in: $0) }
 
 	try database.setupTriggers([
 		SafetyChecks.self,

@@ -24,7 +24,7 @@ extension Tests.SyncBlocksFTSTableTest {
 			try BlockText.where { $0.blockID.eq(page.id) }.fetchOne(db)
 		})
 
-		#expect(ftsRow.title == "Test Page")
+		#expect(ftsRow.canonicalTitle == "Test Page")
 		#expect(ftsRow.string == nil)
 	}
 
@@ -44,7 +44,7 @@ extension Tests.SyncBlocksFTSTableTest {
 			try BlockText.where { $0.blockID.eq(paragraph.id) }.fetchOne(db)
 		})
 
-		#expect(ftsRow.title == nil)
+		#expect(ftsRow.canonicalTitle == nil)
 		#expect(ftsRow.string == "Hello world")
 	}
 
@@ -62,7 +62,7 @@ extension Tests.SyncBlocksFTSTableTest {
 			try BlockText.where { $0.blockID.eq(page.id) }.fetchOne(db)
 		})
 
-		#expect(ftsRow.title == "New Title")
+		#expect(ftsRow.canonicalTitle == "New Title")
 	}
 
 	@Test("Updating a Paragraph string updates the FTS row")

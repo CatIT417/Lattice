@@ -80,7 +80,7 @@ extension Tests.RoamImporterTest {
 		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
 	}
 
-	@Test("Falls back to title parsing when UID is not a date", arguments: ["January 18th, 2026", "2026-01-18"])
+	@Test("Falls back to title parsing when UID is not a date", arguments: ["2026-01-18"])
 	func dailyPageFromTitle(title: String) {
 		let result = RoamImporter.parseDailyDate(uid: "abc123", title: title)
 		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
@@ -114,7 +114,7 @@ extension Tests.RoamImporterTest {
 		let (valid, failed) = try prepare(from: json)
 
 		#expect(valid.count == 1)
-		#expect(valid[0].page.title == "Valid Page")
+		#expect(valid[0].page.canonicalTitle == "Valid Page")
 		#expect(failed.count == 1)
 		#expect(failed[0].title == title)
 		do {
@@ -213,7 +213,7 @@ extension Tests.RoamImporterTest {
 
 	@Test("Rewrites page links when daily note title differs from Lattice format")
 	func rewritesDailyPageLinks() throws {
-		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).title()
+		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).rawValue
 		let roamTitle = "Jan 18th, 2026"
 		try #require(roamTitle != latticeTitle)
 
@@ -238,7 +238,7 @@ extension Tests.RoamImporterTest {
 
 	@Test("Rewrites page links even when the daily note page is skipped")
 	func rewritesDailyPageLinksWhenSkipped() throws {
-		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).title()
+		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).rawValue
 		let roamTitle = "Jan 18th, 2026"
 		try #require(roamTitle != latticeTitle)
 
@@ -283,7 +283,7 @@ extension Tests.RoamImporterTest {
 
 		let result = try executeImport(from: json)
 		#expect(result.imported.count == 1)
-		#expect(result.imported[0].title == "Import Test")
+		#expect(result.imported[0].canonicalTitle == "Import Test")
 
 		let page = try requiredPage(title: "Import Test")
 		let rootChildren = try children(of: page.id)
@@ -300,7 +300,7 @@ extension Tests.RoamImporterTest {
 	func batchImport() throws {
 		let existing = try database.write { db in
 			let page = try Page.findOrCreate(title: "Batch Import", in: db)
-			let alias = Block(title: page.title, mergedInto: page.id)
+			let alias = Block(title: page.canonicalTitle, mergedInto: page.id)
 			let hidden = Block(string: "Hidden", parentId: alias.id, order: 10 * ParagraphOrder.gap, deletedAt: Date())
 			try Block.insert { [alias, hidden] }.execute(db)
 			return page
@@ -311,7 +311,7 @@ extension Tests.RoamImporterTest {
 				["uid": "second-\(index)", "string": "Second \(index)"],
 			]]
 		}
-		let data = try JSONSerialization.data(withJSONObject: [["uid": "page", "title": existing.title, "children": roots]])
+		let data = try JSONSerialization.data(withJSONObject: [["uid": "page", "title": existing.canonicalTitle, "children": roots]])
 		let prepared = try preparedPages(from: String(decoding: data, as: UTF8.self))
 		let statements = Mutex<[String]>([])
 		let previousLimit = try database.write { db in
@@ -382,7 +382,7 @@ extension Tests.RoamImporterTest {
 		#expect(result.imported.count == 1)
 
 		let page = try requiredPage(day: DayOfYear(day: 18, month: 1, year: 2026))
-		#expect(page.title == "January 18th, 2026")
+		#expect(page.canonicalTitle == "2026-01-18")
 	}
 
 	@Test("Persists regular page timestamps on new import")
@@ -583,7 +583,7 @@ extension Tests.RoamImporterTest {
 
 	private func page(title: String) throws -> Page? {
 		try database.read { db in
-			try Page.where { $0.title.eq(title) }.fetchOne(db)
+			try Page.where { $0.canonicalTitle.eq(title) }.fetchOne(db)
 		}
 	}
 

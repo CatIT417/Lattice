@@ -3,7 +3,7 @@ import SQLiteData
 import NavigationKit
 
 struct SearchScreen: View {
-	@FetchAll(Page.order(by: { ($0.dailyNoteDate.desc(nulls: .first), $0.title) }))
+	@FetchAll(Page.order(by: { ($0.dailyNoteDate.desc(nulls: .first), $0.canonicalTitle) }))
 	var pages: [Page]
 
 	@State var search = SearchResults()
@@ -39,8 +39,8 @@ struct SearchScreen: View {
 		ForEach(search.results) { block in
 			NavigationButton(push: block.destination) {
 				Group {
-					if let title = block.title {
-						Text(title)
+					if let page = Page(block: block) {
+						Text(page.title)
 					} else if let string = block.string {
 							VStack(alignment: .leading, spacing: 4) {
 								BreadcrumbsView(blockId: block.id)

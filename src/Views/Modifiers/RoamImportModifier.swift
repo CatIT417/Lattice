@@ -47,7 +47,8 @@ struct RoamImportModifier: ViewModifier {
 			.overlay {
 				if state.isImporting {
 					ZStack {
-						Color.black.opacity(0.1)
+						Color.black
+							.opacity(0.1)
 							.ignoresSafeArea()
 
 						ProgressView()
@@ -233,7 +234,7 @@ private struct FailedPagesSheet: View {
 		NavigationStack {
 			List(pages.enumerated(), id: \.offset) { _, page in
 				VStack(alignment: .leading) {
-					Text(page.title)
+					Text(Page.title(for: page.title))
 						.font(.headline)
 
 					Text(page.reason.localizedDescription)
@@ -244,14 +245,14 @@ private struct FailedPagesSheet: View {
 			.navigationTitle("Failed to Import")
 			.navigationSubtitle("\(pages.count) page\(pages.count == 1 ? "" : "s")")
 			#if os(iOS)
-				.navigationBarTitleDisplayMode(.inline)
+			.navigationBarTitleDisplayMode(.inline)
 			#endif
-				.toolbar {
-					ToolbarItem(placement: .confirmationAction) {
-						Button(role: .close) { dismiss() }
-					}
+			.toolbar {
+				ToolbarItem(placement: .confirmationAction) {
+					Button(role: .close) { dismiss() }
 				}
-				.presentationDetents([.medium, .large])
+			}
+			.presentationDetents([.medium, .large])
 		}
 	}
 }

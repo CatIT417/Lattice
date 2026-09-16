@@ -8,7 +8,7 @@ enum MarkdownExporter {
 			try Page.withChildren(id: id).fetch(db)
 		}) else { return "" }
 
-		var lines: [String] = ["# \(result.block.title)", ""]
+		var lines: [String] = ["# \(result.block.canonicalTitle)", ""]
 		renderChildren(of: result.block.id, tree: result.tree, depth: 0, into: &lines)
 
 		return lines.joined(separator: "\n")

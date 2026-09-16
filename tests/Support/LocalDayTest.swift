@@ -1,8 +1,8 @@
 import Testing
 import Foundation
 import CustomDump
-
 @testable import LatticeDev
+import Dependencies
 
 extension Tests {
 	@Suite("Support/DayOfYear")
@@ -57,14 +57,14 @@ extension Tests.DayOfYearTest {
 	}
 
 	@Test("parses valid daily page titles", arguments: [
-		("January 1st, 2024", DayOfYear(day: 1, month: 1, year: 2024)),
-		("February 3rd, 2026", DayOfYear(day: 3, month: 2, year: 2026)),
-		("December 22nd, 2025", DayOfYear(day: 22, month: 12, year: 2025)),
+		("2024-01-01", DayOfYear(day: 1, month: 1, year: 2024)),
+		("2026-02-03", DayOfYear(day: 3, month: 2, year: 2026)),
+		("2025-12-22", DayOfYear(day: 22, month: 12, year: 2025)),
 		("2026-09-05", DayOfYear(day: 5, month: 9, year: 2026)),
 		("2024-02-29", DayOfYear(day: 29, month: 2, year: 2024)),
 	])
 	func parsesTitle(title: String, expected: DayOfYear) {
-		expectNoDifference(DayOfYear(title: title), expected)
+		expectNoDifference(DayOfYear(rawValue: title), expected)
 	}
 
 	@Test("rejects non-daily-page titles", arguments: [
@@ -84,22 +84,38 @@ extension Tests.DayOfYearTest {
 		" 2026-09-05",
 	])
 	func rejectsInvalidTitle(title: String) {
-		#expect(DayOfYear(title: title) == nil)
+		#expect(DayOfYear(rawValue: title) == nil)
 	}
 
-	@Test("title round-trips through init(title:)")
-	func titleRoundTrip() {
-		let day = DayOfYear(day: 24, month: 2, year: 2026)
-		expectNoDifference(DayOfYear(title: day.title()), day)
+	@Test("Display titles use the selected locale", arguments: [
+		("en_US", "February 12, 2026"),
+		("en_GB", "12 February 2026"),
+		("fr_FR", "12 février 2026"),
+		("de_DE", "12. Februar 2026"),
+		("ja_JP", "2026年2月12日"),
+	])
+	func localizedTitle(localeIdentifier: String, expected: String) throws {
+		let day = try #require(DayOfYear(rawValue: "2026-02-12"))
+		withDependencies {
+			$0.locale = Locale(identifier: localeIdentifier)
+		} operation: {
+			expectNoDifference(day.title, expected)
+		}
+		expectNoDifference(day.rawValue, "2026-02-12")
 	}
-}
 
-extension Tests.DayOfYearTest {
-	@Test("ISO dates keep the same day in every time zone", arguments: ["America/Los_Angeles", "Asia/Tokyo"])
-	func isoTitleKeepsCalendarDay(timeZone: String) throws {
+	@Test("Display text does not determine daily-note identity", arguments: ["February 12, 2026", "February 12th, 2026", "12 février 2026"])
+	func rejectsDisplayTitles(title: String) {
+		#expect(DayOfYear(rawValue: title) == nil)
+	}
+
+	@Test("Travel changes today without changing a stored day", arguments: ["America/Los_Angeles", "Asia/Tokyo", "Pacific/Kiritimati"])
+	func storedDaySurvivesTravel(timeZone: String) throws {
 		var calendar = Calendar(identifier: .gregorian)
 		calendar.timeZone = try #require(TimeZone(identifier: timeZone))
-		expectNoDifference(DayOfYear(title: "2026-09-05", calendar: calendar), DayOfYear(day: 5, month: 9, year: 2026))
+		let day = try #require(DayOfYear(rawValue: "2026-02-12"))
+		expectNoDifference(DayOfYear(day.date(in: calendar), calendar: calendar).rawValue, "2026-02-12")
+		expectNoDifference(day.title, "February 12, 2026")
 	}
 
 	@Test("Stored dates reject invalid and noncanonical values", arguments: ["2026-02-30", "2026-02-29", "2026-9-05", "2026-09-5"])

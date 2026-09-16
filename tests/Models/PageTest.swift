@@ -14,13 +14,50 @@ extension Tests {
 }
 
 extension Tests.PageTest {
+	@MainActor @Test("Display titles use the session locale and storage keeps the canonical title", arguments: [
+		("en_US", "February 12, 2026"),
+		("en_GB", "12 February 2026"),
+		("fr_FR", "12 février 2026"),
+		("ja_JP", "2026年2月12日"),
+	])
+	func titleProperties(localeIdentifier: String, expected: String) throws {
+		try withDependencies {
+			$0.locale = Locale(identifier: localeIdentifier)
+		} operation: {
+			let page = try database.write { db in
+				let page = try Page.createDailyNote(for: DayOfYear(day: 12, month: 2, year: 2026), in: db)
+				let block = try #require(try Block.find(page.id).fetchOne(db))
+				let paragraph = Block(string: "See [[2026-02-12]]", parentId: page.id)
+				try Block.insert { paragraph }.execute(db)
+
+				expectNoDifference(page.canonicalTitle, "2026-02-12")
+				expectNoDifference(page.title, expected)
+				expectNoDifference(block.title, page.canonicalTitle)
+				expectNoDifference(Page(block: block)?.title, expected)
+				expectNoDifference(try #sql("SELECT title FROM pages", as: String.self).fetchOne(db), page.canonicalTitle)
+				expectNoDifference(try Page.where { $0.canonicalTitle.eq("2026-02-12") }.fetchOne(db), page)
+
+				let breadcrumb = try #require(try Breadcrumb.forBlock(id: paragraph.id).fetchOne(db))
+				expectNoDifference(breadcrumb.canonicalTitle, page.canonicalTitle)
+				expectNoDifference(breadcrumb.title, expected)
+				let backlink = try #require(try Backlink.groupedByPage(forBlock: page.id).fetchOne(db))
+				expectNoDifference(backlink.canonicalPageTitle, page.canonicalTitle)
+				expectNoDifference(backlink.pageTitle, expected)
+				let suggestion = ReferenceSuggestions.Item(canonicalTitle: page.canonicalTitle, isSyntheticNewPage: false)
+				expectNoDifference(suggestion.title, expected)
+				return page
+			}
+			#expect(try MarkdownExporter.exportPage(id: page.id).hasPrefix("# 2026-02-12\n"))
+		}
+	}
+
 	@Test("Creating a daily note page sets the correct title and date")
 	func dailyNoteCreation() throws {
 		let page = try #require(database.write { db in
 			try Page.insert { Page.newDailyNote(for: DayOfYear(day: 3, month: 2, year: 2026)) }.returning(\.self).fetchOne(db)
 		})
 
-		expectNoDifference("February 3rd, 2026", page.title)
+		expectNoDifference("2026-02-03", page.canonicalTitle)
 		expectNoDifference(DayOfYear(day: 3, month: 2, year: 2026), page.dailyNoteDate)
 	}
 
@@ -71,7 +108,7 @@ extension Tests.PageTest {
 			try Page.insert { Page(title: "ABC") }.returning(\.self).fetchOne(db)
 		})
 
-		expectNoDifference("ABC", page.title)
+		expectNoDifference("ABC", page.canonicalTitle)
 	}
 
 	@Test("An invalid rename preserves the page title", arguments: ["AB", "Bad [Title", "Bad ]Title"])
@@ -87,7 +124,7 @@ extension Tests.PageTest {
 					.execute(db)
 			}
 		}
-		expectNoDifference(try database.read { try Page.fetchOne($0)?.title }, "Test Page")
+		expectNoDifference(try database.read { try Page.fetchOne($0)?.canonicalTitle }, "Test Page")
 	}
 
 	@Test("Page.findOrCreate returns an existing page if one exists, otherwise creates it")
@@ -103,12 +140,12 @@ extension Tests.PageTest {
 		expectNoDifference(page.id, secondPage.id)
 	}
 
-	@Test("Page.findOrCreate treats both date formats as the daily note", arguments: [false, true])
-	func findOrCreateDailyNoteTitle(useISO: Bool) throws {
+	@Test("Page.findOrCreate uses the canonical daily-note title")
+	func findOrCreateDailyNoteTitle() throws {
 		let day = DayOfYear(day: 5, month: 9, year: 2026)
 
 		let page = try database.write { db in
-			try Page.findOrCreate(title: useISO ? day.rawValue : day.title(), in: db)
+			try Page.findOrCreate(title: day.rawValue, in: db)
 		}
 		expectNoDifference(page.dailyNoteDate, day)
 

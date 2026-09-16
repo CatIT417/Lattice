@@ -43,7 +43,7 @@ struct Reference: Equatable, Hashable, Sendable {
 			guard let id = UUID(uuidString: reference.target) else { return nil }
 			targetKey = id.uuidString
 		} else {
-			targetKey = DayOfYear(title: reference.target)?.rawValue ?? reference.target
+			targetKey = reference.target
 		}
 	}
 }

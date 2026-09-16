@@ -65,7 +65,7 @@ struct SyncReferencesTable: Trigger {
 	func mergeRenamedPage(id: Page.ID, oldTitle: String) throws {
 		@Dependency(\.defaultDatabase) var database
 		try database.unsafeReentrantWrite { db in
-			let duplicates = try Page.where { $0.title.eq(oldTitle) }.select(\.id).fetchAll(db)
+			let duplicates = try Page.where { $0.canonicalTitle.eq(oldTitle) }.select(\.id).fetchAll(db)
 			try MergeDuplicatePages.merge(id, with: duplicates, in: db)
 		}
 	}
@@ -73,12 +73,11 @@ struct SyncReferencesTable: Trigger {
 	@DatabaseFunction
 	func updatePageTitleInReferences(old: String, new: String) throws {
 		@Dependency(\.defaultDatabase) var database
-		let oldKey = DayOfYear(title: old)?.rawValue ?? old
 
 		try database.unsafeReentrantWrite { db in
 			let blocks = try Reference
 				.group(by: \.sourceBlockId)
-				.where { $0.kind.in([Reference.Kind.pageLink, .tag]) && $0.targetKey.eq(oldKey) }
+				.where { $0.kind.in([Reference.Kind.pageLink, .tag]) && $0.targetKey.eq(old) }
 				.join(Paragraph.all) { $0.sourceBlockId.eq($1.id) }
 				.select { $1 }
 				.fetchAll(db)
@@ -86,7 +85,7 @@ struct SyncReferencesTable: Trigger {
 			for block in blocks {
 				let original = block.string
 				let references = original.extractRefs().filter {
-					$0.kind.isPage && (DayOfYear(title: $0.target)?.rawValue ?? $0.target) == oldKey
+					$0.kind.isPage && $0.target == old
 				}
 				guard !references.isEmpty else { continue }
 
