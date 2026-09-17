@@ -2,8 +2,13 @@ import GRDB
 import Foundation
 import SQLiteData
 
-final class CreateBlocksFTSTable: Migration {
+final class CreateBlocksFTSTables: Migration {
 	static func up(_ db: Database) throws {
+		try db.create(table: "blockSearchIDs") { table in
+			table.primaryKey("id", .integer)
+			table.column("blockID", .text).notNull().unique()
+		}
+
 		try db.create(virtualTable: "blockTexts", using: GRDB.FTS5()) { table in
 			table.column("blockID").notIndexed()
 			table.column("title")
@@ -18,5 +23,6 @@ final class CreateBlocksFTSTable: Migration {
 
 	static func down(_ db: Database) throws {
 		try db.drop(table: "blockTexts")
+		try db.drop(table: "blockSearchIDs")
 	}
 }

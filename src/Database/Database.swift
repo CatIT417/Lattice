@@ -58,7 +58,7 @@ func prepareDatabase(_ database: any DatabaseWriter) throws {
 		CreateBlocksTable.self,
 		CreateReferencesTable.self,
 		CreateAncestorsTable.self,
-		CreateBlocksFTSTable.self,
+		CreateBlocksFTSTables.self,
 		CreateCachedLinkMetadataTable.self,
 		CreateLocalGraphIndexes.self,
 	], in: database)

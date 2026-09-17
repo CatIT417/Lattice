@@ -21,17 +21,14 @@ enum RebuildSearchIndex {
 
 	static func populate(in db: Database) throws {
 		try BlockText.delete().execute(db)
+		try BlockSearchID.delete().execute(db)
+
+		try BlockSearchID.insert { $0.blockID } select: { Block.select(\.id) }.execute(db)
 		try BlockText.insert {
-			($0.blockID, $0.canonicalTitle, $0.string, $0.displayTitle, $0.displayString)
+			($0.rowid, $0.blockID, $0.canonicalTitle, $0.string, $0.displayTitle, $0.displayString)
 		} select: {
-			Block.select {
-				(
-					$0.id,
-					$0.title,
-					$0.string,
-					$searchDisplayTitle($0.title),
-					$searchDisplayString($0.string)
-				)
+			Block.join(BlockSearchID.all) { $0.id.eq($1.blockID) }.select { blocks, blockSearchIDs in
+				(blockSearchIDs.id, blocks.id, blocks.title, blocks.string, $searchDisplayTitle(blocks.title), $searchDisplayString(blocks.string))
 			}
 		}
 		.execute(db)

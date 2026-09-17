@@ -3,12 +3,20 @@ import SQLiteData
 
 @Table
 struct BlockText: FTS5, Equatable {
+	@Column(primaryKey: true)
+	let rowid: Int
 	let blockID: Block.ID
 	@Column("title")
 	let canonicalTitle: String?
 	let string: String?
 	let displayTitle: String?
 	let displayString: String?
+}
+
+@Table("blockSearchIDs")
+struct BlockSearchID: Equatable {
+	let id: Int
+	let blockID: Block.ID
 }
 
 // MARK: - Querying
