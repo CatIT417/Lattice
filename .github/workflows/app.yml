@@ -17,10 +17,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-            xcode-version: latest
-
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -33,6 +29,12 @@ jobs:
             ruby
             xcode
             swiftpm
+          path: ~/Library/Caches/lattice-xcode
+
+      - name: Set up Xcode 27.2 beta
+        run: bash .github/scripts/setup-xcode.sh
+        env:
+          FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
 
       - name: Install Gems
         run: bundle install
@@ -69,10 +71,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-            xcode-version: latest
-
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -85,6 +83,12 @@ jobs:
             ruby
             xcode
             swiftpm
+          path: ~/Library/Caches/lattice-xcode
+
+      - name: Set up Xcode 27.2 beta
+        run: bash .github/scripts/setup-xcode.sh
+        env:
+          FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
 
       - name: Install Gems
         run: bundle install

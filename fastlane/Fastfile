@@ -22,12 +22,15 @@ platform :ios do
             app_identifier: ["build.miguel.Lattice"],
         )
 
-        increment_build_number(
-            xcodeproj: "Lattice.xcodeproj",
-            build_number: latest_testflight_build_number(platform: "ios")  + 1
-        )
+        build_number = latest_testflight_build_number(platform: "ios") + 1
 
-        build_app(scheme: "Lattice", xcargs: "-skipMacroValidation")
+        build_app(
+            workspace: "Lattice.xcodeproj/project.xcworkspace",
+            scheme: "Lattice",
+            configuration: "Release",
+            skip_profile_detection: true,
+            xcargs: "-skipMacroValidation CURRENT_PROJECT_VERSION=#{build_number}"
+        )
         # sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
         sentry_upload_build(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', build_configuration: 'Release')
         upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
@@ -58,15 +61,15 @@ platform :mac do
             additional_cert_types: ["mac_installer_distribution"],
         )
 
-        increment_build_number(
-            xcodeproj: "Lattice.xcodeproj",
-            build_number: latest_testflight_build_number(platform: "osx") + 1
-        )
+        build_number = latest_testflight_build_number(platform: "osx") + 1
 
         build_app(
+            workspace: "Lattice.xcodeproj/project.xcworkspace",
             sdk: "macosx",
             scheme: "Lattice",
-            xcargs: "-skipMacroValidation"
+            configuration: "Release",
+            skip_profile_detection: true,
+            xcargs: "-skipMacroValidation CURRENT_PROJECT_VERSION=#{build_number}"
         )
         sentry_debug_files_upload(auth_token: ENV["SENTRY_TOKEN"], org_slug: 'm1guelpf', project_slug: 'lattice', derived_data: true, include_sources: true)
         upload_to_testflight(distribute_external: true, changelog: "", groups: ["External"])
