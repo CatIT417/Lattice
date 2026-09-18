@@ -115,25 +115,27 @@ extension Tests.BlockSearchIDTest {
 		var migrator = DatabaseMigrator()
 		migrator.registerMigration("CreateBlocksTable") { try CreateBlocksTable.up($0) }
 		try migrator.migrate(database)
-		let page = Block(title: "Original title")
+		let page = Block(title: "2026-02-12", dailyNoteDate: DayOfYear(day: 12, month: 2, year: 2026))
+		let paragraph = Block(string: "Meet [[2026-02-12]]", parentId: page.id)
 		let before = try database.write { db in
-			try Block.insert { page }.execute(db)
-			return try Block.fetchAll(db)
+			try Block.insert { [page, paragraph] }.execute(db)
+			return try Block.order(by: \.id).fetchAll(db)
 		}
 
 		migrator.registerMigration("CreateBlocksFTSTable") { try CreateBlocksFTSTables.up($0) }
 		try migrator.migrate(database)
 		try database.setupTriggers([SyncBlocksFTSTable.self])
 		try database.write { db in
-			try expectNoDifference(Block.fetchAll(db), before)
-			try expectNoDifference(BlockSearchID.select(\.blockID).fetchAll(db), [page.id])
-			try expectNoDifference(BlockText.matching("Original").select(\.blockID).fetchAll(db), [page.id])
+			try expectNoDifference(Block.order(by: \.id).fetchAll(db), before)
+			try expectNoDifference(BlockSearchID.order(by: \.blockID).select(\.blockID).fetchAll(db), [page.id, paragraph.id])
+			expectNoDifference(try BlockText.where { $0.blockID.eq(page.id) }.fetchOne(db)?.displayTitle, "February 12, 2026")
+			expectNoDifference(try BlockText.where { $0.blockID.eq(paragraph.id) }.fetchOne(db)?.displayString, "Meet February 12, 2026")
 			try Block.find(page.id).update { $0.title = #bind("Updated title") }.execute(db)
 			try expectNoDifference(BlockText.matching("Updated").select(\.blockID).fetchAll(db), [page.id])
 		}
 	}
 
-	@Test("FTS update and delete work does not grow with the block count")
+	@Test("Isolated FTS update and delete work stays bounded as the block count grows")
 	func lookupCost() throws {
 		try database.write { db in
 			let page = Block(title: "Target title")
@@ -155,6 +157,7 @@ extension Tests.BlockSearchIDTest {
 			let largeUpdate = try steps(update)
 			let largeDelete = try steps(delete)
 
+			#expect([smallUpdate, smallDelete, largeUpdate, largeDelete].allSatisfy { $0 > 0 })
 			#expect(largeUpdate < smallUpdate * 4)
 			#expect(largeDelete < smallDelete * 4)
 		}

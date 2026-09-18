@@ -135,32 +135,15 @@ extension Tests.AttributedStringBuilderTest {
 		}
 		#endif
 
-		// ensure the rendered target characters map to the same characters inside the raw syntax
-
-		var renderedSearchStart = rendered.startIndex
-		for ref in text.extractRefs() {
-			let rawRefText = String(text[ref.range])
-			let rawTargetRange = rawRefText.range(of: ref.target)
-			#expect(rawTargetRange != nil)
-
-			let rawRefStart = text.distance(from: text.startIndex, to: ref.range.lowerBound)
-			let rawTargetStart = rawRefText.distance(from: rawRefText.startIndex, to: rawTargetRange?.lowerBound ?? rawRefText.startIndex)
-			let expectedRawStart = rawRefStart + rawTargetStart
-			let expectedRawEnd = expectedRawStart + max(0, ref.target.count - 1)
-
-			let renderedRange = rendered.range(of: ref.target, range: renderedSearchStart..<rendered.endIndex)
-			#expect(renderedRange != nil)
-			let renderedStart = rendered.distance(from: rendered.startIndex, to: renderedRange?.lowerBound ?? rendered.startIndex)
-			let renderedEnd = rendered.distance(from: rendered.startIndex, to: renderedRange?.upperBound ?? rendered.startIndex) - 1
-			renderedSearchStart = renderedRange?.upperBound ?? renderedSearchStart
-
-			expectNoDifference(mapping.rawIndex(fromRendered: renderedEnd), expectedRawEnd)
-			expectNoDifference(mapping.rawIndex(fromRendered: renderedStart), expectedRawStart)
+		let starts = [(rendered: 6, raw: 8, length: 8), (rendered: 23, raw: 27, length: 3), (rendered: 32, raw: 38, length: 7), (rendered: 45, raw: 55, length: 36)]
+		for start in starts {
+			expectNoDifference(mapping.rawIndex(fromRendered: start.rendered), start.raw)
+			expectNoDifference(mapping.rawIndex(fromRendered: start.rendered + start.length - 1), start.raw + start.length - 1)
 		}
 
 		expectNoDifference(mapping.rawIndex(fromRendered: -1), 0)
-		expectNoDifference(mapping.rawIndex(fromRendered: rendered.count), text.count)
-		expectNoDifference(mapping.rawIndex(fromRendered: rendered.count + 5), text.count)
+		expectNoDifference(mapping.rawIndex(fromRendered: rendered.utf16.count), text.utf16.count)
+		expectNoDifference(mapping.rawIndex(fromRendered: rendered.utf16.count + 5), text.utf16.count)
 	}
 
 	@Test("buildAttributedString renders bold text")
@@ -412,55 +395,6 @@ extension Tests.AttributedStringBuilderTest {
 			if value != nil { hasBackgroundColor = true }
 		}
 		#expect(hasBackgroundColor)
-	}
-
-	@Test("buildAttributedString renders markdown links")
-	func buildAttributedStringRendersMarkdownLinks() throws {
-		let text = "Visit [my site](https://example.com) today"
-		let result = buildAttributedString(from: text, font: testFont)
-
-		expectNoDifference(result.attributedString.string, "Visit my site today")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Visit {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}my site{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "https://example.com";
-			} today{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Visit {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}my site{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			} today{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		// Check that link has URL attribute
-		var linkURL: URL?
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 6, length: 7)) { value, _, _ in
-			linkURL = value as? URL
-		}
-		expectNoDifference(linkURL?.absoluteString, "https://example.com")
 	}
 
 	@Test("buildAttributedString handles nested bold and page link")
@@ -1049,25 +983,11 @@ extension Tests.AttributedStringBuilderTest {
 			"""
 		}
 
-		// Before emoji: identity mapping
-		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5)
-		// Emoji occupies two UTF-16 code units in both rendered and raw
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 6)
-		expectNoDifference(mapping.rawIndex(fromRendered: 7), 7)
-		// Space after emoji
-		expectNoDifference(mapping.rawIndex(fromRendered: 8), 8)
-		// 'W' in rendered (UTF-16 pos 9) maps to raw UTF-16 pos 11 (after "[[")
-		expectNoDifference(mapping.rawIndex(fromRendered: 9), 11)
-		// 'd' at rendered 13 maps to raw 15
-		expectNoDifference(mapping.rawIndex(fromRendered: 13), 15)
-		// '!' at rendered 14 maps to raw 18 (after "]]")
-		expectNoDifference(mapping.rawIndex(fromRendered: 14), 18)
-		// End position (rendered UTF-16 length 15) maps to raw UTF-16 length 19
-		expectNoDifference(mapping.rawIndex(fromRendered: 15), 19)
-		// Verify these are UTF-16 counts, not Swift Character counts
-		#expect(text.count == 18, "raw text has 18 Swift chars but 19 UTF-16 code units")
-		#expect(text.utf16.count == 19)
-		#expect(result.attributedString.string.utf16.count == 15)
+		expectNoDifference((0...15).map { mapping.rawIndex(fromRendered: $0) }, [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19])
+		expectNoDifference(mapping.rawIndex(fromRendered: -1), 0)
+		expectNoDifference(mapping.rawIndex(fromRendered: 100), 19)
+		expectNoDifference(mapping.transform(range: NSRange(location: 9, length: 5), maxLength: 19), NSRange(location: 11, length: 7))
+		expectNoDifference(mapping.transform(range: NSRange(location: 14, length: 5), maxLength: 18), NSRange(location: 18, length: 0))
 	}
 
 	@Test("buildAttributedString correctly maps cursor for bracketed tags inside formatting")
@@ -1301,7 +1221,7 @@ extension Tests.AttributedStringBuilderTest {
 		expectNoDifference(result.attributedString.string, text)
 
 		// Non-embed external links should request favicon
-		#expect(!result.uncachedFaviconURLs.isEmpty)
+		expectNoDifference(result.uncachedFaviconURLs, [URL(string: "https://www.google.com/s2/favicons?sz=64&domain=example.com")!])
 
 		// Font should remain at base size (no 0.9x scaling)
 		var fontSize: CGFloat?
@@ -1309,5 +1229,58 @@ extension Tests.AttributedStringBuilderTest {
 			fontSize = (value as? PlatformFont)?.pointSize
 		}
 		expectNoDifference(fontSize, testFont.pointSize)
+	}
+}
+
+extension Tests.AttributedStringBuilderTest {
+	@Test("A cached favicon adds two mapped UTF-16 positions")
+	func cachedFavicon() throws {
+		let image = PlatformImage()
+		let url = try #require(URL(string: "https://example.com"))
+		var requests: [URL] = []
+		let result = buildAttributedString(from: "Go https://example.com", font: testFont, faviconProvider: {
+			requests.append($0)
+			return image
+		})
+		expectNoDifference(requests, [url])
+		expectNoDifference(result.uncachedFaviconURLs, [])
+		expectNoDifference(result.attributedString.string, "Go \u{FFFC} https://example.com")
+		let attachment = try #require(result.attributedString.attribute(.attachment, at: 3, effectiveRange: nil) as? NSTextAttachment)
+		#expect(attachment.image === image)
+		expectNoDifference(result.attributedString.attribute(.link, at: 3, effectiveRange: nil) as? URL, url)
+		expectNoDifference(result.attributedString.attribute(.link, at: 4, effectiveRange: nil) as? URL, url)
+		assertInlineSnapshot(of: try #require(result.indexMapping), as: .customDump) {
+			"""
+			AttributedStringResult.IndexMapping(
+			  renderedToRaw: [
+			    [0]: 0,
+			    [1]: 1,
+			    [2]: 2,
+			    [3]: 3,
+			    [4]: 3,
+			    [5]: 3,
+			    [6]: 4,
+			    [7]: 5,
+			    [8]: 6,
+			    [9]: 7,
+			    [10]: 8,
+			    [11]: 9,
+			    [12]: 10,
+			    [13]: 11,
+			    [14]: 12,
+			    [15]: 13,
+			    [16]: 14,
+			    [17]: 15,
+			    [18]: 16,
+			    [19]: 17,
+			    [20]: 18,
+			    [21]: 19,
+			    [22]: 20,
+			    [23]: 21,
+			    [24]: 22
+			  ]
+			)
+			"""
+		}
 	}
 }

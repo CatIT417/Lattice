@@ -9,28 +9,11 @@ extension Tests {
 }
 
 extension Tests.RangeContainsTest {
-	@Test("Range.contains returns true for contained ranges")
-	func containsRange() {
-		let outer = 0..<10
-
-		expectNoDifference(true, outer.contains(0..<10))
-		expectNoDifference(true, outer.contains(0..<5))
-		expectNoDifference(true, outer.contains(5..<10))
-	}
-
-	@Test("Range.contains returns false for overlapping or out-of-bounds ranges")
-	func doesNotContainRange() {
-		let outer = 0..<10
-
-		expectNoDifference(false, outer.contains((-1)..<5))
-		expectNoDifference(false, outer.contains(8..<12))
-		expectNoDifference(false, outer.contains(5..<11))
-	}
-
-	@Test("Range.contains treats empty ranges inside bounds as contained")
-	func containsEmptyRange() {
-		let outer = 0..<10
-
-		expectNoDifference(true, outer.contains(5..<5))
+	@Test("Range containment includes its empty boundaries", arguments: [
+		(0..<10, true), (2..<8, true), (0..<5, true), (5..<10, true),
+		(-1..<5, false), (8..<12, false), (0..<0, true), (5..<5, true), (10..<10, true),
+	])
+	func containsRange(inner: Range<Int>, expected: Bool) {
+		expectNoDifference((0..<10).contains(inner), expected)
 	}
 }

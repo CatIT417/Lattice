@@ -52,61 +52,34 @@ extension Tests.SyncAncestorsTableTest {
 		])
 	}
 
-	@Test("Moving a Paragraph rebuilds ancestor rows for its subtree")
+	@Test("Moving a subtree replaces ancestors and page membership")
 	func movingParagraphRebuildsSubtreeAncestors() throws {
-		let (page, secondRoot, child, grandchild) = try database.write { db in
-			let page = try #require(try Page.insert { Page(title: "Ancestor Move Root") }.returning(\.self).fetchOne(db))
-
-			let firstRoot = try #require(try Paragraph.insert {
-				Paragraph(string: "First Root", parentId: page.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db))
-
-			let secondRoot = try #require(try Paragraph.insert {
-				Paragraph(string: "Second Root", parentId: page.id, pageId: page.id, order: 1)
-			}.returning(\.self).fetchOne(db))
-
-			let child = try #require(try Paragraph.insert {
-				Paragraph(string: "Child", parentId: firstRoot.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db))
-
-			let grandchild = try #require(try Paragraph.insert {
-				Paragraph(string: "Grandchild", parentId: child.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db))
-
-			return (page, secondRoot, child, grandchild)
-		}
-
 		try database.write { db in
-			try Block.find(child.id).update {
-				$0.parentId = #bind(secondRoot.id)
-			}.execute(db)
+			let first = Block(title: "First page")
+			let second = Block(title: "Second page")
+			let oldParent = Block(string: "Old parent", parentId: first.id)
+			let newParent = Block(string: "New parent", parentId: second.id)
+			let child = Block(string: "Child", parentId: oldParent.id)
+			let grandchild = Block(string: "Grandchild", parentId: child.id)
+			try Block.insert { [first, second, oldParent, newParent, child, grandchild] }.execute(db)
+			let storedGrandchild = try Block.find(grandchild.id).fetchOne(db)
+			try Block.find(child.id).update { $0.parentId = #bind(newParent.id) }.execute(db)
+			expectNoDifference(try Ancestor.where { $0.blockId.eq(child.id) }.order(by: \.depth).fetchAll(db), [
+				Ancestor(blockId: child.id, ancestorId: newParent.id, depth: 1),
+				Ancestor(blockId: child.id, ancestorId: second.id, depth: 2),
+			])
+			expectNoDifference(try Ancestor.where { $0.blockId.eq(grandchild.id) }.order(by: \.depth).fetchAll(db), [
+				Ancestor(blockId: grandchild.id, ancestorId: child.id, depth: 1),
+				Ancestor(blockId: grandchild.id, ancestorId: newParent.id, depth: 2),
+				Ancestor(blockId: grandchild.id, ancestorId: second.id, depth: 3),
+			])
+			expectNoDifference(try Paragraph.find(child.id).fetchOne(db)?.pageId, second.id)
+			expectNoDifference(try Paragraph.find(grandchild.id).fetchOne(db)?.pageId, second.id)
+			expectNoDifference(try Block.find(grandchild.id).fetchOne(db), storedGrandchild)
 		}
-
-		let childAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId.eq(child.id) }
-				.order { $0.depth.asc() }
-				.fetchAll(db)
-		}
-
-		expectNoDifference(childAncestors, [
-			Ancestor(blockId: child.id, ancestorId: secondRoot.id, depth: 1),
-			Ancestor(blockId: child.id, ancestorId: page.id, depth: 2),
-		])
-
-		let grandchildAncestors = try database.read { db in
-			try Ancestor.where { $0.blockId.eq(grandchild.id) }
-				.order { $0.depth.asc() }
-				.fetchAll(db)
-		}
-
-		expectNoDifference(grandchildAncestors, [
-			Ancestor(blockId: grandchild.id, ancestorId: child.id, depth: 1),
-			Ancestor(blockId: grandchild.id, ancestorId: secondRoot.id, depth: 2),
-			Ancestor(blockId: grandchild.id, ancestorId: page.id, depth: 3),
-		])
 	}
 
-	@Test("A cyclic parentId chain does not hang the ancestor rebuild")
+	@Test("A cyclic parentId chain remains hidden", .timeLimit(.minutes(1)))
 	func cyclicParentIdDoesNotHang() throws {
 		@Dependency(\.uuid) var uuid
 		let first = uuid()
@@ -116,22 +89,17 @@ extension Tests.SyncAncestorsTableTest {
 			try Page.insert { Page(title: "Ancestor Cycle Root") }.returning(\.self).fetchOne(db)
 		})
 
-		// Nothing stops two concurrent moves from merging into a cycle. Both inserts must return; the rows are unspecified.
 		try database.write { db in
 			try Paragraph.insert { Paragraph(id: first, string: "First", parentId: second, pageId: page.id, order: 0) }.execute(db)
 			try Paragraph.insert { Paragraph(id: second, string: "Second", parentId: first, pageId: page.id, order: 0) }.execute(db)
 		}
 
-		let ancestorRows = try database.read { db in
-			try Ancestor.where { $0.blockId.in([first, second]) }.fetchCount(db)
-		}
-		#expect(ancestorRows > 0)
-
-		// Neither block may be its own ancestor, or a tree built from these rows would loop when rendered.
-		let selfRows = try database.read { db in
-			try Ancestor.where { $0.blockId.eq($0.ancestorId) }.fetchCount(db)
-		}
-		expectNoDifference(selfRows, 0)
+		expectNoDifference(try database.read { db in
+			try Ancestor.where { $0.blockId.in([first, second]) }.order(by: \.blockId).fetchAll(db)
+		}, [
+			Ancestor(blockId: first, ancestorId: second, depth: 1),
+			Ancestor(blockId: second, ancestorId: first, depth: 1),
+		])
 
 		#expect(try database.read { try Paragraph.withChildren(id: first).fetch($0) } == nil)
 		#expect(try database.read { try BlockHierarchy.where(\.isVisible).fetchCount($0) } == 1)

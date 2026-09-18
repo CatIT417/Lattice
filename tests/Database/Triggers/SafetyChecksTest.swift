@@ -1,4 +1,5 @@
 import Testing
+import CustomDump
 import SQLiteData
 import Foundation
 import GRDB
@@ -36,26 +37,14 @@ extension Tests {
 				let child = Block(string: "Child", parentId: parent.id)
 				try Block.insert { [page, parent, child] }.execute(db)
 				let target = selfParent ? parent.id : child.id
-				#expect(throws: DatabaseError.self) {
+				do {
 					try Block.find(parent.id).update { $0.parentId = #bind(target) }.execute(db)
+					Issue.record("The cyclic move must fail.")
+				} catch let error as DatabaseError {
+					expectNoDifference(error.extendedResultCode, .SQLITE_CONSTRAINT_TRIGGER)
+					expectNoDifference(error.message, "A block cannot move under itself or a descendant.")
 				}
 				#expect(try Block.find(parent.id).fetchOne(db)?.parentId == page.id)
-			}
-		}
-
-		@Test("Changing only parentId moves a whole subtree to its new page")
-		func crossPageMove() throws {
-			try database.write { db in
-				let first = Block(title: "First")
-				let second = Block(title: "Second")
-				let parent = Block(string: "Parent", parentId: first.id)
-				let child = Block(string: "Child", parentId: parent.id)
-				try Block.insert { [first, second, parent, child] }.execute(db)
-				let storedChild = try Block.find(child.id).fetchOne(db)
-				try Block.find(parent.id).update { $0.parentId = #bind(second.id) }.execute(db)
-				#expect(try Paragraph.find(parent.id).fetchOne(db)?.pageId == second.id)
-				#expect(try Paragraph.find(child.id).fetchOne(db)?.pageId == second.id)
-				#expect(try Block.find(child.id).fetchOne(db) == storedChild)
 			}
 		}
 	}

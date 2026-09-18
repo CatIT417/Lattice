@@ -9,7 +9,6 @@ import DependenciesTestSupport
 extension Tests {
 	@Suite("Extensions/String+extractRefs")
 	struct StringExtractRefsTest {
-		@Dependency(\.defaultDatabase) var database
 	}
 }
 
@@ -26,35 +25,13 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(refs.map { String(text[$0.range]) }, ["[[Page One]]", "#tag", "#[[On Plex]]", "((\(uuidString)))"])
 	}
 
-	@Test("Bracketed tags do not also produce page link refs")
-	func bracketedTagsDoNotCreatePageLinks() {
-		let text = "Tag #[[Megalopolis]] and [[Megalopolis]]"
-
-		let refs = text.extractRefs()
-
-		expectNoDifference(refs.map(\.kind), [.tag, .pageLink])
-		expectNoDifference(refs.map(\.target), ["Megalopolis", "Megalopolis"])
-		expectNoDifference(refs.map { String(text[$0.range]) }, ["#[[Megalopolis]]", "[[Megalopolis]]"])
-	}
-
-	@Test("extractRefs ignores whitespace-only references")
-	func extractRefsIgnoresWhitespaceOnly() {
-		let text = "Ignored [[   ]] #[[  \n\t ]] and more."
-
-		let refs = text.extractRefs()
-		#expect(refs.isEmpty)
-	}
-
-	@Test("extractRefs ignores page links with trimmed length under 3")
-	func extractRefsIgnoresShortPageLinks() {
-		let refs = "See [[AB ]] and [[AB]] text".extractRefs()
-		#expect(refs.isEmpty)
-	}
-
-	@Test("extractRefs ignores bracketed tags with trimmed length under 3")
-	func extractRefsIgnoresShortBracketedTags() {
-		let refs = "Tag #[[AB ]] and #[[XY]] #XY here".extractRefs()
-		#expect(refs.isEmpty)
+	@Test("Reference extraction rejects empty and short titles", arguments: [
+		"Ignored [[   ]] #[[  \n\t ]] and more.",
+		"See [[AB ]] and [[AB]] text",
+		"Tag #[[AB ]] and #[[XY]] #XY here",
+	])
+	func rejectsInvalidReferenceTitles(text: String) {
+		#expect(text.extractRefs().isEmpty)
 	}
 
 	@Test("extractRefs accepts references with trimmed length of exactly 3")
@@ -66,13 +43,13 @@ extension Tests.StringExtractRefsTest {
 
 	@Test("extractRefs preserves duplicate references by range")
 	func extractRefsPreservesDuplicateReferences() {
-		let text = "Repeat [[Page]] and [[Page]] again"
+		let text = "🎉 Repeat [[Page]] and [[Page]] again"
 
 		let refs = text.extractRefs()
 
 		expectNoDifference(refs.map(\.target), ["Page", "Page"])
 		expectNoDifference(refs.map(\.kind), [.pageLink, .pageLink])
-		expectNoDifference(refs.map(\.range.description), ["7[utf8]..<15[utf8]", "20[utf8]..<28[utf8]"])
+		expectNoDifference(refs.map { NSRange($0.range, in: text) }, [NSRange(location: 10, length: 8), NSRange(location: 23, length: 8)])
 	}
 
 	@Test("extractRefs ignores invalid block refs")
@@ -102,6 +79,14 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(tagRef.url.absoluteString, "lattice://tag/On%20Plex")
 		expectNoDifference(pageRef.url.absoluteString, "lattice://page/Page%20One")
 		expectNoDifference(blockRef.url.absoluteString, "lattice://block/\(uuidString)")
+		for title in ["Path/Title", "Percent%20Title", "Hash#Title"] {
+			let ref = try #require("[[\(title)]]".extractRefs().first)
+			let components = try #require(URLComponents(url: ref.url, resolvingAgainstBaseURL: false))
+			expectNoDifference(components.scheme, "lattice")
+			expectNoDifference(components.host, "page")
+			expectNoDifference(components.path, "/\(title)")
+			#expect(components.fragment == nil)
+		}
 	}
 
 	@Test("TextRef.replacement returns correct syntax for each kind")
@@ -128,25 +113,5 @@ extension Tests.StringExtractRefsTest {
 		let refs = texts.flatMap { $0.extractRefs() }
 		expectNoDifference(refs.map(\.target), Array(repeating: title, count: 4))
 		expectNoDifference(refs.map(\.kind), [.pageLink, .tag, .pageLink, .tag])
-	}
-
-	@Test("extractRefs ignores references inside markdown link labels")
-	func extractRefsIgnoresReferencesInsideMarkdownLinkLabels() {
-		let text = "[go #tag](https://example.com) and [[Real Page]]"
-
-		let refs = text.extractRefs()
-
-		expectNoDifference(refs.map(\.kind), [.pageLink])
-		expectNoDifference(refs.map(\.target), ["Real Page"])
-	}
-
-	@Test("extractRefs ignores references inside inline code spans")
-	func extractRefsIgnoresReferencesInsideCodeSpans() {
-		let text = "Before #tag `[[Not a link]]` `#fakeTag [[Page]] ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))` after [[Real Link]]"
-
-		let refs = text.extractRefs()
-
-		expectNoDifference(refs.map(\.kind), [.tag, .pageLink])
-		expectNoDifference(refs.map(\.target), ["tag", "Real Link"])
 	}
 }

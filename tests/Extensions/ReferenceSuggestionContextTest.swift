@@ -10,60 +10,35 @@ extension Tests {
 }
 
 extension Tests.ReferenceSuggestionContextTest {
-	@Test("detects empty page-link context")
-	func detectsEmptyPageLinkContext() throws {
-		let text = "[[]]"
-		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 2))
-
-		expectNoDifference(context.kind, .pageLink)
-		expectNoDifference(context.query, "")
-		expectNoDifference(context.queryRange, NSRange(location: 2, length: 0))
-		expectNoDifference(context.tokenRange, NSRange(location: 0, length: 4))
+	@Test("Bracketed references expose the full query and UTF-16 ranges", arguments: [
+		("[[]]", 2, ReferenceSuggestions.Context.Kind.pageLink, "", NSRange(location: 2, length: 0), NSRange(location: 0, length: 4)),
+		("[[February]]", 5, .pageLink, "February", NSRange(location: 2, length: 8), NSRange(location: 0, length: 12)),
+		("#[[Travel Notes]]", 6, .tagBracketed, "Travel Notes", NSRange(location: 3, length: 12), NSRange(location: 0, length: 17)),
+	])
+	func bracketedContext(text: String, cursor: Int, kind: ReferenceSuggestions.Context.Kind, query: String, queryRange: NSRange, tokenRange: NSRange) throws {
+		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: cursor))
+		expectNoDifference(context.kind, kind)
+		expectNoDifference(context.query, query)
+		expectNoDifference(context.queryRange, queryRange)
+		expectNoDifference(context.tokenRange, tokenRange)
 	}
 
-	@Test("detects page-link context while editing query")
-	func detectsPageLinkContextWhileEditingQuery() throws {
-		let text = "[[February]]"
-		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 5))
-
-		expectNoDifference(context.kind, .pageLink)
-		expectNoDifference(context.query, "February")
-		expectNoDifference(context.queryRange, NSRange(location: 2, length: 8))
-		expectNoDifference(context.tokenRange, NSRange(location: 0, length: 12))
-	}
-
-	@Test("does not detect page-link context for unterminated reference")
-	func doesNotDetectPageLinkContextForUnterminatedReference() {
-		let text = "[[Unfinished"
-		#expect(referenceSuggestionContext(in: text, cursorOffset: 7) == nil)
-	}
-
-	@Test("does not detect page-link context when cursor is after closing brackets")
-	func doesNotDetectPageLinkContextWhenCursorIsAfterClosingBrackets() {
-		let text = "[[Page]]"
-		#expect(referenceSuggestionContext(in: text, cursorOffset: 8) == nil)
+	@Test("Incomplete references and positions after a token have no context", arguments: [
+		("[[Unfinished", 7), ("[[Page]]", 8), ("#", 1),
+	])
+	func missingContext(text: String, cursor: Int) {
+		#expect(referenceSuggestionContext(in: text, cursorOffset: cursor) == nil)
 	}
 
 	@Test("detects the double-bracket reference containing cursor when multiple exist")
 	func detectsContainingDoubleBracketReferenceWhenMultipleExist() throws {
-		let text = "[[First]] [[Second]]"
-		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 15))
+		let text = "[[First]] 🎉 [[Second]]"
+		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 18))
 
 		expectNoDifference(context.kind, .pageLink)
 		expectNoDifference(context.query, "Second")
-		expectNoDifference(context.queryRange, NSRange(location: 12, length: 6))
-		expectNoDifference(context.tokenRange, NSRange(location: 10, length: 10))
-	}
-
-	@Test("detects bracketed tag context")
-	func detectsBracketedTagContext() throws {
-		let text = "#[[Travel Notes]]"
-		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: 6))
-
-		expectNoDifference(context.kind, .tagBracketed)
-		expectNoDifference(context.query, "Travel Notes")
-		expectNoDifference(context.queryRange, NSRange(location: 3, length: 12))
-		expectNoDifference(context.tokenRange, NSRange(location: 0, length: 17))
+		expectNoDifference(context.queryRange, NSRange(location: 15, length: 6))
+		expectNoDifference(context.tokenRange, NSRange(location: 13, length: 10))
 	}
 
 	@Test("detects simple tag context and stops at whitespace")
@@ -92,46 +67,24 @@ extension Tests.ReferenceSuggestionContextTest {
 		#expect(referenceSuggestionContext(in: text, cursorOffset: 6) == nil)
 	}
 
-	@Test("does not detect simple tag context for bare #")
-	func doesNotDetectSimpleTagContextForBareHash() {
-		#expect(referenceSuggestionContext(in: "#", cursorOffset: 1) == nil)
-	}
-
-	@Test("replacement for page links leaves cursor after token")
+	@Test("Page replacement preserves surrounding text and uses a UTF-16 cursor")
 	func replacementForPageLinksLeavesCursorAfterToken() throws {
-		let context = try #require(referenceSuggestionContext(in: "[[Fe]]", cursorOffset: 4))
-		let replaced = try context.replacing(with: "My Page")
-
-		expectNoDifference(replaced.text, "[[My Page]]")
-		expectNoDifference(replaced.cursorOffsetAfterToken, 11)
-	}
-
-	@Test("replacement for simple tags uses #title when possible")
-	func replacementForSimpleTagsUsesSimpleSyntax() throws {
-		let context = try #require(referenceSuggestionContext(in: "#fe", cursorOffset: 3))
-		let replaced = try context.replacing(with: "todo_1")
-
-		expectNoDifference(replaced.text, "#todo_1")
-		expectNoDifference(replaced.cursorOffsetAfterToken, 7)
-	}
-
-	@Test("replacement for tags falls back to bracketed syntax for spaced titles")
-	func replacementForTagsFallsBackToBracketedSyntaxForSpacedTitles() throws {
-		let context = try #require(referenceSuggestionContext(in: "#tag", cursorOffset: 4))
-		let replaced = try context.replacing(with: "my tag")
-
-		expectNoDifference(replaced.text, "#[[my tag]]")
-		expectNoDifference(replaced.cursorOffsetAfterToken, 11)
+		let context = try #require(referenceSuggestionContext(in: "🎉 [[Fe]] suffix", cursorOffset: 7))
+		let replaced = try context.replacing(with: "Café 🎉")
+		expectNoDifference(replaced.text, "🎉 [[Café 🎉]] suffix")
+		expectNoDifference(replaced.cursorOffsetAfterToken, 14)
 	}
 
 	@Test("Tag suggestions preserve their form and the following text", arguments: [
-		("#old more text", 4, "#new more text", 4),
-		("#[[old]]suffix", 6, "#[[new]]suffix", 8),
-		("#[[old]] more text", 6, "#[[new]] more text", 8),
+		("#old more text", "new", 4, "#new more text", 4),
+		("#[[old]]suffix", "new", 6, "#[[new]]suffix", 8),
+		("#[[old]] more text", "new", 6, "#[[new]] more text", 8),
+		("#fe", "todo_1", 3, "#todo_1", 7),
+		("#tag", "my tag", 4, "#[[my tag]]", 11),
 	])
-	func tagReplacementPreservesForm(text: String, cursor: Int, expected: String, expectedCursor: Int) throws {
+	func tagReplacementPreservesForm(text: String, replacement: String, cursor: Int, expected: String, expectedCursor: Int) throws {
 		let context = try #require(ReferenceSuggestions.Context(in: text, cursorOffset: cursor))
-		let replaced = try context.replacing(with: "new")
+		let replaced = try context.replacing(with: replacement)
 		expectNoDifference(replaced.text, expected)
 		expectNoDifference(replaced.cursorOffsetAfterToken, expectedCursor)
 	}

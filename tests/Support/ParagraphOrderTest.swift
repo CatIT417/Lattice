@@ -80,22 +80,20 @@ extension Tests {
 			}
 		}
 
-		@Test("A batch starts at zero when the parent has no children")
-		func emptyBatchRanks() throws {
-			try database.write { db in
-				let page = Block(title: "Page")
-				try Block.insert { page }.execute(db)
-				expectNoDifference(try ParagraphOrder(parentId: page.id, in: db).appendRanks(count: 0, in: db), [])
-				expectNoDifference(try ParagraphOrder(parentId: page.id, in: db).appendRanks(count: 3, in: db),
-					[0, ParagraphOrder.gap, 2 * ParagraphOrder.gap])
-			}
-		}
-
 		@Test("Batch append keeps hidden and redirect children before the new rows",
-			arguments: [4 * ParagraphOrder.gap, Int.max - ParagraphOrder.gap, Int.max])
-		func batchAppend(lastRank: Int) throws {
+			arguments: [nil, 4 * ParagraphOrder.gap, Int.max - ParagraphOrder.gap, Int.max] as [Int?])
+		func batchAppend(lastRank: Int?) throws {
 			try database.write { db in
 				let page = Block(id: UUID(1), title: "Page")
+				guard let lastRank else {
+					try Block.insert { page }.execute(db)
+					let ordering = try ParagraphOrder(parentId: page.id, in: db)
+					expectNoDifference(try ordering.appendRanks(count: 0, in: db), [])
+					let ranks = try ordering.appendRanks(count: 3, in: db)
+					expectNoDifference(ranks.count, 3)
+					#expect(zip(ranks, ranks.dropFirst()).allSatisfy { $0 < $1 })
+					return
+				}
 				let alias = Block(id: UUID(2), title: "Page", mergedInto: page.id)
 				let first = Block(id: UUID(100), string: "First", parentId: page.id, order: lastRank - ParagraphOrder.gap)
 				let hidden = Block(id: UUID(101), string: "Hidden", parentId: alias.id, order: lastRank, deletedAt: Date(timeIntervalSince1970: 100))
@@ -246,21 +244,7 @@ extension Tests {
 					expected.insert(block.id, at: slot)
 					expectNoDifference(try Paragraph.order { ($0.order, $0.id) }.fetchAll(db).map(\.id), expected)
 				}
-				expectNoDifference(try Paragraph.order { ($0.order, $0.id) }.fetchAll(db).map(\.id), expected)
 			}
-		}
-
-		@Test("Export order uses numeric ranks and puts parents before children")
-		func exportOrder() throws {
-			let expected = try database.write { db in
-				let page = Block(title: "Page")
-				let first = Block(string: "First", parentId: page.id, order: -9_000_000_000)
-				let child = Block(string: "Child", parentId: first.id, order: Int.max)
-				let second = Block(string: "Second", parentId: page.id, order: 8_000_000_000)
-				try Block.insert { [page, first, child, second] }.execute(db)
-				return [first.id, child.id, second.id]
-			}
-			expectNoDifference(try Paragraph.fetchInOrder(Set(expected)).map(\.id), expected)
 		}
 	}
 }

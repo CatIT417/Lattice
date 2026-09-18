@@ -20,8 +20,10 @@ extension Tests {
 				let source = Block(string: "[[Target]] [[Target]] #[[Target]] ((\(missing))) ((bad-id))", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
 				let references = try Reference.where { $0.sourceBlockId.eq(source.id) }.fetchAll(db)
-				expectNoDifference(Set(references.map(\.targetKey)), ["Target", missing.uuidString])
-				expectNoDifference(Set(references.map(\.kind)), [.pageLink, .tag, .blockRef])
+				expectNoDifference(references.map(\.sourceBlockId), [source.id, source.id, source.id])
+				expectNoDifference(Dictionary(grouping: references, by: \.kind).mapValues { $0.map(\.targetKey) }, [
+					.pageLink: ["Target"], .tag: ["Target"], .blockRef: [missing.uuidString],
+				])
 				#expect(try Page.where { $0.canonicalTitle.eq("Target") }.fetchCount(db) == 1)
 				#expect(try Backlink.fetchCount(db) == 2)
 				try Block.find(source.id).update { $0.string = #bind("No references") }.execute(db)
@@ -206,8 +208,8 @@ extension Tests {
 }
 
 extension Tests.SyncReferencesTableTest {
-	@Test("Daily page links and tags resolve when the note arrives")
-	func dailyReferencesResolveOnArrival() throws {
+	@Test("Daily page links and tags resolve after the note is replaced")
+	func dailyReferencesResolveAfterReplacement() throws {
 		try database.write { db in
 			let day = DayOfYear(day: 5, month: 9, year: 2026)
 			let page = Block(title: "Source")

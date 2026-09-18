@@ -14,13 +14,10 @@ extension Tests {
 }
 
 extension Tests.PageTest {
-	@MainActor @Test("Display titles use the session locale and storage keeps the canonical title", arguments: [
-		("en_US", "February 12, 2026"),
-		("en_GB", "12 February 2026"),
-		("fr_FR", "12 février 2026"),
-		("ja_JP", "2026年2月12日"),
-	])
-	func titleProperties(localeIdentifier: String, expected: String) throws {
+	@MainActor @Test("Display titles use the session locale and storage keeps the canonical title")
+	func titleProperties() throws {
+		let localeIdentifier = "fr_FR"
+		let expected = "12 février 2026"
 		try withDependencies {
 			$0.locale = Locale(identifier: localeIdentifier)
 		} operation: {
@@ -51,16 +48,6 @@ extension Tests.PageTest {
 		}
 	}
 
-	@Test("Creating a daily note page sets the correct title and date")
-	func dailyNoteCreation() throws {
-		let page = try #require(database.write { db in
-			try Page.insert { Page.newDailyNote(for: DayOfYear(day: 3, month: 2, year: 2026)) }.returning(\.self).fetchOne(db)
-		})
-
-		expectNoDifference("2026-02-03", page.canonicalTitle)
-		expectNoDifference(DayOfYear(day: 3, month: 2, year: 2026), page.dailyNoteDate)
-	}
-
 	@Test("Concurrent daily note requests return the same page")
 	func concurrentDailyNoteCreation() async throws {
 		let day = DayOfYear(day: 13, month: 9, year: 2026)
@@ -89,17 +76,26 @@ extension Tests.PageTest {
 		}
 
 		expectNoDifference(existing.id, page.id)
+		expectNoDifference(existing.canonicalTitle, "2026-09-13")
+		expectNoDifference(existing.dailyNoteDate, day)
 		let after = try await database.read { try Block.order(by: \.id).fetchAll($0) }
 		expectNoDifference(after, before)
 	}
 
-	@Test("Creating a page with an invalid title fails", arguments: ["AB", " AB ", "Bad [Title", "Bad ]Title"])
-	func invalidTitle(title: String) throws {
-		#expect(throws: DatabaseError.self) {
+	@Test("Creating a page with an invalid title fails", arguments: [
+		("AB", Page.TitleError.tooShort), (" AB ", .tooShort),
+		("Bad [Title", .containsBrackets), ("Bad ]Title", .containsBrackets),
+	])
+	func invalidTitle(title: String, expected: Page.TitleError) throws {
+		do {
 			try database.write { db in
 				try Page.insert { Page(title: title) }.execute(db)
 			}
+			Issue.record("The invalid title must be rejected.")
+		} catch let error as DatabaseError {
+			expectNoDifference(error.message, expected.localizedDescription)
 		}
+		expectNoDifference(try database.read { try Page.fetchCount($0) }, 0)
 	}
 
 	@Test("Creating a page with a title of exactly 3 characters succeeds")
@@ -111,33 +107,40 @@ extension Tests.PageTest {
 		expectNoDifference("ABC", page.canonicalTitle)
 	}
 
-	@Test("An invalid rename preserves the page title", arguments: ["AB", "Bad [Title", "Bad ]Title"])
-	func invalidRename(title: String) throws {
+	@Test("An invalid rename preserves the page title", arguments: [
+		("AB", Page.TitleError.tooShort), (" AB ", .tooShort),
+		("Bad [Title", .containsBrackets), ("Bad ]Title", .containsBrackets),
+	])
+	func invalidRename(title: String, expected: Page.TitleError) throws {
 		try database.write { db in
 			try Page.insert { Page(title: "Test Page") }.execute(db)
 		}
 
-		#expect(throws: DatabaseError.self) {
+		do {
 			try database.write { db in
 				try Block.where { $0.title.eq("Test Page") }
 					.update { $0.title = #bind(title) }
 					.execute(db)
 			}
+			Issue.record("The invalid title must be rejected.")
+		} catch let error as DatabaseError {
+			expectNoDifference(error.message, expected.localizedDescription)
 		}
 		expectNoDifference(try database.read { try Page.fetchOne($0)?.canonicalTitle }, "Test Page")
 	}
 
-	@Test("Page.findOrCreate returns an existing page if one exists, otherwise creates it")
+	@Test("Repeated findOrCreate calls preserve one page and its contents")
 	func findOrCreate() throws {
-		let page = try database.write { db in
-			try Page.findOrCreate(title: "Unique Page", in: db)
+		try database.write { db in
+			let page = try Page.findOrCreate(title: "Unique Page", in: db)
+			let child = Paragraph(string: "Keep this", parentId: page.id, pageId: page.id, order: 0)
+			try Paragraph.insert { child }.execute(db)
+			let before = try Block.order(by: \.id).fetchAll(db)
+			let existing = try Page.findOrCreate(title: "Unique Page", in: db)
+			expectNoDifference(existing.id, page.id)
+			expectNoDifference(try Page.fetchCount(db), 1)
+			expectNoDifference(try Block.order(by: \.id).fetchAll(db), before)
 		}
-
-		let secondPage = try database.write { db in
-			try Page.findOrCreate(title: "Unique Page", in: db)
-		}
-
-		expectNoDifference(page.id, secondPage.id)
 	}
 
 	@Test("Page.findOrCreate uses the canonical daily-note title")

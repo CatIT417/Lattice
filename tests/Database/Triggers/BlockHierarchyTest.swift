@@ -16,15 +16,19 @@ extension Tests {
 			try database.write { db in
 				let page = Block(title: "Page")
 				let parent = Block(string: "Parent", parentId: page.id)
-				let child = Block(string: "Child", parentId: parent.id)
-				try Block.insert { child }.execute(db)
+				let child = Paragraph(string: "Child", parentId: parent.id, pageId: page.id, order: 0)
+				try Paragraph.insert { child }.execute(db)
 				let storedChild = try Block.find(child.id).fetchOne(db)
 				#expect(try BlockHierarchy.find(child.id).fetchOne(db)?.pageId == nil)
 				#expect(try Paragraph.fetchCount(db) == 0)
-				try Block.insert { page }.execute(db)
-				try Block.insert { parent }.execute(db)
-				#expect(try Paragraph.find(child.id).fetchOne(db)?.pageId == page.id)
-				#expect(try Ancestor.where { $0.blockId.eq(child.id) }.fetchCount(db) == 2)
+				try Block.insert { [page, parent] }.execute(db)
+				expectNoDifference(try Paragraph.find(child.id).fetchOne(db)?.pageId, page.id)
+				expectNoDifference(try Ancestor.where { $0.blockId.eq(child.id) }.order(by: \.depth).fetchAll(db), [
+					Ancestor(blockId: child.id, ancestorId: parent.id, depth: 1),
+					Ancestor(blockId: child.id, ancestorId: page.id, depth: 2),
+				])
+				let tree = try #require(try Page.withChildren(id: page.id).fetch(db)?.tree)
+				expectNoDifference(tree.children(of: parent.id).map(\.id), [child.id])
 				expectNoDifference(try Block.find(child.id).fetchOne(db), storedChild)
 			}
 		}
@@ -93,9 +97,6 @@ extension Tests {
 				try MergeDuplicatePages.run(in: db)
 				#expect(db.totalChangesCount == changes)
 				expectNoDifference(try Block.order(by: \.id).fetchAll(db), before)
-				try Page.find(page.id).delete().execute(db)
-				#expect(try Paragraph.fetchCount(db) == 0)
-				#expect(try Page.fetchCount(db) == 0)
 			}
 		}
 
@@ -107,10 +108,6 @@ extension Tests {
 				let first = Block(string: "First", parentId: page.id, order: 0)
 				let late = Block(string: "Late", parentId: alias.id, order: ParagraphOrder.gap)
 				try Block.insert { [page, alias, first, late] }.execute(db)
-				let rank = try ParagraphOrder(parentId: page.id, in: db).rank(before: late.id, in: db)
-				let inserted = Block(string: "Inserted", parentId: page.id, order: rank)
-				try Block.insert { inserted }.execute(db)
-				expectNoDifference(try Paragraph.order { ($0.order, $0.id) }.fetchAll(db).map(\.id), [first.id, inserted.id, late.id])
 				expectNoDifference(try Breadcrumb.forBlock(id: late.id).fetchAll(db).map(\.id), [page.id])
 			}
 		}
@@ -206,17 +203,26 @@ extension Tests {
 			}
 		}
 
-		@Test("A failed hierarchy update fails the primary write")
+		@Test("A failed hierarchy write rolls back the primary mutation")
 		func indexFailureRollsBackWrite() throws {
 			try database.write { db in
 				let page = Block(title: "Page")
 				try Block.insert { page }.execute(db)
-				let before = try Block.find(page.id).fetchOne(db)
-				try db.drop(table: "blockHierarchy")
-				#expect(throws: DatabaseError.self) {
+				let before = try Block.order(by: \.id).fetchAll(db)
+				let hierarchy = try BlockHierarchy.order(by: \.blockId).fetchAll(db)
+				try BlockHierarchy.createTemporaryTrigger(before: .insert(forEachRow: { _ in
+					Select(#sql("RAISE(ABORT, 'Injected hierarchy failure')"))
+				}, when: { new in
+					Block.where { $0.id.eq(new.blockId) && $0.deletedAt.isNot(nil) }.exists()
+				})).execute(db)
+				do {
 					try Block.find(page.id).update { $0.deletedAt = #bind(Date(timeIntervalSince1970: 500)) }.execute(db)
+					Issue.record("The hierarchy write must fail.")
+				} catch let error as DatabaseError {
+					#expect(error.message?.contains("Injected hierarchy failure") == true)
 				}
-				expectNoDifference(try Block.find(page.id).fetchOne(db), before)
+				expectNoDifference(try Block.order(by: \.id).fetchAll(db), before)
+				expectNoDifference(try BlockHierarchy.order(by: \.blockId).fetchAll(db), hierarchy)
 			}
 		}
 

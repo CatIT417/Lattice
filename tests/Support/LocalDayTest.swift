@@ -10,12 +10,6 @@ extension Tests {
 }
 
 extension Tests.DayOfYearTest {
-	@Test("parses and formats day representation")
-	func parseAndFormat() throws {
-		let day = try #require(DayOfYear(rawValue: "2026-02-03"))
-		expectNoDifference(day.rawValue, "2026-02-03")
-	}
-
 	@Test("extracting local day depends on chosen calendar timezone")
 	func extractionUsesCalendarTimezone() {
 		let date = Date(timeIntervalSince1970: 1_770_076_800) // 2026-02-03T00:00:00Z
@@ -30,15 +24,20 @@ extension Tests.DayOfYearTest {
 		expectNoDifference(DayOfYear(date, calendar: laCalendar), DayOfYear(day: 2, month: 2, year: 2026))
 	}
 
-	@Test("day to date conversion round-trips in the same calendar")
-	func dateRoundTrip() {
-		var tokyoCalendar = Calendar(identifier: .gregorian)
-		tokyoCalendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
-
+	@Test("A stored day has the expected start instant in each time zone", arguments: [
+		("Asia/Tokyo", 1_770_044_400.0),
+		("America/Los_Angeles", 1_770_105_600.0),
+		("Pacific/Kiritimati", 1_770_026_400.0),
+	])
+	func dateRoundTrip(timeZone: String, seconds: TimeInterval) throws {
+		var calendar = Calendar(identifier: .gregorian)
+		calendar.timeZone = try #require(TimeZone(identifier: timeZone))
 		let day = DayOfYear(day: 3, month: 2, year: 2026)
-		let date = day.date(in: tokyoCalendar)
-
-		expectNoDifference(DayOfYear(date, calendar: tokyoCalendar), day)
+		let date = day.date(in: calendar)
+		expectNoDifference(date, Date(timeIntervalSince1970: seconds))
+		expectNoDifference(DayOfYear(date, calendar: calendar), day)
+		expectNoDifference(day.rawValue, "2026-02-03")
+		expectNoDifference(day.title, "February 3, 2026")
 	}
 
 	@Test("default conversion uses Gregorian calendar semantics")
@@ -65,6 +64,7 @@ extension Tests.DayOfYearTest {
 	])
 	func parsesTitle(title: String, expected: DayOfYear) {
 		expectNoDifference(DayOfYear(rawValue: title), expected)
+		expectNoDifference(DayOfYear(rawValue: title)?.rawValue, title)
 	}
 
 	@Test("rejects non-daily-page titles", arguments: [
@@ -72,6 +72,8 @@ extension Tests.DayOfYearTest {
 		"February 2026",
 		"02/03/2026",
 		"February 3, 2026",
+		"February 12th, 2026",
+		"12 février 2026",
 		"February 33rd, 2026",
 		"2026-02-29",
 		"2026-02-30",
@@ -102,24 +104,5 @@ extension Tests.DayOfYearTest {
 			expectNoDifference(day.title, expected)
 		}
 		expectNoDifference(day.rawValue, "2026-02-12")
-	}
-
-	@Test("Display text does not determine daily-note identity", arguments: ["February 12, 2026", "February 12th, 2026", "12 février 2026"])
-	func rejectsDisplayTitles(title: String) {
-		#expect(DayOfYear(rawValue: title) == nil)
-	}
-
-	@Test("Travel changes today without changing a stored day", arguments: ["America/Los_Angeles", "Asia/Tokyo", "Pacific/Kiritimati"])
-	func storedDaySurvivesTravel(timeZone: String) throws {
-		var calendar = Calendar(identifier: .gregorian)
-		calendar.timeZone = try #require(TimeZone(identifier: timeZone))
-		let day = try #require(DayOfYear(rawValue: "2026-02-12"))
-		expectNoDifference(DayOfYear(day.date(in: calendar), calendar: calendar).rawValue, "2026-02-12")
-		expectNoDifference(day.title, "February 12, 2026")
-	}
-
-	@Test("Stored dates reject invalid and noncanonical values", arguments: ["2026-02-30", "2026-02-29", "2026-9-05", "2026-09-5"])
-	func rejectsInvalidRawValue(value: String) {
-		#expect(DayOfYear(rawValue: value) == nil)
 	}
 }

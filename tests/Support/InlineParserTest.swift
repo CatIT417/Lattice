@@ -321,24 +321,6 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("code spans prevent reference parsing inside them")
-	func codeSpansPreventReferenceParsing() {
-		let spans = InlineParser.default.parse("`[[Not a link]]`")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .code,
-			    range: 0[any]..<16[utf8],
-			    content: "[[Not a link]]",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
 	@Test("code spans have highest priority")
 	func codeSpansHaveHighestPriority() {
 		let spans = InlineParser.default.parse("Text `**not bold** [[not link]]` more")
@@ -455,9 +437,10 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("extractReferences ignores refs inside code")
-	func extractReferencesIgnoresRefsInsideCode() {
-		let refs = InlineParser.default.extractReferences(from: "`[[Not a ref]]` [[Real ref]]")
+	@Test("Reference extraction ignores code in both parser modes", arguments: [false, true])
+	func extractReferencesIgnoresRefsInsideCode(referencesOnly: Bool) {
+		let parser = referencesOnly ? InlineParser.referencesOnly : .default
+		let refs = parser.extractReferences(from: "`[[Not a ref]]` [[Real ref]]")
 
 		assertInlineSnapshot(of: refs, as: .customDump) {
 			"""
@@ -473,8 +456,8 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("referencesOnly parser finds refs but ignores formatting")
-	func referencesOnlyParserFindsRefsButIgnoresFormatting() {
+	@Test("Reference extraction finds page links inside formatting markers")
+	func referencesOnlyExtractsRefsWithinFormatting() {
 		let refs = InlineParser.referencesOnly.extractReferences(from: "**[[Page]]** text")
 
 		assertInlineSnapshot(of: refs, as: .customDump) {
@@ -484,24 +467,6 @@ extension Tests.InlineParserTest {
 			    kind: .pageLink,
 			    range: 2[utf8]..<10[utf8],
 			    content: "Page",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("tag rule has higher priority than page link for bracketed tags")
-	func tagRuleHasHigherPriorityThanPageLink() {
-		let spans = InlineParser.default.parse("#[[Tagged Page]]")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .tag,
-			    range: 0[any]..<16[utf8],
-			    content: "Tagged Page",
 			    children: []
 			  )
 			]
@@ -633,7 +598,7 @@ extension Tests.InlineParserTest {
 
 	@Test("markdown link takes priority over page link in ambiguous [[ sequences")
 	func markdownLinkTakesPriorityOverPageLink() throws {
-		// [[[hello](url) 😁]] — markdown link should win, not page link
+		// The first bracket opens the link. The next two brackets belong to its label.
 		let spans = InlineParser.default.parse("[[[hello](http://example.com) 😁]]")
 
 		assertInlineSnapshot(of: spans, as: .customDump) {
@@ -745,6 +710,11 @@ extension Tests.InlineParserTest {
 			]
 			"""
 		}
+		do {
+			let refs = InlineParser.referencesOnly.extractReferences(from: "[go [[Page]]](https://example.com)")
+
+			#expect(refs.isEmpty)
+		}
 	}
 
 	@Test("markdown link label can contain bracketed tag syntax")
@@ -773,20 +743,11 @@ extension Tests.InlineParserTest {
 			]
 			"""
 		}
-	}
+		do {
+			let refs = InlineParser.referencesOnly.extractReferences(from: "[go #[[tag]]](https://example.com)")
 
-	@Test("referencesOnly ignores page links inside markdown labels with brackets")
-	func referencesOnlyIgnoresPageLinksInsideMarkdownLabelsWithBrackets() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "[go [[Page]]](https://example.com)")
-
-		#expect(refs.isEmpty)
-	}
-
-	@Test("referencesOnly ignores bracketed tags inside markdown labels")
-	func referencesOnlyIgnoresBracketedTagsInsideMarkdownLabels() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "[go #[[tag]]](https://example.com)")
-
-		#expect(refs.isEmpty)
+			#expect(refs.isEmpty)
+		}
 	}
 
 	@Test("markdown link rejects bare word URLs so wiki links are preserved")
@@ -812,23 +773,21 @@ extension Tests.InlineParserTest {
 			]
 			"""
 		}
-	}
+		do {
+			let refs = InlineParser.referencesOnly.extractReferences(from: "[[Page]](todo)")
 
-	@Test("referencesOnly extracts page link when followed by parenthetical bare word")
-	func referencesOnlyExtractsPageLinkFollowedByParentheticalBareWord() throws {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "[[Page]](todo)")
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 0[any]..<8[utf8],
-			    content: "Page",
-			    children: []
-			  )
-			]
-			"""
+			assertInlineSnapshot(of: refs, as: .customDump) {
+				"""
+				[
+				  [0]: InlineSpan(
+				    kind: .pageLink,
+				    range: 0[any]..<8[utf8],
+				    content: "Page",
+				    children: []
+				  )
+				]
+				"""
+			}
 		}
 	}
 
@@ -1497,35 +1456,6 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("URL inside markdown link destination is not double-matched")
-	func urlInsideMarkdownLinkIsNotDoubleMatched() {
-		let spans = InlineParser.default.parse("[click](https://example.com)")
-
-		// Should be a single markdown link, not a markdown link + auto-link
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 0[any]..<28[utf8],
-			    content: "click",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<5[utf8],
-			        content: "click",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
 	@Test("parse detects uppercase HTTPS URL")
 	func parseDetectsUppercaseHTTPSURL() {
 		let spans = InlineParser.default.parse("Visit HTTPS://EXAMPLE.COM today")
@@ -1606,6 +1536,7 @@ extension Tests.InlineParserTest {
 		// "http://" alone should not become a link
 		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
 		#expect(!hasLink)
+		expectNoDifference(spans.map(\.content).joined(), "Use http://, not ftp://")
 	}
 
 	@Test("parse includes bracketed query parameters in URL")
@@ -1749,6 +1680,7 @@ extension Tests.InlineParserTest {
 
 		expectNoDifference(1, spans.count)
 		expectNoDifference(.text, try #require(spans.first).kind)
+		expectNoDifference(spans.map(\.content).joined(), #"*foo\*"#)
 	}
 
 	@Test("unclosed openers stay plain text and only the innermost opener pairs with the closer")

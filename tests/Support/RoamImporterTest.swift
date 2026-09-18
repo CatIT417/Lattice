@@ -18,92 +18,28 @@ extension Tests {
 	}
 }
 
-// MARK: - JSON Parsing
-
-extension Tests.RoamImporterTest {
-	@Test("Parses a regular page with nested blocks")
-	func parseRegularPage() throws {
-		let json = """
-		[{
-			"uid": "abc123",
-			"title": "Test Page",
-			"children": [
-				{
-					"uid": "block1",
-					"string": "First block",
-					"children": [
-						{"uid": "block2", "string": "Nested block"}
-					]
-				},
-				{"uid": "block3", "string": "Second block"}
-			]
-		}]
-		"""
-
-		let importer = try importer(from: json)
-
-		#expect(importer.roamPages.count == 1)
-		#expect(importer.roamPages[0].title == "Test Page")
-		#expect(importer.roamPages[0].children?.count == 2)
-		#expect(importer.roamPages[0].children?[0].children?.count == 1)
-	}
-
-	@Test("Parses block heading and text-align fields")
-	func parseBlockFields() throws {
-		let json = """
-		[{
-			"uid": "page1",
-			"title": "Fields Page",
-			"children": [
-				{"uid": "h1block", "string": "Heading", "heading": 1, "text-align": "center"},
-				{"uid": "plain", "string": "Plain"}
-			]
-		}]
-		"""
-
-		let importer = try importer(from: json)
-		let blocks = try #require(importer.roamPages[0].children)
-
-		#expect(blocks[0].heading == 1)
-		#expect(blocks[0].textAlign == "center")
-		#expect(blocks[1].heading == nil)
-		#expect(blocks[1].textAlign == nil)
-	}
-}
-
 // MARK: - Daily Page Detection
 
 extension Tests.RoamImporterTest {
-	@Test("Detects daily page from Roam UID (MM-DD-YYYY)")
-	func dailyPageFromUID() {
-		let result = RoamImporter.parseDailyDate(uid: "01-18-2026", title: "January 18th, 2026")
-		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
-	}
-
-	@Test("Falls back to title parsing when UID is not a date", arguments: ["2026-01-18"])
-	func dailyPageFromTitle(title: String) {
-		let result = RoamImporter.parseDailyDate(uid: "abc123", title: title)
-		expectNoDifference(result, DayOfYear(day: 18, month: 1, year: 2026))
-	}
-
-	@Test("Returns nil for non-daily pages")
-	func nonDailyPage() {
-		let result = RoamImporter.parseDailyDate(uid: "abc123", title: "My Regular Page")
-		#expect(result == nil)
-	}
-
-	@Test("Rejects impossible dates like Feb 31")
-	func impossibleDate() {
-		let result = RoamImporter.parseDailyDate(uid: "02-31-2024", title: "Not a real date")
-		#expect(result == nil)
+	@Test("Daily dates use the Roam UID before the canonical title", arguments: [
+		("01-18-2026", "2026-02-03", DayOfYear(day: 18, month: 1, year: 2026) as DayOfYear?),
+		("abc123", "2026-01-18", DayOfYear(day: 18, month: 1, year: 2026)),
+		("abc123", "My Regular Page", nil),
+		("02-31-2024", "Not a real date", nil),
+	])
+	func dailyDate(uid: String, title: String, expected: DayOfYear?) {
+		expectNoDifference(RoamImporter.parseDailyDate(uid: uid, title: title), expected)
 	}
 }
 
 // MARK: - Title Validation
 
 extension Tests.RoamImporterTest {
-	@Test("Import reports invalid titles", arguments: ["AB", " AB ", "Bad [Title", "Bad ]Title"])
-	func invalidTitleFails(title: String) throws {
+	@Test("Import reports invalid titles", arguments: [
+		("AB", Page.TitleError.tooShort), (" AB ", .tooShort),
+		("Bad [Title", .containsBrackets), ("Bad ]Title", .containsBrackets),
+	])
+	func invalidTitleFails(title: String, expected: Page.TitleError) throws {
 		let json = """
 		[
 			{"uid": "p1", "title": "\(title)", "children": [{"uid": "b1", "string": "block"}]},
@@ -113,16 +49,11 @@ extension Tests.RoamImporterTest {
 
 		let (valid, failed) = try prepare(from: json)
 
-		#expect(valid.count == 1)
+		try #require(valid.count == 1)
 		#expect(valid[0].page.canonicalTitle == "Valid Page")
-		#expect(failed.count == 1)
+		try #require(failed.count == 1)
 		#expect(failed[0].title == title)
-		do {
-			try Page.validateTitle(title)
-			Issue.record("The title must be rejected.")
-		} catch {
-			expectNoDifference(failed[0].reason.localizedDescription, error.localizedDescription)
-		}
+		expectNoDifference(failed[0].reason.localizedDescription, expected.localizedDescription)
 	}
 }
 
@@ -143,7 +74,8 @@ extension Tests.RoamImporterTest {
 		"""
 
 		let valid = try preparedPages(from: json)
-		let rawSource = try #require(valid[0].paragraphs.first { $0.string.contains("See") })
+		let preparedPage = try #require(valid.first)
+		let rawSource = try #require(preparedPage.paragraphs.first { $0.string.contains("See") })
 		#expect(rawSource.string == "See ((target)) for details")
 
 		let _ = try RoamImporter.execute(pages: valid)
@@ -151,9 +83,11 @@ extension Tests.RoamImporterTest {
 		let blocks = try paragraphs(in: page.id)
 		let source = try #require(blocks.first { $0.string.contains("See") })
 
-		#expect(!source.string.contains("((target))"))
-		#expect(source.string.contains("See (("))
-		#expect(source.string.contains(")) for details"))
+		let target = try #require(blocks.first { $0.string == "Target block" })
+		expectNoDifference(source.string, "See ((\(target.id.uuidString))) for details")
+		expectNoDifference(try database.read { db in
+			try Backlink.where { $0.fromBlock.eq(source.id) }.select(\.toBlock).fetchAll(db)
+		}, [target.id])
 	}
 
 	@Test("Leaves unresolved block references as raw Roam UIDs")
@@ -185,7 +119,8 @@ extension Tests.RoamImporterTest {
 		"""
 
 		let valid = try preparedPages(from: json)
-		let targetBlockId = valid[0].paragraphs[0].id
+		let preparedPage = try #require(valid.first)
+		let targetBlockId = try #require(preparedPage.paragraphs.first).id
 		let _ = try RoamImporter.execute(pages: valid)
 
 		let page = try requiredPage(title: "Page Two")
@@ -282,17 +217,17 @@ extension Tests.RoamImporterTest {
 		"""
 
 		let result = try executeImport(from: json)
-		#expect(result.imported.count == 1)
+		try #require(result.imported.count == 1)
 		#expect(result.imported[0].canonicalTitle == "Import Test")
 
 		let page = try requiredPage(title: "Import Test")
 		let rootChildren = try children(of: page.id)
-		#expect(rootChildren.count == 2)
+		try #require(rootChildren.count == 2)
 		#expect(rootChildren[0].string == "First")
 		#expect(rootChildren[1].string == "Second")
 
 		let nested = try children(of: rootChildren[0].id)
-		#expect(nested.count == 1)
+		try #require(nested.count == 1)
 		#expect(nested[0].string == "Nested")
 	}
 
@@ -301,7 +236,7 @@ extension Tests.RoamImporterTest {
 		let existing = try database.write { db in
 			let page = try Page.findOrCreate(title: "Batch Import", in: db)
 			let alias = Block(title: page.canonicalTitle, mergedInto: page.id)
-			let hidden = Block(string: "Hidden", parentId: alias.id, order: 10 * ParagraphOrder.gap, deletedAt: Date())
+			let hidden = Block(string: "Hidden", parentId: alias.id, order: 10 * ParagraphOrder.gap, deletedAt: Date(timeIntervalSince1970: 100))
 			try Block.insert { [alias, hidden] }.execute(db)
 			return page
 		}
@@ -335,14 +270,16 @@ extension Tests.RoamImporterTest {
 		#expect(inserts.count > 1)
 		#expect(inserts.count < 12)
 		let rankReads = queries.filter { $0.hasPrefix("SELECT \"blocks\".\"order\"") }
-		#expect(rankReads.count <= 2)
+		#expect((1...2).contains(rankReads.count))
 		expectNoDifference(result.imported.map(\.id), [existing.id])
 		let children = try children(of: existing.id)
 		expectNoDifference(children.map(\.string), (0 ..< 60).map { "Root \($0)" })
+		try #require(children.count == 60)
 		#expect(children[0].order > 10 * ParagraphOrder.gap)
 		for (index, child) in children.enumerated() {
 			let nested = try self.children(of: child.id)
 			expectNoDifference(nested.map(\.string), ["First \(index)", "Second \(index)"])
+			try #require(nested.count == 2)
 			#expect(nested[0].order < nested[1].order)
 			#expect(nested.allSatisfy { $0.pageId == existing.id })
 		}
@@ -361,28 +298,9 @@ extension Tests.RoamImporterTest {
 		]
 		"""
 		let result = try executeImport(from: json)
+		try #require(result.imported.count == 2)
 		#expect(result.imported[0].id == result.imported[1].id)
 		expectNoDifference(try children(of: result.imported[0].id).map(\.string), ["First", "Second", "Third", "Fourth"])
-	}
-
-	@Test("Imports a daily note page")
-	func importDailyNote() throws {
-		let json = """
-		[{
-			"uid": "01-18-2026",
-			"title": "January 18th, 2026",
-			"children": [{"uid": "b1", "string": "Daily block"}]
-		}]
-		"""
-
-		let valid = try preparedPages(from: json)
-		#expect(valid[0].page.isDailyNote)
-
-		let result = try RoamImporter.execute(pages: valid)
-		#expect(result.imported.count == 1)
-
-		let page = try requiredPage(day: DayOfYear(day: 18, month: 1, year: 2026))
-		#expect(page.canonicalTitle == "2026-01-18")
 	}
 
 	@Test("Persists regular page timestamps on new import")
@@ -420,13 +338,15 @@ extension Tests.RoamImporterTest {
 		}]
 		"""
 
-		let _ = try executeImport(from: json)
+		let result = try executeImport(from: json)
 		let page = try requiredPage(day: DayOfYear(day: 18, month: 1, year: 2026))
 
+		expectNoDifference(result.imported.map(\.id), [page.id])
+		#expect(page.isDailyNote)
+		expectNoDifference(page.canonicalTitle, "2026-01-18")
 		expectNoDifference(page.createdAt, date(milliseconds: createdTime))
 		expectNoDifference(page.updatedAt, date(milliseconds: editedTime))
 	}
-
 
 	@Test("Merges blocks into existing page")
 	func mergeIntoExisting() throws {
@@ -447,44 +367,19 @@ extension Tests.RoamImporterTest {
 			pages[0].resolution = .merge
 		}
 
-		#expect(result.imported.count == 1)
+		try #require(result.imported.count == 1)
 		#expect(result.imported[0].id == existingPage.id)
 
 		let children = try children(of: existingPage.id)
-		#expect(children.count == 2)
+		try #require(children.count == 2)
 		#expect(children[0].string == "Original block")
 		#expect(children[1].string == "New block")
 	}
 
-	@Test("Replaces existing page content")
-	func replaceExisting() throws {
-		let existingPage = try #require(database.write { db in
-			try Page.insert { Page(title: "Replace Me") }.returning(\.self).fetchOne(db)
-		})
-		try database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Old block", parentId: existingPage.id, pageId: existingPage.id, order: 0)
-			}.execute(db)
-		}
-
-		let json = """
-		[{"uid": "p1", "title": "Replace Me", "children": [{"uid": "b1", "string": "Replacement"}]}]
-		"""
-
-		let result = try executeImport(from: json) { pages in
-			pages[0].resolution = .replace
-		}
-
-		#expect(result.imported.count == 1)
-		let children = try children(of: existingPage.id)
-		#expect(children.count == 1)
-		#expect(children[0].string == "Replacement")
-	}
-
-	@Test("Replacing page contents records a local edit", .dependencies {
+	@Test("Replacing page contents keeps its identity and records a local edit", .dependencies {
 		$0.date = .constant(Date(timeIntervalSince1970: 1_000))
 	})
-	func replacingPageUpdatesModificationTime() throws {
+	func replaceExisting() throws {
 		let originalCreatedAt = Date(timeIntervalSince1970: 100)
 		let originalUpdatedAt = Date(timeIntervalSince1970: 200)
 
@@ -511,11 +406,14 @@ extension Tests.RoamImporterTest {
 		}]
 		"""
 
-		let _ = try executeImport(from: json) { pages in
+		let result = try executeImport(from: json) { pages in
 			pages[0].resolution = .replace
 		}
 
 		let page = try requiredPage(title: "Timestamp Conflict")
+		expectNoDifference(result.imported.map(\.id), [existingPage.id])
+		expectNoDifference(page.id, existingPage.id)
+		expectNoDifference(try children(of: page.id).map(\.string), ["Replacement"])
 		expectNoDifference(page.createdAt, originalCreatedAt)
 		expectNoDifference(page.updatedAt, Date(timeIntervalSince1970: 1_000))
 	}
@@ -542,16 +440,21 @@ extension Tests.RoamImporterTest {
 			"uid": "p1",
 			"title": "Properties",
 			"children": [
-				{"uid": "h1", "string": "Heading", "heading": 2, "text-align": "right"}
+				{"uid": "h1", "string": "Heading", "heading": 2, "text-align": "right"},
+				{"uid": "plain", "string": "Plain"}
 			]
 		}]
 		"""
 
 		let result = try executeImport(from: json)
-		#expect(result.imported.count == 1)
+		try #require(result.imported.count == 1)
 
 		let page = try requiredPage(title: "Properties")
-		let block = try firstParagraph(in: page.id)
+		let blocks = try children(of: page.id)
+		try #require(blocks.count == 2)
+		let block = blocks[0]
+		#expect(blocks[1].heading == nil)
+		expectNoDifference(blocks[1].textAlign, .left)
 		#expect(block.heading == .h2)
 		#expect(block.textAlign == .right)
 	}
@@ -561,7 +464,9 @@ extension Tests.RoamImporterTest {
 
 extension Tests.RoamImporterTest {
 	private func importer(from json: String) throws -> RoamImporter {
-		try RoamImporter(url: writeJSON(json))
+		let url = try writeJSON(json)
+		defer { try? FileManager.default.removeItem(at: url) }
+		return try RoamImporter(url: url)
 	}
 
 	private func prepare(from json: String) throws -> (valid: [RoamImporter.PreparedPage], failed: [RoamImporter.FailedPage]) {

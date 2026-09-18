@@ -58,21 +58,9 @@ extension Tests.EmbedInfoTest {
 // MARK: - extract(from:)
 
 extension Tests.EmbedInfoTest {
-	@Test("extracts tweet from text")
-	func extractTweet() {
-		let url = URL(string: "https://x.com/user/status/123")!
-		expectNoDifference(EmbedInfo.extract(from: "Check this https://x.com/user/status/123"), [.tweet(url: url)])
-	}
-
-	@Test("extracts YouTube from text")
-	func extractYouTube() {
-		let url = URL(string: "https://youtu.be/abc123")!
-		expectNoDifference(EmbedInfo.extract(from: "Watch https://youtu.be/abc123"), [.youtube(url: url)])
-	}
-
-	@Test("extracts multiple embeds")
+	@Test("Extracts distinct embeds and removes duplicate URLs")
 	func extractMultiple() {
-		let result = EmbedInfo.extract(from: "Tweet https://x.com/user/status/123 and video https://youtu.be/abc")
+		let result = EmbedInfo.extract(from: "Tweet https://x.com/user/status/123 and video https://youtu.be/abc and the same tweet https://x.com/user/status/123")
 		expectNoDifference(result, [
 			.tweet(url: URL(string: "https://x.com/user/status/123")!),
 			.youtube(url: URL(string: "https://youtu.be/abc")!),
@@ -82,15 +70,10 @@ extension Tests.EmbedInfoTest {
 	@Test("returns empty when no embeds present", arguments: [
 		"Just some plain text",
 		"Visit https://example.com",
-		"No embed keywords here https://example.com",
+		"Example `https://x.com/user/status/123`",
+		"Channel https://youtube.com/@channel",
 	])
 	func extractEmpty(text: String) {
 		expectNoDifference(EmbedInfo.extract(from: text), [])
-	}
-
-	@Test("deduplicates identical URLs")
-	func extractDeduplicates() {
-		let result = EmbedInfo.extract(from: "Same link twice: https://x.com/u/status/1 and https://x.com/u/status/1")
-		#expect(result.count == 1)
 	}
 }

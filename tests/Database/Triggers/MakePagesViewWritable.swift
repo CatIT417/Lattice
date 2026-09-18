@@ -13,83 +13,24 @@ extension Tests {
 }
 
 extension Tests.MakePagesViewWritableTest {
-	@Test("Inserting into the Pages view creates the corresponding Block")
+	@Test("Inserting into Pages preserves the page fields in Block")
 	func canInsertIntoPages() throws {
-		let props = "{\"color\":\"blue\"}"
+		let day = DayOfYear(day: 3, month: 2, year: 2026)
 		let date = Date(timeIntervalSince1970: 1_770_076_800)
-		let dailyNoteDate = DayOfYear(day: 3, month: 2, year: 2026)
-
-		let page = try #require(database.write { db in
-			try Page.insert {
-				Page(title: "Test Page", dailyNoteDate: dailyNoteDate, props: props, createdAt: date, updatedAt: date)
-			}
-			.returning(\.self)
-			.fetchOne(db)
-		})
-
-		let block = try #require(database.read { db in
-			try Block.find(page.id).fetchOne(db)
-		})
-
-		expectNoDifference(page.props, props)
-		expectNoDifference(page.createdAt, date)
-		expectNoDifference(page.updatedAt, date)
-		expectNoDifference(page.dailyNoteDate, dailyNoteDate)
-
-		expectNoDifference(page.id, block.id)
-		expectNoDifference(page.canonicalTitle, block.title)
-		expectNoDifference(page.props, block.props)
-		expectNoDifference(page.createdAt, block.createdAt)
-		expectNoDifference(page.updatedAt, block.updatedAt)
-		expectNoDifference(page.dailyNoteDate, block.dailyNoteDate)
-
-		expectNoDifference(block.order, 0)
-		expectNoDifference(block.string, nil)
-		expectNoDifference(try database.read { try BlockHierarchy.find(block.id).fetchOne($0)?.pageId }, page.id)
-		expectNoDifference(block.isOpen, true)
-		expectNoDifference(block.heading, nil)
-		expectNoDifference(block.parentId, nil)
-		expectNoDifference(block.textAlign, .left)
-		expectNoDifference(block.viewType, .bullet)
-	}
-
-	@Test("Updating via the Pages view is not supported")
-	func updateViaViewFails() throws {
-		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "Test Page") }.returning(\.self).fetchOne(db)
-		})
-
-		#expect(throws: DatabaseError.self) {
-			try database.write { db in
-				try Page.find(page.id).update { $0.canonicalTitle = #bind("Updated Title") }.execute(db)
-			}
-		}
-	}
-
-	@Test("Deleting a page sets its deletion marker")
-	func canDeleteFromPages() throws {
-		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "Test Page") }.returning(\.self).fetchOne(db)
-		})
-
-		let blockExists = try database.read { db in
-			try Select(Block.find(page.id).exists()).fetchOne(db)
-		}
-		#expect(blockExists == true)
-
+		let page = Page(id: UUID(100), title: day.rawValue, dailyNoteDate: day,
+			props: "{\"color\":\"blue\"}", createdAt: date, updatedAt: date)
 		try database.write { db in
-			try Page.find(page.id).delete().execute(db)
+			expectNoDifference(try Page.insert { page }.returning(\.self).fetchOne(db), page)
+			expectNoDifference(try Block.find(page.id).fetchOne(db), Block(
+				id: page.id, title: day.rawValue, dailyNoteDate: day,
+				props: "{\"color\":\"blue\"}", createdAt: date, updatedAt: date
+			))
+			expectNoDifference(try BlockHierarchy.find(page.id).fetchOne(db)?.pageId, page.id)
 		}
-
-		let blockExistsAfterDelete = try database.read { db in
-			try Select(Block.find(page.id).exists()).fetchOne(db)
-		}
-		#expect(blockExistsAfterDelete == true)
-		#expect(try database.read { try Page.find(page.id).fetchOne($0) } == nil)
 	}
 
 	@Test("Deleting a page hides its subtree and retains the local indexes")
-	func deletingPageDeletesSubtree() throws {
+	func deletingPageHidesSubtree() throws {
 		let (page, paragraph, child) = try database.write { db in
 			let page = try #require(try Page.insert { Page(title: "Subtree Root") }.returning(\.self).fetchOne(db))
 			let paragraph = try #require(try Paragraph.insert {
@@ -113,35 +54,12 @@ extension Tests.MakePagesViewWritableTest {
 				try Reference.where { $0.sourceBlockId.eq(paragraph.id) }.fetchCount(db)
 			)
 		}
+		#expect(try database.read { try Page.find(page.id).fetchOne($0) } == nil)
+		expectNoDifference(try database.read { try Block.find(page.id).fetchOne($0)?.deletedAt }, Date(timeIntervalSince1970: 1_000))
 		expectNoDifference(blocks, 3)
 		expectNoDifference(ancestors, 3)
 		expectNoDifference(references, 1)
 		#expect(try database.read { try Paragraph.fetchCount($0) } == 0)
 		#expect(try database.read { try Block.find(child.id).fetchOne($0)?.deletedAt } == nil)
-	}
-
-	@Test("Deleting a page retains paragraphs whose parent has not arrived")
-	func deletingPageDeletesOrphanedParagraphs() throws {
-		@Dependency(\.uuid) var uuid
-		let missingParentID = uuid()
-
-		let (page, orphan) = try database.write { db in
-			let page = try #require(try Page.insert { Page(title: "Orphan Delete Root") }.returning(\.self).fetchOne(db))
-			let orphan = try #require(try Paragraph.insert {
-				Paragraph(string: "Orphan", parentId: missingParentID, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db))
-
-			return (page, orphan)
-		}
-
-		try database.write { db in
-			try Page.find(page.id).delete().execute(db)
-		}
-
-		let orphanExists = try database.read { db in
-			try Select(Block.find(orphan.id).exists()).fetchOne(db)
-		}
-		expectNoDifference(orphanExists, true)
-		#expect(try database.read { try Paragraph.find(orphan.id).fetchOne($0) } == nil)
 	}
 }

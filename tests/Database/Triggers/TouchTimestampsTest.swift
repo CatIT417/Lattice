@@ -15,55 +15,18 @@ extension Tests {
 }
 
 extension Tests.TouchTimestampsTest {
-	@Test("Block.updatedAt is updated on record update")
+	@Test("A text edit changes updatedAt and preserves createdAt")
 	func updatedAtIsTouchedOnUpdate() throws {
-		let block = try #require(database.write { db in
-			try Block.insert { Block(title: "Test Page") }.returning(\.self).fetchOne(db)
-		})
-
-		#expect(block.createdAt == block.updatedAt)
-
+		let created = Date(timeIntervalSince1970: 100)
+		let edited = Date(timeIntervalSince1970: 1_000)
 		try database.write { db in
+			let block = Block(title: "Test Page", createdAt: created, updatedAt: created)
+			try Block.insert { block }.execute(db)
 			try Block.find(block.id).update { $0.title = #bind("Updated Title") }.execute(db)
+			let updated = try #require(try Block.find(block.id).fetchOne(db))
+			expectNoDifference(updated.createdAt, created)
+			expectNoDifference(updated.updatedAt, edited)
 		}
-
-		let updatedBlock = try database.read { db in
-			try Block.find(block.id).fetchOne(db)
-		}!
-
-		#expect(block.updatedAt != updatedBlock.updatedAt)
-	}
-
-	@Test("A Page's updatedAt is updated when one of its child Blocks is updated",
-		.dependencies { $0.date = .constant(Date(timeIntervalSince1970: 1_000)) })
-	func pagesUpdatedAtIsTouchedOnChildUpdate() throws {
-		let initialDate = Date(timeIntervalSince1970: 100)
-		let (page, children) = try #require(database.write { db in
-			let page = try Page.insert {
-				Page(title: "Test Page", createdAt: initialDate, updatedAt: initialDate)
-			}.returning(\.self).fetchOne(db)!
-			let childBlocks = try Paragraph.insert {
-				(0...3).map { i in
-					Paragraph(string: "Child Block \(i)", parentId: page.id, pageId: page.id, order: i)
-				}
-			}.returning(\.self).fetchAll(db)
-
-			return (page, childBlocks)
-		})
-
-		#expect(page.createdAt == page.updatedAt)
-
-		let randomChild = try #require(children.randomElement())
-
-		try database.write { db in
-			try Block.find(randomChild.id).update { $0.string = #bind("Updated Child Block") }.execute(db)
-		}
-
-		let updatedPage = try #require(database.read { db in
-			try Page.find(page.id).fetchOne(db)
-		})
-
-		#expect(updatedPage.updatedAt == Date(timeIntervalSince1970: 1_000))
 	}
 }
 

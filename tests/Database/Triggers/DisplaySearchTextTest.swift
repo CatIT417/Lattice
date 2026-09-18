@@ -30,24 +30,6 @@ extension Tests {
 }
 
 extension Tests.DisplaySearchTextTest {
-	@Test("The FTS migration preserves blocks and adds display text")
-	func migration() throws {
-		let database = try makeDatabase()
-		try database.write { db in
-			try CreateBlocksTable.up(db)
-			let page = Block(title: "2026-02-12", dailyNoteDate: DayOfYear(day: 12, month: 2, year: 2026))
-			let paragraph = Block(string: "Meet [[2026-02-12]]", parentId: page.id)
-			try Block.insert { [page, paragraph] }.execute(db)
-			let before = try Block.order(by: \.id).fetchAll(db)
-			try CreateBlocksFTSTables.up(db)
-			try expectNoDifference(Block.order(by: \.id).fetchAll(db), before)
-			let rows = try BlockText.order(by: \.blockID).fetchAll(db)
-			expectNoDifference(rows.count, 2)
-			expectNoDifference(rows.first?.displayTitle, "February 12, 2026")
-			expectNoDifference(rows.last?.displayString, "Meet February 12, 2026")
-		}
-	}
-
 	@Test("Unlinked date mentions require a full date")
 	func unlinkedDates() throws {
 		try database.write { db in
@@ -112,6 +94,7 @@ extension Tests.DisplaySearchTextTest {
 			}
 			expectNoDifference(defaults.string(forKey: RebuildSearchIndex.localeKey), "fr_FR")
 			try database.read { db in
+				expectNoDifference(Page.title(for: "2026-02-12"), "12 février 2026")
 				let row = try #require(try BlockText.where { $0.blockID.eq(paragraph.id) }.fetchOne(db))
 				expectNoDifference(row.string, paragraph.string)
 				expectNoDifference(row.displayString, "Meet on 12 février 2026 with Alice.")
@@ -175,24 +158,6 @@ extension Tests.DisplaySearchTextTest {
 		try database.read { db in
 			let result = try matches("12 février", in: db)
 			#expect(result.contains(paragraph.id))
-		}
-		expectNoDifference(defaults.string(forKey: RebuildSearchIndex.localeKey), "fr_FR")
-	}
-
-	@Test("A new session uses its locale for titles and search")
-	func launchLocale() throws {
-		let page = try database.write { try Page.createDailyNote(for: DayOfYear(day: 12, month: 2, year: 2026), in: $0) }
-		let before = try database.read { try Block.order(by: \.id).fetchAll($0) }
-		try withDependencies {
-			$0.locale = Locale(identifier: "fr_FR")
-		} operation: {
-			try database.write { try RebuildSearchIndex.run(in: $0) }
-			expectNoDifference(page.title, "12 février 2026")
-			try database.read { db in
-				try expectNoDifference(matches("12 février", in: db), [page.id])
-				#expect(try matches("February 12", in: db).isEmpty)
-				try expectNoDifference(Block.order(by: \.id).fetchAll(db), before)
-			}
 		}
 		expectNoDifference(defaults.string(forKey: RebuildSearchIndex.localeKey), "fr_FR")
 	}
