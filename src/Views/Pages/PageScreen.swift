@@ -17,7 +17,7 @@ struct PageScreen: View {
 
 	init(pageId: Page.ID) {
 		self.pageId = pageId
-		_pageWithContent = Fetch(wrappedValue: nil, Page.withChildren(id: pageId))
+		_pageWithContent = Fetch(wrappedValue: nil, Page.withVisibleChildren(id: pageId))
 	}
 
 	var body: some View {
@@ -110,7 +110,7 @@ struct PageScreen: View {
 		}
 		.task {
 			_ = await withErrorReporting {
-				try await $pageWithContent.load(Page.withChildren(id: pageId))
+				try await $pageWithContent.load(Page.withVisibleChildren(id: pageId))
 			}
 		}
 	}

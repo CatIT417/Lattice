@@ -16,7 +16,7 @@ extension Tests {
 			database = try makeDatabase()
 			try database.write { db in
 				try CreateBlocksTable.up(db)
-				try CreateBlocksFTSTable.up(db)
+				try CreateBlocksFTSTables.up(db)
 			}
 			try database.setupTriggers([SyncBlocksFTSTable.self])
 		}
@@ -121,7 +121,7 @@ extension Tests.BlockSearchIDTest {
 			return try Block.fetchAll(db)
 		}
 
-		migrator.registerMigration("CreateBlocksFTSTable") { try CreateBlocksFTSTable.up($0) }
+		migrator.registerMigration("CreateBlocksFTSTable") { try CreateBlocksFTSTables.up($0) }
 		try migrator.migrate(database)
 		try database.setupTriggers([SyncBlocksFTSTable.self])
 		try database.write { db in

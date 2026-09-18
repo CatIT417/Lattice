@@ -39,7 +39,7 @@ extension Tests.DisplaySearchTextTest {
 			let paragraph = Block(string: "Meet [[2026-02-12]]", parentId: page.id)
 			try Block.insert { [page, paragraph] }.execute(db)
 			let before = try Block.order(by: \.id).fetchAll(db)
-			try CreateBlocksFTSTable.up(db)
+			try CreateBlocksFTSTables.up(db)
 			try expectNoDifference(Block.order(by: \.id).fetchAll(db), before)
 			let rows = try BlockText.order(by: \.blockID).fetchAll(db)
 			expectNoDifference(rows.count, 2)
@@ -202,7 +202,7 @@ extension Tests.DisplaySearchTextTest {
 		let database = try makeDatabase()
 		try database.write { db in
 			try CreateBlocksTable.up(db)
-			try CreateBlocksFTSTable.up(db)
+			try CreateBlocksFTSTables.up(db)
 		}
 		try database.setupTriggers([SyncBlocksFTSTable.self])
 		try database.write { db in

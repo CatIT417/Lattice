@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct BlockTree {
+	private let rootID: Block.ID?
 	private let paragraphsById: [Block.ID: Paragraph]
+	private let parentsWithUnloadedChildren: Set<Block.ID>
 	private let childrenByParentId: [Block.ID: [Paragraph]]
 
-	init(paragraphs: [Paragraph]) {
+	init(paragraphs: [Paragraph], parentsWithUnloadedChildren: Set<Block.ID> = [], rootID: Block.ID? = nil) {
+		self.rootID = rootID
+		self.parentsWithUnloadedChildren = parentsWithUnloadedChildren
+
 		var indexed: [Block.ID: Paragraph] = [:]
 		var grouped: [Block.ID: [Paragraph]] = [:]
-
 		for p in paragraphs {
 			indexed[p.id] = p
 			grouped[p.parentId, default: []].append(p)
@@ -17,9 +21,11 @@ struct BlockTree {
 		childrenByParentId = grouped.mapValues { $0.sorted(by: Paragraph.ordered) }
 	}
 
-	private init(childrenByParentId: [Block.ID: [Paragraph]], paragraphsById: [Block.ID: Paragraph]) {
+	private init(childrenByParentId: [Block.ID: [Paragraph]], paragraphsById: [Block.ID: Paragraph], parentsWithUnloadedChildren: Set<Block.ID>, rootID: Block.ID?) {
+		self.rootID = rootID
 		self.paragraphsById = paragraphsById
 		self.childrenByParentId = childrenByParentId
+		self.parentsWithUnloadedChildren = parentsWithUnloadedChildren
 	}
 
 	func subset(only blocks: Set<Block.ID>) -> BlockTree {
@@ -30,7 +36,12 @@ struct BlockTree {
 			copySubtree(of: blockId, into: &result, indexedBy: &indexed)
 		}
 
-		return BlockTree(childrenByParentId: result, paragraphsById: indexed)
+		return BlockTree(
+			childrenByParentId: result,
+			paragraphsById: indexed,
+			parentsWithUnloadedChildren: parentsWithUnloadedChildren.intersection(blocks.union(indexed.keys)),
+			rootID: rootID
+		)
 	}
 
 	func children(of parentId: Block.ID) -> [Paragraph] {
@@ -38,7 +49,7 @@ struct BlockTree {
 	}
 
 	func hasChildren(_ parentId: Block.ID) -> Bool {
-		childrenByParentId[parentId]?.isEmpty == false
+		childrenByParentId[parentId]?.isEmpty == false || parentsWithUnloadedChildren.contains(parentId)
 	}
 
 	func previousSibling(for paragraph: Paragraph) -> Paragraph? {
@@ -48,6 +59,8 @@ struct BlockTree {
 	}
 
 	func previousBlockOnScreen(for paragraph: Paragraph) -> Block.ID? {
+		guard paragraph.id != rootID else { return nil }
+
 		if let previousSibling = previousSibling(for: paragraph) {
 			return deepestLastChild(of: previousSibling.id) ?? previousSibling.id
 		}

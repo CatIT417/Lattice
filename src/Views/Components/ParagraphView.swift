@@ -129,7 +129,9 @@ struct ParagraphView: View {
 			)
 			.padding(.horizontal, -10)
 			.onSwipeLeft {
-				let descendantIDs = blockTree.descendantIDs(of: paragraph.id)
+				guard let descendantIDs = withErrorReporting(catching: {
+					try database.read { try Paragraph.descendantIDs(of: paragraph.id, in: $0) }
+				}) else { return }
 				withAnimation(selectionCoordinator.animation) {
 					selectionCoordinator.handleSwipe(on: paragraph.id, descendantIDs: descendantIDs)
 				}

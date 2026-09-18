@@ -79,6 +79,16 @@ struct Paragraph: Identifiable, Equatable, Hashable, Codable, Sendable, HasChild
 }
 
 extension Paragraph {
+	static func descendantIDs(of parentID: Block.ID, in db: Database) throws -> Set<Block.ID> {
+		try Set(
+			Ancestor
+				.where { $0.ancestorId.eq(parentID) }
+				.join(Paragraph.all) { $0.blockId.eq($1.id) }
+				.select { _, paragraphs in paragraphs.id }
+				.fetchAll(db)
+		)
+	}
+
 	/// The given paragraphs plus every paragraph nested underneath them.
 	static func subtrees(rootedAt ids: [Paragraph.ID]) -> Where<Paragraph> {
 		Paragraph.where {

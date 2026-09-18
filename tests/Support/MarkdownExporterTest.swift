@@ -13,6 +13,20 @@ extension Tests {
 }
 
 extension Tests.MarkdownExporterTest {
+	@Test("Exports retain descendants of collapsed paragraphs")
+	func collapsedDescendants() throws {
+		let page = Block(title: "Page")
+		let parent = Block(string: "Parent", parentId: page.id, isOpen: false)
+		let child = Block(string: "Child", parentId: parent.id, isOpen: false)
+		let grandchild = Block(string: "Grandchild", parentId: child.id)
+		try database.write { db in
+			try Block.insert { [page, parent, child, grandchild] }.execute(db)
+		}
+
+		#expect(try MarkdownExporter.exportPage(id: page.id) == "# Page\n\n- Parent\n\t- Child\n\t\t- Grandchild")
+		#expect(try MarkdownExporter.exportParagraph(id: parent.id) == "- Parent\n\t- Child\n\t\t- Grandchild")
+	}
+
 	@Test("exports a page with H1 title and bullet children")
 	func pageExportBasic() throws {
 		let page = try #require(database.write { db in

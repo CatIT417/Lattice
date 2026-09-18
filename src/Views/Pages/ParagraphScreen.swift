@@ -9,7 +9,7 @@ struct ParagraphScreen: View {
 
 	init(paragraphId: Paragraph.ID) {
 		self.paragraphId = paragraphId
-		_paragraphWithContent = Fetch(wrappedValue: nil, Paragraph.withChildren(id: paragraphId))
+		_paragraphWithContent = Fetch(wrappedValue: nil, Paragraph.withVisibleChildren(id: paragraphId))
 	}
 
 	var body: some View {
@@ -44,7 +44,7 @@ struct ParagraphScreen: View {
 			}
 		}.task {
 			_ = await withErrorReporting {
-				try await $paragraphWithContent.load(Paragraph.withChildren(id: paragraphId))
+				try await $paragraphWithContent.load(Paragraph.withVisibleChildren(id: paragraphId))
 			}
 		}
 	}

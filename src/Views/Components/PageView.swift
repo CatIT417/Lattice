@@ -5,7 +5,7 @@ struct PageView: View {
 	@Fetch var pageWithContent: Page.WithChildren? = nil
 
 	init(pageId: Page.ID) {
-		_pageWithContent = Fetch(wrappedValue: nil, Page.withChildren(id: pageId))
+		_pageWithContent = Fetch(wrappedValue: nil, Page.withVisibleChildren(id: pageId))
 	}
 
 	var body: some View {
