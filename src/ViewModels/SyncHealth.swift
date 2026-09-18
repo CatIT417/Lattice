@@ -1,4 +1,5 @@
 import Foundation
+import Dependencies
 import IssueReporting
 
 /// Issues reported while the app runs, kept so the diagnostics screen can show them.
@@ -23,7 +24,8 @@ final class SyncHealth {
 	private(set) var syncFailureCount = 0
 
 	func record(_ message: String) {
-		let issue = Issue(date: Date(), message: message)
+		@Dependency(\.date.now) var now
+		let issue = Issue(date: now, message: message)
 
 		issueCount += 1
 		if issue.isSyncFailure { syncFailureCount += 1 }

@@ -2,11 +2,13 @@ import SwiftUI
 import SQLiteData
 
 struct GoToDailyPageButton: View {
-	var currentDate = Date()
+	var currentDate: Date
 
-	init(currentDate: Date = Date()) {
-		self.currentDate = currentDate
-		_selection = State(initialValue: currentDate)
+	init(currentDate: Date? = nil) {
+		@Dependency(\.date.now) var now
+
+		self.currentDate = currentDate ?? now
+		_selection = State(initialValue: self.currentDate)
 	}
 
 	@State private var selection: Date
@@ -31,7 +33,7 @@ struct GoToDailyPageButton: View {
 		}
 		.onChange(of: currentDate) { selection = $1 }
 		.onChange(of: selection) { _, selection in
-			guard selection != currentDate else { return }
+			guard DayOfYear(selection) != DayOfYear(currentDate) else { return }
 
 			navigateToDailyPage(for: DayOfYear(selection))
 		}
