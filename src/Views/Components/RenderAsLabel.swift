@@ -29,7 +29,7 @@ struct RenderAsLabel: UIViewRepresentable {
 		Coordinator()
 	}
 
-	class Coordinator: NSObject, UITextViewDelegate {
+	final class Coordinator: NSObject, UITextViewDelegate {
 		func textView(_: UITextView, shouldInteractWith _: URL, in _: NSRange) -> Bool {
 			return false
 		}
@@ -39,12 +39,11 @@ struct RenderAsLabel: UIViewRepresentable {
 struct RenderAsLabel: NSViewRepresentable {
 	let text: NSAttributedString
 
-	func makeNSView(context: Context) -> AutosizingTextView {
+	func makeNSView(context _: Context) -> AutosizingTextView {
 		let textView = AutosizingTextView()
 		textView.isEditable = false
 		textView.isSelectable = false
 		textView.backgroundColor = .clear
-		textView.delegate = context.coordinator
 
 		return textView
 	}
@@ -52,16 +51,6 @@ struct RenderAsLabel: NSViewRepresentable {
 	func updateNSView(_ textView: AutosizingTextView, context _: Context) {
 		if text != textView.attributedString() {
 			textView.textStorage?.setAttributedString(text)
-		}
-	}
-
-	func makeCoordinator() -> Coordinator {
-		Coordinator()
-	}
-
-	class Coordinator: NSObject, NSTextViewDelegate {
-		func textView(_: NSTextView, shouldInteractWith _: URL, in _: NSRange) -> Bool {
-			return false
 		}
 	}
 }

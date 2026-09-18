@@ -22,12 +22,12 @@ struct LinkedReferencesSection: View {
 						}
 					}
 				} label: {
-					Text("\(pagesWithBacklinks.backlinkCount) Linked References")
-					#if os(iOS)
+					Text("\(pagesWithBacklinks.backlinkCount) Linked Reference\(pagesWithBacklinks.backlinkCount == 1 ? "" : "s")")
+						#if os(iOS)
 						.font(.subheadline.weight(.semibold))
-					#elseif os(macOS)
+						#elseif os(macOS)
 						.font(.title3.weight(.semibold))
-					#endif
+						#endif
 						.foregroundStyle(.secondary)
 				}
 				.disclosureGroupStyle(LeftLabelSectionDisclosureStyle(hidesArrowOnHover: true))
@@ -41,7 +41,8 @@ struct LinkedReferencesSection: View {
 		try Backlink
 			.group(by: \.toBlock)
 			.order(by: { $0.toBlock.count().asc() })
-			.fetchOne(db)?.toBlock
+			.fetchOne(db)?
+			.toBlock
 	}
 
 	if let blockId {

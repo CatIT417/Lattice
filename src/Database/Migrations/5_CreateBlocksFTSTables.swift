@@ -15,7 +15,7 @@ final class CreateBlocksFTSTables: Migration {
 			table.column("string")
 			table.column("displayTitle")
 			table.column("displayString")
-			table.tokenizer = .init(components: ["trigram"])
+			table.tokenizer = .trigram(removeDiacritics: true)
 		}
 
 		try RebuildSearchIndex.populate(in: db)

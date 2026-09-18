@@ -64,7 +64,7 @@ struct Block: Identifiable, Equatable, Hashable, Sendable, HasChildren {
 	var mergedInto: Block.ID?
 
 	var destination: Destination.Pages {
-		title == nil ? .block(id: id) : .page(id: id)
+		title == nil ? .paragraph(id: id) : .page(id: id)
 	}
 
 	init(id: UUID? = nil, string: String? = nil, title: String? = nil, dailyNoteDate: DayOfYear? = nil, parentId: Block.ID? = nil, order: Int = 0, heading: HeadingLevel? = nil, viewType: ViewType = .bullet, textAlign: TextAlignment = .left, isOpen: Bool = true, props: String? = nil, createdAt: Date? = nil, updatedAt: Date? = nil, deletedAt: Date? = nil, mergedInto: Block.ID? = nil) {

@@ -101,7 +101,7 @@ struct ParagraphView: View {
 					}
 				}
 
-				if !paragraph.isOpen, paragraph.id != rootBlockID, !platform.hasPointer {
+				if !paragraph.isOpen, blockTree.hasChildren(paragraph.id), paragraph.id != rootBlockID, !platform.hasPointer {
 					Spacer(minLength: 2)
 
 					Button(action: toggleIsOpen) {

@@ -27,7 +27,7 @@ final class CreateBlocksTable: Migration {
 
 			// Timestamps
 			table.column("createdAt", .datetime).notNull().defaults(sql: "(now())")
-			table.column("updatedAt", .datetime).notNull().defaults(sql: "(now())").indexed()
+			table.column("updatedAt", .datetime).notNull().defaults(sql: "(now())")
 
 			// Soft delete
 			table.column("deletedAt", .datetime)

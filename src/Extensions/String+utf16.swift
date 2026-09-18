@@ -19,8 +19,4 @@ extension String {
 		guard let index = utf16Index(at: offset), index > startIndex else { return nil }
 		return self[self.index(before: index)]
 	}
-
-	func unicodeScalar(atUTF16Offset offset: Int) -> UnicodeScalar? {
-		character(atUTF16Offset: offset)?.unicodeScalars.first
-	}
 }
