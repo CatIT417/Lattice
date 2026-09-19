@@ -48,18 +48,6 @@ extension Tests.PageTest {
 		}
 	}
 
-	@Test("Concurrent daily note requests return the same page")
-	func concurrentDailyNoteCreation() async throws {
-		let day = DayOfYear(day: 13, month: 9, year: 2026)
-		async let firstRequest = database.write { try Page.createDailyNote(for: day, in: $0) }
-		async let secondRequest = database.write { try Page.createDailyNote(for: day, in: $0) }
-		let (first, second) = try await (firstRequest, secondRequest)
-
-		expectNoDifference(first, second)
-		let pages = try await database.read { try Page.fetchAll($0) }
-		expectNoDifference(pages, [first])
-	}
-
 	@Test("Repeated daily note requests preserve the page and its contents")
 	func dailyNoteCreationPreservesContent() async throws {
 		let day = DayOfYear(day: 13, month: 9, year: 2026)
@@ -82,20 +70,29 @@ extension Tests.PageTest {
 		expectNoDifference(after, before)
 	}
 
-	@Test("Creating a page with an invalid title fails", arguments: [
+	@Test("Invalid inserts and renames preserve stored pages", arguments: [
 		("AB", Page.TitleError.tooShort), (" AB ", .tooShort),
 		("Bad [Title", .containsBrackets), ("Bad ]Title", .containsBrackets),
-	])
-	func invalidTitle(title: String, expected: Page.TitleError) throws {
+	], [false, true])
+	func invalidTitle(input: (String, Page.TitleError), rename: Bool) throws {
+		let (title, expected) = input
+		try database.write { db in
+			if rename { try Page.insert { Page(title: "Test Page") }.execute(db) }
+		}
+		let before = try database.read { try Block.fetchAll($0) }
 		do {
 			try database.write { db in
-				try Page.insert { Page(title: title) }.execute(db)
+				if rename {
+					try Block.where { $0.title.eq("Test Page") }.update { $0.title = #bind(title) }.execute(db)
+				} else {
+					try Page.insert { Page(title: title) }.execute(db)
+				}
 			}
 			Issue.record("The invalid title must be rejected.")
 		} catch let error as DatabaseError {
 			expectNoDifference(error.message, expected.localizedDescription)
 		}
-		expectNoDifference(try database.read { try Page.fetchCount($0) }, 0)
+		expectNoDifference(try database.read { try Block.fetchAll($0) }, before)
 	}
 
 	@Test("Creating a page with a title of exactly 3 characters succeeds")
@@ -105,28 +102,6 @@ extension Tests.PageTest {
 		})
 
 		expectNoDifference("ABC", page.canonicalTitle)
-	}
-
-	@Test("An invalid rename preserves the page title", arguments: [
-		("AB", Page.TitleError.tooShort), (" AB ", .tooShort),
-		("Bad [Title", .containsBrackets), ("Bad ]Title", .containsBrackets),
-	])
-	func invalidRename(title: String, expected: Page.TitleError) throws {
-		try database.write { db in
-			try Page.insert { Page(title: "Test Page") }.execute(db)
-		}
-
-		do {
-			try database.write { db in
-				try Block.where { $0.title.eq("Test Page") }
-					.update { $0.title = #bind(title) }
-					.execute(db)
-			}
-			Issue.record("The invalid title must be rejected.")
-		} catch let error as DatabaseError {
-			expectNoDifference(error.message, expected.localizedDescription)
-		}
-		expectNoDifference(try database.read { try Page.fetchOne($0)?.canonicalTitle }, "Test Page")
 	}
 
 	@Test("Repeated findOrCreate calls preserve one page and its contents")

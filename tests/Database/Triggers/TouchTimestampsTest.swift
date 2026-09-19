@@ -116,6 +116,11 @@ extension Tests.TouchTimestampsTest {
 				#expect(try Block.find(page.id).fetchOne(db)?.updatedAt == now)
 				#expect(try Block.find(child.id).fetchOne(db)?.updatedAt == now)
 				#expect(try BlockHierarchy.find(child.id).fetchOne(db)?.isVisible == false)
+				let deleted = try #require(try Block.find(child.id).fetchOne(db))
+				expectNoDifference(deleted.deletedAt, now)
+				expectNoDifference(deleted.string, child.string)
+				expectNoDifference(deleted.parentId, child.parentId)
+				#expect(try Paragraph.find(child.id).fetchOne(db) == nil)
 				let restoredAt = Date(timeIntervalSince1970: 2_000)
 				try withDependencies { $0.date = .constant(restoredAt) } operation: {
 					try Block.find(child.id).update { $0.deletedAt = #bind(Date?.none) }.execute(db)

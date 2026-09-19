@@ -1,6 +1,7 @@
 #if os(iOS)
 import UIKit
 import SwiftUI
+import DebugSnapshots
 import Dependencies
 
 struct EditableTextView: UIViewRepresentable {
@@ -165,19 +166,20 @@ struct EditableTextView: UIViewRepresentable {
 }
 
 extension EditableTextView {
+	@DebugSnapshot
 	@MainActor final class Coordinator: NSObject {
 		var isEditing = false
 		var lastKnownText: String
-		var lastKnownFont: UIFont
+		@DebugSnapshotIgnored var lastKnownFont: UIFont
 		var linkWasTapped = false
-		var parent: EditableTextView
-		weak var textView: UITextView?
+		@DebugSnapshotIgnored var parent: EditableTextView
+		@DebugSnapshotIgnored weak var textView: UITextView?
 		var willSwitchToEditing = false
 		var pendingFaviconURLs: Set<URL> = []
-		weak var tapHandler: UITapGestureRecognizer?
+		@DebugSnapshotIgnored weak var tapHandler: UITapGestureRecognizer?
 		var isReferenceSuggestionSessionActive = false
 		var activateSuggestionsOnNextTextChange = false
-		var indexMapping: AttributedStringResult.IndexMapping?
+		@DebugSnapshotIgnored var indexMapping: AttributedStringResult.IndexMapping?
 
 		init(parent: EditableTextView) {
 			self.parent = parent

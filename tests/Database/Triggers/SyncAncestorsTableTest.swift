@@ -1,4 +1,5 @@
 import Testing
+import SQLite3
 import SQLiteData
 import Foundation
 import CustomDump
@@ -81,27 +82,27 @@ extension Tests.SyncAncestorsTableTest {
 
 	@Test("A cyclic parentId chain remains hidden", .timeLimit(.minutes(1)))
 	func cyclicParentIdDoesNotHang() throws {
-		@Dependency(\.uuid) var uuid
-		let first = uuid()
-		let second = uuid()
-
-		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "Ancestor Cycle Root") }.returning(\.self).fetchOne(db)
-		})
-
 		try database.write { db in
-			try Paragraph.insert { Paragraph(id: first, string: "First", parentId: second, pageId: page.id, order: 0) }.execute(db)
-			try Paragraph.insert { Paragraph(id: second, string: "Second", parentId: first, pageId: page.id, order: 0) }.execute(db)
+			var remaining = 100
+			try withUnsafeMutablePointer(to: &remaining) { counter in
+				sqlite3_progress_handler(db.sqliteConnection, 1_000, { context in
+					let counter = context!.assumingMemoryBound(to: Int.self)
+					counter.pointee -= 1
+					return counter.pointee <= 0 ? 1 : 0
+				}, counter)
+				defer { sqlite3_progress_handler(db.sqliteConnection, 0, nil, nil) }
+				let page = Page(title: "Ancestor Cycle Root")
+				let first = Paragraph(id: UUID(100), string: "First", parentId: UUID(101), pageId: page.id, order: 0)
+				let second = Paragraph(id: UUID(101), string: "Second", parentId: first.id, pageId: page.id, order: 0)
+				try Page.insert { page }.execute(db)
+				try Paragraph.insert { [first, second] }.execute(db)
+				expectNoDifference(try Ancestor.where { $0.blockId.in([first.id, second.id]) }.order(by: \.blockId).fetchAll(db), [
+					Ancestor(blockId: first.id, ancestorId: second.id, depth: 1),
+					Ancestor(blockId: second.id, ancestorId: first.id, depth: 1),
+				])
+				#expect(try Paragraph.withChildren(id: first.id).fetch(db) == nil)
+				expectNoDifference(try BlockHierarchy.where(\.isVisible).fetchCount(db), 1)
+			}
 		}
-
-		expectNoDifference(try database.read { db in
-			try Ancestor.where { $0.blockId.in([first, second]) }.order(by: \.blockId).fetchAll(db)
-		}, [
-			Ancestor(blockId: first, ancestorId: second, depth: 1),
-			Ancestor(blockId: second, ancestorId: first, depth: 1),
-		])
-
-		#expect(try database.read { try Paragraph.withChildren(id: first).fetch($0) } == nil)
-		#expect(try database.read { try BlockHierarchy.where(\.isVisible).fetchCount($0) } == 1)
 	}
 }

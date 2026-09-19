@@ -216,42 +216,20 @@ extension Tests.TableWithChildrenTest {
 
 	@Test("Paragraph.withChildren returns only its descendants")
 	func paragraphWithChildrenReturnsSubtree() throws {
-		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "Root") }.returning(\.self).fetchOne(db)
-		})
-
-		let root = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Root", parentId: page.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let child = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Child", parentId: root.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let sibling = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Sibling", parentId: page.id, pageId: page.id, order: 1)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let grandchild = try #require(database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Grandchild", parentId: child.id, pageId: page.id, order: 0)
-			}.returning(\.self).fetchOne(db)
-		})
-
-		let result = try #require(database.read { db in
-			try Paragraph.withChildren(id: root.id).fetch(db)
-		})
-
-		expectNoDifference(root.id, result.block.id)
-		expectNoDifference([child.id], result.tree.children(of: root.id).map(\.id))
-		expectNoDifference([grandchild.id], result.tree.children(of: child.id).map(\.id))
-		expectNoDifference([], result.tree.children(of: page.id).map(\.id))
+		let page = Page(title: "Root")
+		let root = Paragraph(string: "Root", parentId: page.id, pageId: page.id, order: 0)
+		let child = Paragraph(string: "Child", parentId: root.id, pageId: page.id, order: 0)
+		let sibling = Paragraph(string: "Sibling", parentId: page.id, pageId: page.id, order: 1)
+		let grandchild = Paragraph(string: "Grandchild", parentId: child.id, pageId: page.id, order: 0)
+		try database.write { db in
+			try Page.insert { page }.execute(db)
+			try Paragraph.insert { [root, child, sibling, grandchild] }.execute(db)
+		}
+		let result = try #require(database.read { try Paragraph.withChildren(id: root.id).fetch($0) })
+		expectNoDifference(result.block.id, root.id)
+		expectNoDifference(result.tree.children(of: root.id).map(\.id), [child.id])
+		expectNoDifference(result.tree.children(of: child.id).map(\.id), [grandchild.id])
+		expectNoDifference(result.tree.children(of: page.id).map(\.id), [])
 		#expect(result.tree.get(byID: sibling.id) == nil)
 	}
 

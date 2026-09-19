@@ -1,4 +1,5 @@
 import Testing
+import SQLite3
 import CustomDump
 import Foundation
 @testable import LatticeDev
@@ -35,45 +36,29 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 	}
 
-	@Test("Pages renamed to an existing title are merged")
-	func renamedPagesAreMerged() throws {
-		let (firstPage, secondPage, rootParagraph) = try database.write { db in
-			let firstPage = try Page.insert {
-				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let secondPage = try Page.insert {
-				Page(title: "Other Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let rootParagraph = try Paragraph.insert {
-				Paragraph(string: "Root", parentId: secondPage.id, pageId: secondPage.id, order: 0)
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			return (firstPage, secondPage, rootParagraph)
-		}
-
+	@Test("Rename collisions retain every child under the smallest page ID", arguments: [2, 3])
+	func renamedPagesAreMerged(pageCount: Int) throws {
 		try database.write { db in
-			try Block.find(secondPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
-			try MergeDuplicatePages.run(in: db)
+			let pages = (0..<pageCount).map { Page(id: UUID(100 + $0), title: $0 == 0 ? "Shared Title" : "Other \($0)") }
+			let paragraphs = pages.enumerated().map { index, page in
+				Paragraph(id: UUID(200 + index), string: "Child \(index)", parentId: page.id, pageId: page.id, order: 0)
+			}
+			try Page.insert { pages }.execute(db)
+			try Paragraph.insert { paragraphs }.execute(db)
+			for page in pages.dropFirst() {
+				try Block.find(page.id).update { $0.title = #bind("Shared Title") }.execute(db)
+			}
+			expectNoDifference(try MergeDuplicatePages.run(in: db), pages.dropFirst().map {
+				MergeDuplicatePages.Merge(loser: $0.id, keeper: pages[0].id)
+			})
+			expectNoDifference(try Page.select(\.id).fetchAll(db), [pages[0].id])
+			let attached = try Paragraph.order(by: \.id).fetchAll(db)
+			expectNoDifference(attached.map(\.id), paragraphs.map(\.id))
+			for paragraph in attached {
+				expectNoDifference(paragraph.parentId, pages[0].id)
+				expectNoDifference(paragraph.pageId, pages[0].id)
+			}
 		}
-
-		let pages = try database.read { db in
-			try Page.where { $0.canonicalTitle.eq("Shared Title") }.fetchAll(db)
-		}
-		expectNoDifference(pages.map(\.id), [firstPage.id])
-
-		let updatedRoot = try #require(database.read { db in
-			try Paragraph.find(rootParagraph.id).fetchOne(db)
-		})
-		expectNoDifference(updatedRoot.pageId, firstPage.id)
-		expectNoDifference(updatedRoot.parentId, firstPage.id)
 	}
 
 	@Test("Merging a duplicate Page resolves the same reference key")
@@ -133,75 +118,6 @@ extension Tests.MergeDuplicatePagesTest {
 		#expect(try database.read { try Backlink.fetchOne($0)?.toBlock } == keeper.id)
 	}
 
-	@Test("Merging three Pages keeps one Page with all Paragraphs attached")
-	func mergingThreePagesKeepsAllParagraphs() throws {
-		let (firstPage, secondPage, thirdPage, paragraphIDs) = try database.write { db in
-			let firstPage = try Page.insert {
-				Page(title: "Shared Title", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0))
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let secondPage = try Page.insert {
-				Page(title: "Second Title", createdAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100))
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let thirdPage = try Page.insert {
-				Page(title: "Third Title", createdAt: Date(timeIntervalSince1970: 200), updatedAt: Date(timeIntervalSince1970: 200))
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let firstParagraph = try Paragraph.insert {
-				Paragraph(string: "First", parentId: firstPage.id, pageId: firstPage.id, order: 0)
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let secondParagraph = try Paragraph.insert {
-				Paragraph(string: "Second", parentId: secondPage.id, pageId: secondPage.id, order: 0)
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			let thirdParagraph = try Paragraph.insert {
-				Paragraph(string: "Third", parentId: thirdPage.id, pageId: thirdPage.id, order: 0)
-			}
-			.returning(\.self)
-			.fetchOne(db)!
-
-			return (firstPage, secondPage, thirdPage, [firstParagraph.id, secondParagraph.id, thirdParagraph.id])
-		}
-
-		let merges = try database.write { db in
-			try Block.find(secondPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
-			try Block.find(thirdPage.id).update { $0.title = #bind("Shared Title") }.execute(db)
-			return try MergeDuplicatePages.run(in: db)
-		}
-
-		expectNoDifference(merges, [
-			.init(loser: secondPage.id, keeper: firstPage.id),
-			.init(loser: thirdPage.id, keeper: firstPage.id),
-		])
-
-		let pages = try database.read { db in
-			try Page.where { $0.canonicalTitle.eq("Shared Title") }.fetchAll(db)
-		}
-		expectNoDifference(pages.map(\.id), [firstPage.id])
-
-		let attachedParagraphs = try database.read { db in
-			try Paragraph.order(by: \.string).fetchAll(db)
-		}
-
-		expectNoDifference(Set(attachedParagraphs.map(\.id)), Set(paragraphIDs))
-		for paragraph in attachedParagraphs {
-			expectNoDifference(paragraph.pageId, firstPage.id)
-			expectNoDifference(paragraph.parentId, firstPage.id)
-		}
-	}
-
 	@Test("Merging pages appends their children in order")
 	func mergingPagesPreservesSiblingOrder() async throws {
 		let (keeper, duplicatePage) = try await database.write { db in
@@ -241,25 +157,24 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 	}
 
-	@Test("Merge candidate query count stays bounded as unrelated pages increase", arguments: [0, 256])
-	func boundedCandidateQueries(unrelatedCount: Int) throws {
+	@Test("Merge candidate work grows linearly with unrelated pages")
+	func candidateWork() throws {
 		try database.write { db in
 			let keeper = Block(id: UUID(1), title: "Duplicate")
 			let loser = Block(id: UUID(2), title: "Duplicate")
-			let unrelated = (0 ..< unrelatedCount).map {
-				Block(id: UUID(100 + $0), title: "Unrelated \($0)")
-			}
-			try Block.insert { [keeper, loser] + unrelated }.execute(db)
-			var pageReads: [String] = []
-			db.trace(options: .profile) { event in
-				if case let .profile(statement, _) = event,
-				   statement.sql.hasPrefix("SELECT"), statement.sql.contains("FROM \"pages\"") {
-					pageReads.append(statement.sql)
+			let unrelated = (0..<512).map { Block(id: UUID(100 + $0), title: "Unrelated \($0)") }
+			try Block.insert { [keeper, loser] + Array(unrelated.prefix(32)) }.execute(db)
+			func mergeSteps() throws -> Int {
+				try measuredSteps(in: db) {
+					expectNoDifference(try MergeDuplicatePages.run(in: db), [.init(loser: loser.id, keeper: keeper.id)])
 				}
 			}
-			defer { db.trace() }
-			expectNoDifference(try MergeDuplicatePages.run(in: db), [.init(loser: loser.id, keeper: keeper.id)])
-			#expect((1...2).contains(pageReads.count))
+			let small = try mergeSteps()
+			try Block.find(loser.id).update { $0.mergedInto = #bind(UUID?.none) }.execute(db)
+			try Block.insert { Array(unrelated.dropFirst(32)) }.execute(db)
+			let large = try mergeSteps()
+			#expect(small > 0)
+			#expect(large < small * 24)
 		}
 	}
 
@@ -280,45 +195,59 @@ extension Tests.MergeDuplicatePagesTest {
 		}
 	}
 
-	@Test("Redirect children move in batches with bounded rank reads", arguments: [false, true])
+	@Test("Redirect children retain order with linear work", arguments: [false, true])
 	func batchRedirectChildren(requiresRepair: Bool) throws {
 		try database.write { db in
-			let first = Block(id: UUID(1), title: "First Page")
-			let second = Block(id: UUID(2), title: "Second Page")
-			let alias = Block(id: UUID(3), title: first.title, mergedInto: first.id)
-			let olderAlias = Block(id: UUID(4), title: first.title, mergedInto: alias.id)
-			let otherAlias = Block(id: UUID(5), title: second.title, mergedInto: second.id)
-			let existing = Block(id: UUID(6), string: "Existing", parentId: first.id,
-				order: requiresRepair ? Int.max - ParagraphOrder.gap : 10 * ParagraphOrder.gap)
-			let moved = (0 ..< 40).map { index in
-				Block(id: UUID(100 + index), string: "Moved \(index)",
-					parentId: index < 20 ? alias.id : olderAlias.id, order: index / 2,
-					deletedAt: index == 7 ? Date(timeIntervalSince1970: 100) : nil)
-			}
-			let nested = Block(id: UUID(200), string: "Nested", parentId: moved[0].id, order: 0)
-			let other = Block(id: UUID(201), string: "Other", parentId: otherAlias.id, order: 0)
-			try Block.insert { [first, second, alias, olderAlias, otherAlias, existing] + moved + [nested, other] }.execute(db)
-			var rankReads = 0
-			db.trace(options: .profile) { event in
-				if case let .profile(statement, _) = event,
-				   statement.sql.hasPrefix("SELECT \"blocks\".\"order\"") {
-					rankReads += 1
+			var steps: [Int] = []
+			for childCount in [16, 128] {
+				try db.inSavepoint {
+					let first = Block(id: UUID(1), title: "First Page")
+					let second = Block(id: UUID(2), title: "Second Page")
+					let alias = Block(id: UUID(3), title: first.title, mergedInto: first.id)
+					let olderAlias = Block(id: UUID(4), title: first.title, mergedInto: alias.id)
+					let otherAlias = Block(id: UUID(5), title: second.title, mergedInto: second.id)
+					let existing = Block(id: UUID(6), string: "Existing", parentId: first.id,
+						order: requiresRepair ? Int.max - ParagraphOrder.gap : 10 * ParagraphOrder.gap)
+					let moved = (0 ..< childCount).map { index in
+						Block(id: UUID(100 + index), string: "Moved \(index)",
+							parentId: index < childCount / 2 ? alias.id : olderAlias.id, order: index / 2,
+							deletedAt: index == 7 ? Date(timeIntervalSince1970: 100) : nil)
+					}
+					let nested = Block(id: UUID(1000), string: "Nested", parentId: moved[0].id, order: 0)
+					let other = Block(id: UUID(1001), string: "Other", parentId: otherAlias.id, order: 0)
+					try Block.insert { [first, second, alias, olderAlias, otherAlias, existing] + moved + [nested, other] }.execute(db)
+					steps.append(try measuredSteps(in: db) {
+						expectNoDifference(try MergeDuplicatePages.run(in: db), [])
+					})
+					expectNoDifference(try Block.where { $0.parentId.eq(first.id) }.order { ($0.order, $0.id) }.select(\.id).fetchAll(db),
+						[existing.id] + moved.map(\.id))
+					#expect(try Block.find(moved[7].id).fetchOne(db)?.deletedAt == moved[7].deletedAt)
+					#expect(try Paragraph.find(moved[7].id).fetchOne(db) == nil)
+					#expect(try Paragraph.find(nested.id).fetchOne(db)?.parentId == moved[0].id)
+					#expect(try Paragraph.find(nested.id).fetchOne(db)?.pageId == first.id)
+					#expect(try Block.find(other.id).fetchOne(db)?.parentId == second.id)
+					#expect(try !MergeDuplicatePages.hasPendingWork(in: db))
+					let changes = db.totalChangesCount
+					expectNoDifference(try MergeDuplicatePages.run(in: db), [])
+					#expect(db.totalChangesCount == changes)
+					return .rollback
 				}
 			}
-			defer { db.trace() }
-			expectNoDifference(try MergeDuplicatePages.run(in: db), [])
-			#expect((1...5).contains(rankReads))
-			expectNoDifference(try Block.where { $0.parentId.eq(first.id) }.order { ($0.order, $0.id) }.select(\.id).fetchAll(db),
-				[existing.id] + moved.map(\.id))
-			#expect(try Block.find(moved[7].id).fetchOne(db)?.deletedAt == moved[7].deletedAt)
-			#expect(try Paragraph.find(moved[7].id).fetchOne(db) == nil)
-			#expect(try Paragraph.find(nested.id).fetchOne(db)?.parentId == moved[0].id)
-			#expect(try Paragraph.find(nested.id).fetchOne(db)?.pageId == first.id)
-			#expect(try Block.find(other.id).fetchOne(db)?.parentId == second.id)
-			#expect(try !MergeDuplicatePages.hasPendingWork(in: db))
-			let changes = db.totalChangesCount
-			expectNoDifference(try MergeDuplicatePages.run(in: db), [])
-			#expect(db.totalChangesCount == changes)
+			#expect(steps[0] > 0)
+			#expect(steps[1] < steps[0] * 16)
 		}
 	}
+}
+
+private func measuredSteps(in db: Database, operation: () throws -> Void) rethrows -> Int {
+	var steps = 0
+	try withUnsafeMutablePointer(to: &steps) { counter in
+		sqlite3_progress_handler(db.sqliteConnection, 1, { context in
+			context!.assumingMemoryBound(to: Int.self).pointee += 1
+			return 0
+		}, counter)
+		defer { sqlite3_progress_handler(db.sqliteConnection, 0, nil, nil) }
+		try operation()
+	}
+	return steps
 }

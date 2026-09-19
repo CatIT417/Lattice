@@ -1,7 +1,6 @@
 import Testing
 import CustomDump
 import InlineSnapshotTesting
-import SnapshotTestingCustomDump
 
 #if canImport(UIKit)
 import UIKit
@@ -59,82 +58,6 @@ extension Tests.AttributedStringBuilderTest {
 		expectNoDifference(rendered, "Start Page One middle #tag and #On Plex then \(uuid) end.")
 		let mapping = try #require(result.indexMapping)
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Start {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}Page One{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "lattice://page/Page%20One";
-			} middle {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}#tag{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "lattice://tag/tag";
-			} and {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}#On Plex{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "lattice://tag/On%20Plex";
-			} then {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E";
-			} end.{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Start {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}Page One{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://page/Page%20One";
-			} middle {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}#tag{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://tag/tag";
-			} and {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}#On Plex{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://tag/On%20Plex";
-			} then {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E";
-			} end.{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
 		let starts = [(rendered: 6, raw: 8, length: 8), (rendered: 23, raw: 27, length: 3), (rendered: 32, raw: 38, length: 7), (rendered: 45, raw: 55, length: 36)]
 		for start in starts {
 			expectNoDifference(mapping.rawIndex(fromRendered: start.rendered), start.raw)
@@ -144,25 +67,39 @@ extension Tests.AttributedStringBuilderTest {
 		expectNoDifference(mapping.rawIndex(fromRendered: -1), 0)
 		expectNoDifference(mapping.rawIndex(fromRendered: rendered.utf16.count), text.utf16.count)
 		expectNoDifference(mapping.rawIndex(fromRendered: rendered.utf16.count + 5), text.utf16.count)
-	}
-
-	@Test("buildAttributedString renders bold text")
-	func buildAttributedStringRendersBoldText() throws {
-		let text = "Hello **world**!"
-		let result = buildAttributedString(from: text, font: testFont)
-
-		expectNoDifference(result.attributedString.string, "Hello world!")
 
 		#if os(macOS)
 		assertInlineSnapshot(of: result.attributedString, as: .raw) {
 			#"""
-			Hello {
+			Start {
 			    NSColor = "Catalog color: System labelColor";
 			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}world{
+			}Page One{
+			    NSColor = "Catalog color: System systemBlueColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			    NSLink = "lattice://page/Page%20One";
+			} middle {
 			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			}!{
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			}#tag{
+			    NSColor = "Catalog color: System systemBlueColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			    NSLink = "lattice://tag/tag";
+			} and {
+			    NSColor = "Catalog color: System labelColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			}#On Plex{
+			    NSColor = "Catalog color: System systemBlueColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			    NSLink = "lattice://tag/On%20Plex";
+			} then {
+			    NSColor = "Catalog color: System labelColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			}A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E{
+			    NSColor = "Catalog color: System systemBlueColor";
+			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+			    NSLink = "lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E";
+			} end.{
 			    NSColor = "Catalog color: System labelColor";
 			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
 			}
@@ -171,91 +108,52 @@ extension Tests.AttributedStringBuilderTest {
 		#else
 		assertInlineSnapshot(of: result.attributedString, as: .raw) {
 			#"""
-			Hello {
+			Start {
 			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
 			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}world{
+			}Page One{
+			    NSColor = "<UITintColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			    NSLink = "lattice://page/Page%20One";
+			} middle {
 			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			}!{
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			}#tag{
+			    NSColor = "<UITintColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			    NSLink = "lattice://tag/tag";
+			} and {
+			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			}#On Plex{
+			    NSColor = "<UITintColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			    NSLink = "lattice://tag/On%20Plex";
+			} then {
+			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			}A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E{
+			    NSColor = "<UITintColor>";
+			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			    NSLink = "lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E";
+			} end.{
 			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
 			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
 			}
 			"""#
 		}
 		#endif
-
-		var hasBoldTrait = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 6, length: 5)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasBoldTrait = font.fontDescriptor.symbolicTraits.contains(.traitBold)
-				#else
-				hasBoldTrait = font.fontDescriptor.symbolicTraits.contains(.bold)
-				#endif
-			}
-		}
-		#expect(hasBoldTrait)
-
-		let mapping = try #require(result.indexMapping)
-		// 'w' in rendered (index 6) should map to raw index 8 (after "Hello **")
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 8)
 	}
 
-	@Test("buildAttributedString renders italic text")
-	func buildAttributedStringRendersItalicText() throws {
-		let text = "Hello *world*!"
-		let result = buildAttributedString(from: text, font: testFont)
-
+	@Test("Formatting applies only to its text range", arguments: [("**", true, false, 8), ("*", false, true, 7)])
+	func renderedStyle(marker: String, bold: Bool, italic: Bool, rawStart: Int) throws {
+		let result = buildAttributedString(from: "Hello \(marker)world\(marker)!", font: testFont)
 		expectNoDifference(result.attributedString.string, "Hello world!")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Hello {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}world{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-RegularItalic 13.00 pt. P [] () fobj=, spc=3.59\"";
-			}!{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Hello {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}world{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-RegularItalic\"; font-weight: normal; font-style: italic; font-size: 13.00pt";
-			}!{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		var hasItalicTrait = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 6, length: 5)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasItalicTrait = font.fontDescriptor.symbolicTraits.contains(.traitItalic)
-				#else
-				hasItalicTrait = font.fontDescriptor.symbolicTraits.contains(.italic)
-				#endif
-			}
-		}
-		#expect(hasItalicTrait)
-
+		try expectAttributes(result.attributedString, range: 0..<6)
+		try expectAttributes(result.attributedString, range: 6..<11, bold: bold, italic: italic)
+		try expectAttributes(result.attributedString, range: 11..<12)
 		let mapping = try #require(result.indexMapping)
-		// 'w' in rendered (index 6) should map to raw index 7 (after "Hello *")
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 7)
+		expectNoDifference(mapping.rawIndex(fromRendered: 6), rawStart)
 	}
 
 	@Test("buildAttributedString renders inline code with monospace font")
@@ -298,6 +196,10 @@ extension Tests.AttributedStringBuilderTest {
 			"""#
 		}
 		#endif
+		try expectAttributes(result.attributedString, range: 0..<4)
+		try expectAttributes(result.attributedString, range: 4..<14, monospaced: true, background: codeBackground)
+		try expectAttributes(result.attributedString, range: 14..<19)
+
 	}
 
 	@Test("buildAttributedString does not parse refs inside code spans")
@@ -307,45 +209,10 @@ extension Tests.AttributedStringBuilderTest {
 
 		expectNoDifference(result.attributedString.string, "Link [[Not a link]] after")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Link {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}[[Not a link]]{
-			    NSBackgroundColor = "Catalog color: System unemphasizedSelectedContentBackgroundColor";
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFontMonospaced-Regular 13.00 pt. P [] () fobj=, spc=8.04\"";
-			} after{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Link {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}[[Not a link]]{
-			    NSBackgroundColor = "<UIDynamicSystemColor; name = secondarySystemFillColor>";
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".AppleSystemUIFontMonospaced-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			} after{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<5)
+		try expectAttributes(result.attributedString, range: 5..<19, monospaced: true, background: codeBackground)
+		try expectAttributes(result.attributedString, range: 19..<25)
 
-		var hasLink = false
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
-			if value != nil { hasLink = true }
-		}
-		#expect(!hasLink)
 	}
 
 	@Test("buildAttributedString renders highlight with yellow background")
@@ -388,560 +255,155 @@ extension Tests.AttributedStringBuilderTest {
 			"""#
 		}
 		#endif
+		try expectAttributes(result.attributedString, range: 0..<8)
+		try expectAttributes(result.attributedString, range: 8..<19, background: .systemYellow.withAlphaComponent(0.3))
+		try expectAttributes(result.attributedString, range: 19..<24)
 
-		// Check that highlighted portion has background color
-		var hasBackgroundColor = false
-		result.attributedString.enumerateAttribute(.backgroundColor, in: NSRange(location: 8, length: 11)) { value, _, _ in
-			if value != nil { hasBackgroundColor = true }
-		}
-		#expect(hasBackgroundColor)
 	}
 
-	@Test("buildAttributedString handles nested bold and page link")
-	func buildAttributedStringHandlesNestedBoldAndPageLink() throws {
-		let text = "Check **[[Page]]** out"
+	@Test("Nested references retain inherited styles and cursor offsets", arguments: [false, true])
+	func nestedReferenceStyles(deep: Bool) throws {
+		let text = deep ? "**foo *[[Page]]* bar**" : "Check **[[Page]]** out"
 		let result = buildAttributedString(from: text, font: testFont)
-
-		expectNoDifference(result.attributedString.string, "Check Page out")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Check {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}Page{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "lattice://page/Page";
-			} out{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
+		expectNoDifference(result.attributedString.string, deep ? "foo Page bar" : "Check Page out")
+		let start = deep ? 4 : 6
+		try expectAttributes(result.attributedString, range: 0..<start, bold: deep)
+		try expectAttributes(result.attributedString, range: start..<(start + 4), bold: true, italic: deep, link: "lattice://page/Page")
+		try expectAttributes(result.attributedString, range: (start + 4)..<result.attributedString.length, bold: deep)
+		let mapping = try #require(result.indexMapping)
+		if deep {
+			expectNoDifference([0, 4, 7, 8].map { mapping.rawIndex(fromRendered: $0) }, [2, 9, 12, 16])
+			#if os(macOS)
+			assertInlineSnapshot(of: result.attributedString, as: .raw) {
+				#"""
+				foo {
+				    NSColor = "Catalog color: System labelColor";
+				    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
+				}Page{
+				    NSColor = "Catalog color: System systemBlueColor";
+				    NSFont = "\".SFNS-BoldItalic 13.00 pt. P [] () fobj=, spc=3.28\"";
+				    NSLink = "lattice://page/Page";
+				} bar{
+				    NSColor = "Catalog color: System labelColor";
+				    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
+				}
+				"""#
 			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Check {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}Page{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://page/Page";
-			} out{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
+			#else
+			assertInlineSnapshot(of: result.attributedString, as: .raw) {
+				#"""
+				foo {
+				    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
+				    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
+				}Page{
+				    NSColor = "<UITintColor>";
+				    NSFont = "<UICTFont> font-family: \".SFUI-SemiboldItalic\"; font-weight: bold; font-style: italic; font-size: 13.00pt";
+				    NSLink = "lattice://page/Page";
+				} bar{
+				    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
+				    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
+				}
+				"""#
 			}
-			"""#
+			#endif
+		} else {
+			expectNoDifference(mapping.rawIndex(fromRendered: 6), 10)
 		}
-		#endif
-
-		// Check that "Page" has both bold font and link attributes
-		var foundBoldLink = false
-		result.attributedString.enumerateAttributes(in: NSRange(location: 6, length: 4)) { attrs, _, _ in
-			let font = attrs[.font] as? PlatformFont
-			let link = attrs[.link] as? URL
-			if font != nil, link != nil {
-				#if canImport(UIKit)
-				let isBold = font!.fontDescriptor.symbolicTraits.contains(.traitBold)
-				#else
-				let isBold = font!.fontDescriptor.symbolicTraits.contains(.bold)
-				#endif
-				foundBoldLink = isBold && link!.absoluteString == "lattice://page/Page"
-			}
-		}
-		#expect(foundBoldLink)
 	}
 
 	@Test("buildAttributedString correctly maps cursor positions for markdown links")
 	func buildAttributedStringCorrectlyMapsCursorPositionsForMarkdownLinks() throws {
-		// Raw: "Visit [my site](https://example.com) today"
-		//       0     6      14 15                35 36
-		// The link text "my site" starts at raw index 7 (after "Visit [")
-		// The ")" is at raw index 35, space is at 36, "today" starts at 37
 		let text = "Visit [my site](https://example.com) today"
 		let result = buildAttributedString(from: text, font: testFont)
 
-		// Rendered: "Visit my site today"
-		//           0     6     12 13
-		// "my site" occupies rendered indices 6-12
 		expectNoDifference(result.attributedString.string, "Visit my site today")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Visit {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}my site{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "https://example.com";
-			} today{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Visit {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}my site{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			} today{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<6)
+		try expectAttributes(result.attributedString, range: 6..<13, link: "https://example.com")
+		try expectAttributes(result.attributedString, range: 13..<19)
 
 		let mapping = try #require(result.indexMapping)
 
-		// 'm' at rendered index 6 should map to raw index 7 (after "Visit [")
 		expectNoDifference(mapping.rawIndex(fromRendered: 6), 7)
-		// 'y' at rendered index 7 should map to raw index 8
 		expectNoDifference(mapping.rawIndex(fromRendered: 7), 8)
-		// 'e' at rendered index 12 (last char of "my site") should map to raw index 13
 		expectNoDifference(mapping.rawIndex(fromRendered: 12), 13)
-		// ' ' at rendered index 13 (after link) should map to raw index 36 (the space after ")")
 		expectNoDifference(mapping.rawIndex(fromRendered: 13), 36)
-		// 't' at rendered index 14 should map to raw index 37
 		expectNoDifference(mapping.rawIndex(fromRendered: 14), 37)
 	}
 
-	@Test("buildAttributedString recurses into deeply nested formatted spans")
-	func buildAttributedStringRecursesIntoDeeplyNestedFormattedSpans() throws {
-		// **foo *[[Page]]* bar** should render bold "foo " + bold+italic link "Page" + bold " bar"
-		// Raw:      **foo *[[Page]]* bar**
-		// Indices:  01 234 5 67    1314 15 16   2021
-		let text = "**foo *[[Page]]* bar**"
-		let result = buildAttributedString(from: text, font: testFont)
-
-		// Rendered should strip all delimiters
-		expectNoDifference(result.attributedString.string, "foo Page bar")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			foo {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			}Page{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-BoldItalic 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "lattice://page/Page";
-			} bar{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			foo {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			}Page{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-SemiboldItalic\"; font-weight: bold; font-style: italic; font-size: 13.00pt";
-			    NSLink = "lattice://page/Page";
-			} bar{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		// "Page" (rendered indices 4-7) should have a link
-		var linkURL: URL?
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 4, length: 4)) { value, _, _ in
-			linkURL = value as? URL
-		}
-		expectNoDifference(linkURL?.absoluteString, "lattice://page/Page")
-
-		// "Page" should have both bold and italic traits
-		var hasBold = false
-		var hasItalic = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 4, length: 4)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.traitBold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.traitItalic)
-				#else
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.bold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
-				#endif
-			}
-		}
-		#expect(hasBold)
-		#expect(hasItalic)
-
-		// Cursor mappings
-		let mapping = try #require(result.indexMapping)
-		// 'f' at rendered 0 -> raw 2 (after **)
-		expectNoDifference(mapping.rawIndex(fromRendered: 0), 2)
-		// 'P' at rendered 4 -> raw 9 (after **foo *[[)
-		expectNoDifference(mapping.rawIndex(fromRendered: 4), 9)
-		// 'e' at rendered 7 -> raw 12
-		expectNoDifference(mapping.rawIndex(fromRendered: 7), 12)
-		// ' ' at rendered 8 -> raw 16 (after ]]*)
-		expectNoDifference(mapping.rawIndex(fromRendered: 8), 16)
-	}
-
 	@Test("buildAttributedString does not parse intraword underscores as italic")
-	func buildAttributedStringDoesNotParseIntrawordUnderscores() {
+	func buildAttributedStringDoesNotParseIntrawordUnderscores() throws {
 		let text = "foo_bar_baz"
 		let result = buildAttributedString(from: text, font: testFont)
 
-		// Should render as-is, underscores preserved
 		expectNoDifference(result.attributedString.string, "foo_bar_baz")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			foo_bar_baz{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			foo_bar_baz{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<11)
+
 	}
 
 	@Test("buildAttributedString correctly maps cursor for formatted text inside markdown links")
 	func buildAttributedStringCorrectlyMapsCursorForFormattedMarkdownLinks() throws {
-		// Raw: "[**bold**](https://example.com)"
-		//       0 12    78 9
-		// Content "**bold**" is parsed as Bold(content: "bold")
-		// Rendered: "bold" with link + bold
 		let text = "[**bold**](https://example.com)"
 		let result = buildAttributedString(from: text, font: testFont)
 
 		expectNoDifference(result.attributedString.string, "bold")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			bold{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			bold{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#endif
-
-		// "bold" should have bold font trait
-		var hasBold = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 0, length: 4)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.traitBold)
-				#else
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.bold)
-				#endif
-			}
-		}
-		#expect(hasBold)
+		try expectAttributes(result.attributedString, range: 0..<4, bold: true, link: "https://example.com")
 
 		let mapping = try #require(result.indexMapping)
-		// 'b' at rendered 0 -> raw 3 (after "[**")
 		expectNoDifference(mapping.rawIndex(fromRendered: 0), 3)
-		// 'o' at rendered 1 -> raw 4
 		expectNoDifference(mapping.rawIndex(fromRendered: 1), 4)
-		// 'd' at rendered 3 -> raw 6
 		expectNoDifference(mapping.rawIndex(fromRendered: 3), 6)
 	}
 
-	@Test("buildAttributedString renders italic containing nested bold without leftover markers")
-	func buildAttributedStringRendersItalicContainingNestedBold() throws {
-		// *See **bold** text* — italic wrapping bold
-		let text = "*See **bold** text*"
+	@Test("Nested styles preserve both traits without markers", arguments: [
+		("*See **bold** text*", "See bold text", false, true),
+		("**See ***both*** text**", "See both text", true, false),
+	])
+	func nestedStyles(text: String, expected: String, outerBold: Bool, outerItalic: Bool) throws {
 		let result = buildAttributedString(from: text, font: testFont)
-
-		// Should render as "See bold text" with no leftover * characters
-		expectNoDifference(result.attributedString.string, "See bold text")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			See {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-RegularItalic 13.00 pt. P [] () fobj=, spc=3.59\"";
-			}bold{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-BoldItalic 13.00 pt. P [] () fobj=, spc=3.28\"";
-			} text{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-RegularItalic 13.00 pt. P [] () fobj=, spc=3.59\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			See {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-RegularItalic\"; font-weight: normal; font-style: italic; font-size: 13.00pt";
-			}bold{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-SemiboldItalic\"; font-weight: bold; font-style: italic; font-size: 13.00pt";
-			} text{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-RegularItalic\"; font-weight: normal; font-style: italic; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		// "bold" (rendered 4-7) should have both italic and bold
-		var hasBold = false
-		var hasItalic = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 4, length: 4)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.traitBold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.traitItalic)
-				#else
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.bold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
-				#endif
-			}
-		}
-		#expect(hasBold)
-		#expect(hasItalic)
-	}
-
-	@Test("buildAttributedString renders bold containing nested bold-italic without leftover markers")
-	func buildAttributedStringRendersBoldContainingNestedBoldItalic() throws {
-		// **See ***both*** text** — bold wrapping bold-italic
-		let text = "**See ***both*** text**"
-		let result = buildAttributedString(from: text, font: testFont)
-
-		// Should render as "See both text" with no leftover * characters
-		expectNoDifference(result.attributedString.string, "See both text")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			See {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			}both{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-BoldItalic 13.00 pt. P [] () fobj=, spc=3.28\"";
-			} text{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			See {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			}both{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-SemiboldItalic\"; font-weight: bold; font-style: italic; font-size: 13.00pt";
-			} text{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		// "both" (rendered 4-7) should have both bold and italic
-		var hasBold = false
-		var hasItalic = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 4, length: 4)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.traitBold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.traitItalic)
-				#else
-				hasBold = font.fontDescriptor.symbolicTraits.contains(.bold)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
-				#endif
-			}
-		}
-		#expect(hasBold)
-		#expect(hasItalic)
+		expectNoDifference(result.attributedString.string, expected)
+		try expectAttributes(result.attributedString, range: 0..<4, bold: outerBold, italic: outerItalic)
+		try expectAttributes(result.attributedString, range: 4..<8, bold: true, italic: true)
+		try expectAttributes(result.attributedString, range: 8..<13, bold: outerBold, italic: outerItalic)
 	}
 
 	@Test("buildAttributedString recurses into markdown link children inside formatting")
 	func buildAttributedStringRecursesIntoMarkdownLinkChildrenInsideFormatting() throws {
-		// **[italic *x*](https://example.com)** — link with italic child inside bold
 		let text = "**[italic *x*](https://example.com)**"
 		let result = buildAttributedString(from: text, font: testFont)
 
-		// Should render "italic x" (italic delimiters stripped)
 		expectNoDifference(result.attributedString.string, "italic x")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			italic {
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "https://example.com";
-			}x{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-BoldItalic 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			italic {
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			}x{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-SemiboldItalic\"; font-weight: bold; font-style: italic; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<7, bold: true, link: "https://example.com")
+		try expectAttributes(result.attributedString, range: 7..<8, bold: true, italic: true, link: "https://example.com")
 
-		// "x" at rendered index 7 should have italic trait
-		var hasItalic = false
-		result.attributedString.enumerateAttribute(.font, in: NSRange(location: 7, length: 1)) { value, _, _ in
-			if let font = value as? PlatformFont {
-				#if canImport(UIKit)
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.traitItalic)
-				#else
-				hasItalic = font.fontDescriptor.symbolicTraits.contains(.italic)
-				#endif
-			}
-		}
-		#expect(hasItalic)
-
-		// All text should have link attribute
-		var hasLink = false
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
-			if let url = value as? URL {
-				hasLink = url.absoluteString == "https://example.com"
-			}
-		}
-		#expect(hasLink)
 	}
 
 	@Test("buildAttributedString keeps markdown URL when link text contains reference-like syntax")
 	func buildAttributedStringKeepsMarkdownURLForReferenceLabels() throws {
-		// [go #tag](https://example.com) — references aren't parsed inside link text,
-		// so #tag stays as plain text and the whole link points to example.com
 		let text = "[go #tag](https://example.com)"
 		let result = buildAttributedString(from: text, font: testFont)
 
-		// Rendered: "go #tag" (no reference parsing inside link text)
 		expectNoDifference(result.attributedString.string, "go #tag")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			go #tag{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			go #tag{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "https://example.com";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<7, link: "https://example.com")
 
-		// ALL link attributes should point to the markdown URL
-		var allLinkURLs: [URL] = []
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
-			if let url = value as? URL {
-				allLinkURLs.append(url)
-			}
-		}
-
-		expectNoDifference(allLinkURLs, [URL(string: "https://example.com")!])
 	}
 
-	@Test("buildAttributedString renders nested tags with # prefix")
-	func buildAttributedStringRendersNestedTagsWithPrefix() throws {
-		// **#tag** — tag inside bold should render with # prefix
-		let text = "**#tag**"
+	@Test("Nested tags retain their prefix, URL, and cursor offsets", arguments: [
+		("**#tag**", "#tag", 0, 4, "lattice://tag/tag", [0, 1, 3], [2, 3, 5]),
+		("Bold **#[[My Tag]]** end", "Bold #My Tag end", 5, 12, "lattice://tag/My%20Tag", [5, 6, 7, 11], [7, 10, 11, 15]),
+	])
+	func nestedTags(text: String, expected: String, start: Int, end: Int, url: String, rendered: [Int], raw: [Int]) throws {
 		let result = buildAttributedString(from: text, font: testFont)
-
-		// Should include the # prefix, just like a top-level tag
-		expectNoDifference(result.attributedString.string, "#tag")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			#tag{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "lattice://tag/tag";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			#tag{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://tag/tag";
-			}
-			"""#
-		}
-		#endif
-
-		// Should have a link attribute
-		var hasLink = false
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
-			if value is URL { hasLink = true }
-		}
-		#expect(hasLink)
+		expectNoDifference(result.attributedString.string, expected)
+		try expectAttributes(result.attributedString, range: 0..<start)
+		try expectAttributes(result.attributedString, range: start..<end, bold: true, link: url)
+		try expectAttributes(result.attributedString, range: end..<result.attributedString.length)
+		let mapping = try #require(result.indexMapping)
+		expectNoDifference(rendered.map { mapping.rawIndex(fromRendered: $0) }, raw)
 	}
 
 	@Test("buildAttributedString maps cursor positions in UTF-16 when text contains emoji and references")
@@ -958,96 +420,12 @@ extension Tests.AttributedStringBuilderTest {
 		expectNoDifference(result.attributedString.string, "Hello 🎉 World!")
 
 		let mapping = try #require(result.indexMapping)
-		assertInlineSnapshot(of: mapping, as: .customDump) {
-			"""
-			AttributedStringResult.IndexMapping(
-			  renderedToRaw: [
-			    [0]: 0,
-			    [1]: 1,
-			    [2]: 2,
-			    [3]: 3,
-			    [4]: 4,
-			    [5]: 5,
-			    [6]: 6,
-			    [7]: 7,
-			    [8]: 8,
-			    [9]: 11,
-			    [10]: 12,
-			    [11]: 13,
-			    [12]: 14,
-			    [13]: 15,
-			    [14]: 18,
-			    [15]: 19
-			  ]
-			)
-			"""
-		}
 
 		expectNoDifference((0...15).map { mapping.rawIndex(fromRendered: $0) }, [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19])
 		expectNoDifference(mapping.rawIndex(fromRendered: -1), 0)
 		expectNoDifference(mapping.rawIndex(fromRendered: 100), 19)
 		expectNoDifference(mapping.transform(range: NSRange(location: 9, length: 5), maxLength: 19), NSRange(location: 11, length: 7))
 		expectNoDifference(mapping.transform(range: NSRange(location: 14, length: 5), maxLength: 18), NSRange(location: 18, length: 0))
-	}
-
-	@Test("buildAttributedString correctly maps cursor for bracketed tags inside formatting")
-	func buildAttributedStringCorrectlyMapsCursorForBracketedTagsInsideFormatting() throws {
-		// Raw: "Bold **#[[My Tag]]** end"
-		//       0    56 8   12     1819 21
-		// The bold content is "#[[My Tag]]" starting at raw index 7
-		// The tag "#[[My Tag]]" has bracket offset 3 (for "#[["), prefix "#"
-		// Rendered: "Bold #My Tag end" — prefix "#" maps to raw 7, "My Tag" maps to raw 10+
-		let text = "Bold **#[[My Tag]]** end"
-		let result = buildAttributedString(from: text, font: testFont)
-
-		// Rendered: "Bold #My Tag end"
-		//           0    56       12
-		expectNoDifference(result.attributedString.string, "Bold #My Tag end")
-
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Bold {
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}#My Tag{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".SFNS-Bold 13.00 pt. P [] () fobj=, spc=3.28\"";
-			    NSLink = "lattice://tag/My%20Tag";
-			} end{
-			    NSColor = "Catalog color: System labelColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			Bold {
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}#My Tag{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Semibold\"; font-weight: bold; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://tag/My%20Tag";
-			} end{
-			    NSColor = "<UIDynamicCatalogSystemColor; name = labelColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			}
-			"""#
-		}
-		#endif
-
-		let mapping = try #require(result.indexMapping)
-
-		// '#' at rendered index 5 should map to raw index 7 (after "Bold **")
-		expectNoDifference(mapping.rawIndex(fromRendered: 5), 7)
-		// 'M' at rendered index 6 should map to raw index 10 (after "Bold **#[[")
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 10)
-		// 'y' at rendered index 7 should map to raw index 11
-		expectNoDifference(mapping.rawIndex(fromRendered: 7), 11)
-		// 'g' at rendered index 11 (last char of "My Tag") should map to raw index 15
-		expectNoDifference(mapping.rawIndex(fromRendered: 11), 15)
 	}
 
 	@Test("buildAttributedString renders markdown link with internal page destination")
@@ -1057,135 +435,26 @@ extension Tests.AttributedStringBuilderTest {
 
 		expectNoDifference(result.attributedString.string, "custom text")
 
-		#if os(macOS)
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			custom text{
-			    NSColor = "Catalog color: System systemBlueColor";
-			    NSFont = "\".AppleSystemUIFont 13.00 pt. P [] () fobj=, spc=3.58\"";
-			    NSLink = "lattice://page/Page";
-			}
-			"""#
-		}
-		#else
-		assertInlineSnapshot(of: result.attributedString, as: .raw) {
-			#"""
-			custom text{
-			    NSColor = "<UITintColor>";
-			    NSFont = "<UICTFont> font-family: \".SFUI-Regular\"; font-weight: normal; font-style: normal; font-size: 13.00pt";
-			    NSLink = "lattice://page/Page";
-			}
-			"""#
-		}
-		#endif
+		try expectAttributes(result.attributedString, range: 0..<11, link: "lattice://page/Page")
 
-		// Should have a link attribute pointing to lattice://page/Page
-		var linkURL: URL?
-		result.attributedString.enumerateAttribute(.link, in: NSRange(location: 0, length: result.attributedString.length)) { value, _, _ in
-			linkURL = value as? URL
-		}
-		expectNoDifference(linkURL?.absoluteString, "lattice://page/Page")
-
-		// Cursor mapping: rendered positions map within [custom text], gap skips over ]([[Page]])
 		let mapping = try #require(result.indexMapping)
-		// 'c' at rendered 0 -> raw 1 (after "[")
 		expectNoDifference(mapping.rawIndex(fromRendered: 0), 1)
-		// 't' at rendered 7 -> raw 8
 		expectNoDifference(mapping.rawIndex(fromRendered: 7), 8)
-		// 't' at rendered 10 (last char of "custom text") -> raw 11
 		expectNoDifference(mapping.rawIndex(fromRendered: 10), 11)
-		// End position: rendered length 11 -> raw length 23 (full text)
 		expectNoDifference(mapping.rawIndex(fromRendered: 11), 23)
 	}
 
-	@Test("buildAttributedString with rawStartOffset shifts index mapping for plain text")
-	func buildAttributedStringWithRawStartOffsetPlainText() throws {
-		// Plain text (no markup characters) — exercises the fast path in plainAttributedResult
-		let text = "Plain text"
-		let offset = 42
+	@Test("Raw offsets apply to plain, invalid, formatted, and reference text", arguments: [
+		("Plain text", "Plain text", 42, [0, 5, 10], [42, 47, 52]),
+		("A single * star", "A single * star", 10, [0, 9, 15], [10, 19, 25]),
+		("Hello **world**!", "Hello world!", 20, [0, 5, 6, 10, 11, 12], [20, 25, 28, 32, 35, 36]),
+		("Go [[Home]]!", "Go Home!", 50, [0, 2, 3, 6, 7, 8], [50, 52, 55, 58, 61, 62]),
+	])
+	func rawStartOffset(text: String, expected: String, offset: Int, rendered: [Int], raw: [Int]) throws {
 		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
-
-		expectNoDifference(result.attributedString.string, "Plain text")
-
-		// With offset > 0, we should get an index mapping (unlike offset == 0 which returns nil)
+		expectNoDifference(result.attributedString.string, expected)
 		let mapping = try #require(result.indexMapping)
-
-		// Each rendered position should map to itself + offset
-		expectNoDifference(mapping.rawIndex(fromRendered: 0), offset)
-		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5 + offset)
-		// End position
-		expectNoDifference(mapping.rawIndex(fromRendered: text.utf16.count), text.utf16.count + offset)
-	}
-
-	@Test("buildAttributedString with rawStartOffset shifts index mapping when markup chars present but no valid syntax")
-	func buildAttributedStringWithRawStartOffsetInvalidMarkup() throws {
-		// Contains markup characters (*) but they don't form valid syntax — still takes the plain path
-		let text = "A single * star"
-		let offset = 10
-		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
-
-		expectNoDifference(result.attributedString.string, "A single * star")
-
-		let mapping = try #require(result.indexMapping)
-		expectNoDifference(mapping.rawIndex(fromRendered: 0), offset)
-		expectNoDifference(mapping.rawIndex(fromRendered: 9), 9 + offset)
-		expectNoDifference(mapping.rawIndex(fromRendered: text.utf16.count), text.utf16.count + offset)
-	}
-
-	@Test("buildAttributedString with rawStartOffset shifts index mapping for formatted text")
-	func buildAttributedStringWithRawStartOffsetFormatted() throws {
-		// Text with actual formatting — exercises the main render path with offset
-		// Raw: "Hello **world**!"
-		//       0     67     1314 15
-		// Rendered: "Hello world!"
-		//           0     6     11
-		let text = "Hello **world**!"
-		let offset = 20
-		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
-
-		expectNoDifference(result.attributedString.string, "Hello world!")
-
-		let mapping = try #require(result.indexMapping)
-		// 'H' at rendered 0 -> raw 0 + offset = 20
-		expectNoDifference(mapping.rawIndex(fromRendered: 0), 0 + offset)
-		// ' ' at rendered 5 -> raw 5 + offset = 25
-		expectNoDifference(mapping.rawIndex(fromRendered: 5), 5 + offset)
-		// 'w' at rendered 6 -> raw 8 + offset = 28 (after "Hello **")
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 8 + offset)
-		// 'd' at rendered 10 -> raw 12 + offset = 32
-		expectNoDifference(mapping.rawIndex(fromRendered: 10), 12 + offset)
-		// '!' at rendered 11 -> raw 15 + offset = 35 (after "**")
-		expectNoDifference(mapping.rawIndex(fromRendered: 11), 15 + offset)
-		// End position: rendered length 12 -> raw length 16 + offset = 36
-		expectNoDifference(mapping.rawIndex(fromRendered: 12), 16 + offset)
-	}
-
-	@Test("buildAttributedString with rawStartOffset shifts index mapping for references")
-	func buildAttributedStringWithRawStartOffsetReferences() throws {
-		// Text with a page link — exercises reference rendering with offset
-		// Raw: "Go [[Home]]!"
-		//       01 234    910 11
-		// Rendered: "Go Home!"
-		//           01 2345 67
-		let text = "Go [[Home]]!"
-		let offset = 50
-		let result = buildAttributedString(from: text, font: testFont, rawStartOffset: offset)
-
-		expectNoDifference(result.attributedString.string, "Go Home!")
-
-		let mapping = try #require(result.indexMapping)
-		// 'G' at rendered 0 -> raw 0 + offset = 50
-		expectNoDifference(mapping.rawIndex(fromRendered: 0), 0 + offset)
-		// ' ' at rendered 2 -> raw 2 + offset = 52
-		expectNoDifference(mapping.rawIndex(fromRendered: 2), 2 + offset)
-		// 'H' at rendered 3 -> raw 5 + offset = 55 (after "Go [[")
-		expectNoDifference(mapping.rawIndex(fromRendered: 3), 5 + offset)
-		// 'e' at rendered 6 -> raw 8 + offset = 58
-		expectNoDifference(mapping.rawIndex(fromRendered: 6), 8 + offset)
-		// '!' at rendered 7 -> raw 11 + offset = 61 (after "]]")
-		expectNoDifference(mapping.rawIndex(fromRendered: 7), 11 + offset)
-		// End position
-		expectNoDifference(mapping.rawIndex(fromRendered: 8), 12 + offset)
+		expectNoDifference(rendered.map { mapping.rawIndex(fromRendered: $0) }, raw)
 	}
 
 	@Test("buildAttributedString uses smaller font for embed links")
@@ -1249,38 +518,43 @@ extension Tests.AttributedStringBuilderTest {
 		#expect(attachment.image === image)
 		expectNoDifference(result.attributedString.attribute(.link, at: 3, effectiveRange: nil) as? URL, url)
 		expectNoDifference(result.attributedString.attribute(.link, at: 4, effectiveRange: nil) as? URL, url)
-		assertInlineSnapshot(of: try #require(result.indexMapping), as: .customDump) {
-			"""
-			AttributedStringResult.IndexMapping(
-			  renderedToRaw: [
-			    [0]: 0,
-			    [1]: 1,
-			    [2]: 2,
-			    [3]: 3,
-			    [4]: 3,
-			    [5]: 3,
-			    [6]: 4,
-			    [7]: 5,
-			    [8]: 6,
-			    [9]: 7,
-			    [10]: 8,
-			    [11]: 9,
-			    [12]: 10,
-			    [13]: 11,
-			    [14]: 12,
-			    [15]: 13,
-			    [16]: 14,
-			    [17]: 15,
-			    [18]: 16,
-			    [19]: 17,
-			    [20]: 18,
-			    [21]: 19,
-			    [22]: 20,
-			    [23]: 21,
-			    [24]: 22
-			  ]
-			)
-			"""
-		}
+		let mapping = try #require(result.indexMapping)
+		expectNoDifference((0...24).map { mapping.rawIndex(fromRendered: $0) }, [0, 1, 2, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22])
+	}
+}
+
+private var codeBackground: PlatformColor {
+	#if canImport(UIKit)
+	.secondarySystemFill
+	#else
+	.unemphasizedSelectedContentBackgroundColor
+	#endif
+}
+
+private func expectAttributes(
+	_ text: NSAttributedString, range: Range<Int>, bold: Bool = false, italic: Bool = false,
+	monospaced: Bool = false, link: String? = nil, background: PlatformColor? = nil
+) throws {
+	try #require(range.lowerBound >= 0 && range.upperBound <= text.length)
+	for index in range {
+		let attributes = text.attributes(at: index, effectiveRange: nil)
+		let font = try #require(attributes[.font] as? PlatformFont)
+		#if canImport(UIKit)
+		let traits = font.fontDescriptor.symbolicTraits
+		#expect(traits.contains(.traitBold) == bold, "UTF-16 position \(index)")
+		#expect(traits.contains(.traitItalic) == italic, "UTF-16 position \(index)")
+		#expect(traits.contains(.traitMonoSpace) == monospaced, "UTF-16 position \(index)")
+		let foreground: PlatformColor = link == nil ? .label : .tintColor
+		#else
+		let traits = font.fontDescriptor.symbolicTraits
+		#expect(traits.contains(.bold) == bold, "UTF-16 position \(index)")
+		#expect(traits.contains(.italic) == italic, "UTF-16 position \(index)")
+		#expect(traits.contains(.monoSpace) == monospaced, "UTF-16 position \(index)")
+		let foreground: PlatformColor = link == nil ? .labelColor : .systemBlue
+		#endif
+		expectNoDifference(font.pointSize, testFont.pointSize)
+		expectNoDifference(attributes[.foregroundColor] as? PlatformColor, foreground)
+		expectNoDifference(attributes[.backgroundColor] as? PlatformColor, background)
+		expectNoDifference((attributes[.link] as? URL)?.absoluteString, link)
 	}
 }

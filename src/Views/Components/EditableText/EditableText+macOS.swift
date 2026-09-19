@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import DebugSnapshots
 import Dependencies
 
 extension NSTextView {
@@ -147,14 +148,15 @@ struct EditableTextView: NSViewRepresentable {
 }
 
 extension EditableTextView {
+	@DebugSnapshot
 	@MainActor final class Coordinator: NSObject {
-		var parent: EditableTextView
-		weak var textView: NSTextView?
+		@DebugSnapshotIgnored var parent: EditableTextView
+		@DebugSnapshotIgnored weak var textView: NSTextView?
 
 		var isEditing = false
 		var lastKnownText: String
-		var lastKnownFont: NSFont
-		var indexMapping: AttributedStringResult.IndexMapping?
+		@DebugSnapshotIgnored var lastKnownFont: NSFont
+		@DebugSnapshotIgnored var indexMapping: AttributedStringResult.IndexMapping?
 		var pendingFaviconURLs: Set<URL> = []
 		var isReferenceSuggestionSessionActive = false
 		var activateSuggestionsOnNextTextChange = false

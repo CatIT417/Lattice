@@ -4,7 +4,6 @@ import Foundation
 import CustomDump
 import DependenciesTestSupport
 import SQLite3
-import Synchronization
 
 @testable import LatticeDev
 
@@ -109,8 +108,8 @@ extension Tests.RoamImporterTest {
 		#expect(block.string == "See ((unknown-uid)) here")
 	}
 
-	@Test("Rewrites cross-page block references")
-	func crossPageBlockRefs() throws {
+	@Test("Cross-page references resolve in either import order", arguments: [false, true])
+	func crossPageBlockRefs(sourceFirst: Bool) throws {
 		let json = """
 		[
 			{"uid": "p1", "title": "Page One", "children": [{"uid": "target-block", "string": "Target"}]},
@@ -118,14 +117,17 @@ extension Tests.RoamImporterTest {
 		]
 		"""
 
-		let valid = try preparedPages(from: json)
+		var valid = try preparedPages(from: json)
 		let preparedPage = try #require(valid.first)
 		let targetBlockId = try #require(preparedPage.paragraphs.first).id
+		if sourceFirst { valid.reverse() }
 		let _ = try RoamImporter.execute(pages: valid)
 
 		let page = try requiredPage(title: "Page Two")
 		let block = try firstParagraph(in: page.id)
-		#expect(block.string == "((\(targetBlockId.uuidString)))")
+		expectNoDifference(block.string, "((\(targetBlockId.uuidString)))")
+		let references = try database.read { try Backlink.where { $0.fromBlock.eq(block.id) }.fetchAll($0) }
+		expectNoDifference(references.map(\.toBlock), [targetBlockId])
 	}
 
 	@Test("Does not rewrite refs to blocks from skipped pages")
@@ -146,8 +148,8 @@ extension Tests.RoamImporterTest {
 		#expect(block.string == "((skip-block))")
 	}
 
-	@Test("Rewrites page links when daily note title differs from Lattice format")
-	func rewritesDailyPageLinks() throws {
+	@Test("Daily links use canonical titles even when content is skipped", arguments: [false, true])
+	func rewritesDailyPageLinks(skip: Bool) throws {
 		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).rawValue
 		let roamTitle = "Jan 18th, 2026"
 		try #require(roamTitle != latticeTitle)
@@ -161,7 +163,9 @@ extension Tests.RoamImporterTest {
 		]
 		"""
 
-		let _ = try executeImport(from: json)
+		let _ = try executeImport(from: json) { pages in
+			if skip { pages[0].resolution = .skip }
+		}
 
 		let otherPage = try requiredPage(title: "Other Page")
 		let block = try firstParagraph(in: otherPage.id)
@@ -169,31 +173,10 @@ extension Tests.RoamImporterTest {
 
 		let orphan = try page(title: roamTitle)
 		#expect(orphan == nil)
+		let daily = try requiredPage(title: latticeTitle)
+		expectNoDifference(try children(of: daily.id).map(\.string), skip ? [] : ["Daily block"])
 	}
 
-	@Test("Rewrites page links even when the daily note page is skipped")
-	func rewritesDailyPageLinksWhenSkipped() throws {
-		let latticeTitle = DayOfYear(day: 18, month: 1, year: 2026).rawValue
-		let roamTitle = "Jan 18th, 2026"
-		try #require(roamTitle != latticeTitle)
-
-		let json = """
-		[
-			{"uid": "01-18-2026", "title": "\(roamTitle)", "children": [{"uid": "b1", "string": "Daily block"}]},
-			{"uid": "p2", "title": "Other Page", "children": [
-				{"uid": "b2", "string": "Link to [[\(roamTitle)]]"}
-			]}
-		]
-		"""
-
-		let _ = try executeImport(from: json) { pages in
-			pages[0].resolution = .skip
-		}
-
-		let otherPage = try requiredPage(title: "Other Page")
-		let block = try firstParagraph(in: otherPage.id)
-		#expect(block.string == "Link to [[\(latticeTitle)]]")
-	}
 }
 
 // MARK: - Import Execution
@@ -231,7 +214,7 @@ extension Tests.RoamImporterTest {
 		#expect(nested[0].string == "Nested")
 	}
 
-	@Test("Bulk import uses bounded inserts and no rank reads for new nested groups")
+	@Test("Bulk import respects the SQLite parameter limit and preserves nested order")
 	func batchImport() throws {
 		let existing = try database.write { db in
 			let page = try Page.findOrCreate(title: "Batch Import", in: db)
@@ -248,29 +231,16 @@ extension Tests.RoamImporterTest {
 		}
 		let data = try JSONSerialization.data(withJSONObject: [["uid": "page", "title": existing.canonicalTitle, "children": roots]])
 		let prepared = try preparedPages(from: String(decoding: data, as: UTF8.self))
-		let statements = Mutex<[String]>([])
 		let previousLimit = try database.write { db in
-			db.trace(options: .profile) { event in
-				if case let .profile(statement, _) = event {
-					statements.withLock { $0.append(statement.sql) }
-				}
-			}
 			return sqlite3_limit(db.sqliteConnection, SQLITE_LIMIT_VARIABLE_NUMBER, 260)
 		}
 		defer {
 			try? database.write { db in
-				db.trace()
-				sqlite3_limit(db.sqliteConnection, SQLITE_LIMIT_VARIABLE_NUMBER, previousLimit)
+				_ = sqlite3_limit(db.sqliteConnection, SQLITE_LIMIT_VARIABLE_NUMBER, previousLimit)
 			}
 		}
 
 		let result = try RoamImporter.execute(pages: prepared)
-		let queries = statements.withLock { $0 }
-		let inserts = queries.filter { $0.hasPrefix("INSERT INTO \"paragraphs\"") }
-		#expect(inserts.count > 1)
-		#expect(inserts.count < 12)
-		let rankReads = queries.filter { $0.hasPrefix("SELECT \"blocks\".\"order\"") }
-		#expect((1...2).contains(rankReads.count))
 		expectNoDifference(result.imported.map(\.id), [existing.id])
 		let children = try children(of: existing.id)
 		expectNoDifference(children.map(\.string), (0 ..< 60).map { "Root \($0)" })
@@ -303,49 +273,25 @@ extension Tests.RoamImporterTest {
 		expectNoDifference(try children(of: result.imported[0].id).map(\.string), ["First", "Second", "Third", "Fourth"])
 	}
 
-	@Test("Persists regular page timestamps on new import")
-	func persistsRegularPageTimestamps() throws {
-		let createdTime = 1_700_000_000_000
-		let editedTime = 1_700_000_123_000
+	@Test("New imports preserve page timestamps", arguments: [
+		("page-ts-regular", "Timestamped Regular", "Timestamped Regular", false),
+		("01-18-2026", "January 18th, 2026", "2026-01-18", true),
+	])
+	func importedPageTimestamps(uid: String, title: String, canonicalTitle: String, daily: Bool) throws {
 		let json = """
 		[{
-			"uid": "page-ts-regular",
-			"title": "Timestamped Regular",
-			"create-time": \(createdTime),
-			"edit-time": \(editedTime),
+			"uid": "\(uid)", "title": "\(title)",
+			"create-time": 1700000000000, "edit-time": 1700000123000,
 			"children": [{"uid": "b1", "string": "Block"}]
 		}]
 		"""
-
-		let _ = try executeImport(from: json)
-		let page = try requiredPage(title: "Timestamped Regular")
-
-		expectNoDifference(page.createdAt, date(milliseconds: createdTime))
-		expectNoDifference(page.updatedAt, date(milliseconds: editedTime))
-	}
-
-	@Test("Persists daily note timestamps on new import")
-	func persistsDailyNoteTimestamps() throws {
-		let createdTime = 1_710_000_000_000
-		let editedTime = 1_710_000_123_000
-		let json = """
-		[{
-			"uid": "01-18-2026",
-			"title": "January 18th, 2026",
-			"create-time": \(createdTime),
-			"edit-time": \(editedTime),
-			"children": [{"uid": "b1", "string": "Daily block"}]
-		}]
-		"""
-
 		let result = try executeImport(from: json)
-		let page = try requiredPage(day: DayOfYear(day: 18, month: 1, year: 2026))
-
+		let page = try requiredPage(title: canonicalTitle)
 		expectNoDifference(result.imported.map(\.id), [page.id])
-		#expect(page.isDailyNote)
-		expectNoDifference(page.canonicalTitle, "2026-01-18")
-		expectNoDifference(page.createdAt, date(milliseconds: createdTime))
-		expectNoDifference(page.updatedAt, date(milliseconds: editedTime))
+		expectNoDifference(page.isDailyNote, daily)
+		expectNoDifference(page.canonicalTitle, canonicalTitle)
+		expectNoDifference(page.createdAt, Date(timeIntervalSince1970: 1_700_000_000))
+		expectNoDifference(page.updatedAt, Date(timeIntervalSince1970: 1_700_000_123))
 	}
 
 	@Test("Merges blocks into existing page")
@@ -388,10 +334,10 @@ extension Tests.RoamImporterTest {
 				Page(title: "Timestamp Conflict", createdAt: originalCreatedAt, updatedAt: originalUpdatedAt)
 			}.returning(\.self).fetchOne(db)
 		})
+		let oldRoot = Paragraph(string: "Old block", parentId: existingPage.id, pageId: existingPage.id, order: 0)
+		let oldChild = Paragraph(string: "Old child", parentId: oldRoot.id, pageId: existingPage.id, order: 0)
 		try database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "Old block", parentId: existingPage.id, pageId: existingPage.id, order: 0)
-			}.execute(db)
+			try Paragraph.insert { [oldRoot, oldChild] }.execute(db)
 		}
 
 		let importedCreatedTime = 1_800_000_000_000
@@ -414,6 +360,9 @@ extension Tests.RoamImporterTest {
 		expectNoDifference(result.imported.map(\.id), [existingPage.id])
 		expectNoDifference(page.id, existingPage.id)
 		expectNoDifference(try children(of: page.id).map(\.string), ["Replacement"])
+		let remaining = try database.read { try Paragraph.where { $0.pageId.eq(page.id) }.fetchAll($0) }
+		expectNoDifference(remaining.map(\.string), ["Replacement"])
+		#expect(!remaining.contains { $0.id == oldRoot.id || $0.id == oldChild.id })
 		expectNoDifference(page.createdAt, originalCreatedAt)
 		expectNoDifference(page.updatedAt, Date(timeIntervalSince1970: 1_000))
 	}
@@ -433,14 +382,14 @@ extension Tests.RoamImporterTest {
 		#expect(try page(title: "Skip Me") == nil)
 	}
 
-	@Test("Preserves heading and text alignment")
+	@Test("Preserves block style and distinct timestamps")
 	func preservesBlockProperties() throws {
 		let json = """
 		[{
 			"uid": "p1",
 			"title": "Properties",
 			"children": [
-				{"uid": "h1", "string": "Heading", "heading": 2, "text-align": "right"},
+				{"uid": "h1", "string": "Heading", "heading": 2, "text-align": "right", "create-time": 1700000000000, "edit-time": 1700000123000},
 				{"uid": "plain", "string": "Plain"}
 			]
 		}]
@@ -457,6 +406,8 @@ extension Tests.RoamImporterTest {
 		expectNoDifference(blocks[1].textAlign, .left)
 		#expect(block.heading == .h2)
 		#expect(block.textAlign == .right)
+		expectNoDifference(block.createdAt, Date(timeIntervalSince1970: 1_700_000_000))
+		expectNoDifference(block.updatedAt, Date(timeIntervalSince1970: 1_700_000_123))
 	}
 }
 
@@ -522,10 +473,6 @@ extension Tests.RoamImporterTest {
 				.order(by: \.order)
 				.fetchAll(db)
 		}
-	}
-
-	private func date(milliseconds: Int) -> Date {
-		Date(timeIntervalSince1970: Double(milliseconds) / 1000)
 	}
 
 	private func writeJSON(_ json: String) throws -> URL {

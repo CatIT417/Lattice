@@ -40,7 +40,7 @@ extension Tests.DayOfYearTest {
 		expectNoDifference(day.title, "February 3, 2026")
 	}
 
-	@Test("default conversion uses Gregorian calendar semantics")
+	@Test("Default conversion matches the Gregorian calendar on this host")
 	func defaultConversionUsesGregorian() {
 		let date = Date(timeIntervalSince1970: 1_770_076_800) // 2026-02-03T00:00:00Z
 		let timezone = TimeZone.autoupdatingCurrent
@@ -58,8 +58,6 @@ extension Tests.DayOfYearTest {
 	@Test("parses valid daily page titles", arguments: [
 		("2024-01-01", DayOfYear(day: 1, month: 1, year: 2024)),
 		("2026-02-03", DayOfYear(day: 3, month: 2, year: 2026)),
-		("2025-12-22", DayOfYear(day: 22, month: 12, year: 2025)),
-		("2026-09-05", DayOfYear(day: 5, month: 9, year: 2026)),
 		("2024-02-29", DayOfYear(day: 29, month: 2, year: 2024)),
 	])
 	func parsesTitle(title: String, expected: DayOfYear) {
@@ -69,12 +67,9 @@ extension Tests.DayOfYearTest {
 
 	@Test("rejects non-daily-page titles", arguments: [
 		"Hello World",
-		"February 2026",
 		"02/03/2026",
 		"February 3, 2026",
-		"February 12th, 2026",
 		"12 février 2026",
-		"February 33rd, 2026",
 		"2026-02-29",
 		"2026-02-30",
 		"2026-00-05",

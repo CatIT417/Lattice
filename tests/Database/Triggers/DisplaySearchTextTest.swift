@@ -57,10 +57,10 @@ extension Tests.DisplaySearchTextTest {
 			let code = Block(string: "Use `[[2026-02-12]]` as an example.", parentId: page.id)
 			try Block.insert { [page, match, other, code] }.execute(db)
 			let result = try matches(query, in: db)
-			#expect(result.contains(match.id))
-			#expect(!result.contains(other.id))
-			#expect(!result.contains(code.id))
-			expectNoDifference(result.filter { $0 == match.id }.count, 1)
+			let datePage = try #require(try Page.where { $0.canonicalTitle.eq("2026-02-12") }.fetchOne(db))
+			let expected = query == "February 12" || query == "12 February" ? [match.id, datePage.id] : [match.id]
+			expectNoDifference(Set(result), Set(expected))
+			expectNoDifference(result.count, expected.count)
 		}
 	}
 
@@ -131,7 +131,7 @@ extension Tests.DisplaySearchTextTest {
 			return try (Block.order(by: \.id).fetchAll(db), BlockText.order(by: \.blockID).fetchAll(db))
 		}
 
-		#expect(throws: DatabaseError.self) {
+		do {
 			try withDependencies {
 				$0.locale = Locale(identifier: "fr_FR")
 			} operation: {
@@ -143,6 +143,9 @@ extension Tests.DisplaySearchTextTest {
 					try RebuildSearchIndex.run(in: db)
 				}
 			}
+			Issue.record("The injected failure must reject the rebuild.")
+		} catch let error as DatabaseError {
+			expectNoDifference(error.message, "Test rebuild failure")
 		}
 		try database.read { db in
 			try expectNoDifference(Block.order(by: \.id).fetchAll(db), before)
@@ -163,7 +166,7 @@ extension Tests.DisplaySearchTextTest {
 	}
 
 	@Test("FTS indexes missing date targets while the SQL sync flag is set")
-	func remoteWrite() throws {
+	func isolatedFTSWithSQLSyncFlag() throws {
 		let database = try makeDatabase()
 		try database.write { db in
 			try CreateBlocksTable.up(db)

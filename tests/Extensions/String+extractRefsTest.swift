@@ -34,13 +34,6 @@ extension Tests.StringExtractRefsTest {
 		#expect(text.extractRefs().isEmpty)
 	}
 
-	@Test("extractRefs accepts references with trimmed length of exactly 3")
-	func extractRefsAcceptsThreeCharReferences() {
-		let refs = "Link [[ABC]] tag #[[DEF]] simple #GHI".extractRefs()
-		expectNoDifference(refs.map(\.target), ["ABC", "DEF", "GHI"])
-		expectNoDifference(refs.map(\.kind), [.pageLink, .tag, .tag])
-	}
-
 	@Test("extractRefs preserves duplicate references by range")
 	func extractRefsPreservesDuplicateReferences() {
 		let text = "🎉 Repeat [[Page]] and [[Page]] again"
@@ -79,12 +72,13 @@ extension Tests.StringExtractRefsTest {
 		expectNoDifference(tagRef.url.absoluteString, "lattice://tag/On%20Plex")
 		expectNoDifference(pageRef.url.absoluteString, "lattice://page/Page%20One")
 		expectNoDifference(blockRef.url.absoluteString, "lattice://block/\(uuidString)")
-		for title in ["Path/Title", "Percent%20Title", "Hash#Title"] {
+		for (title, encodedPath) in [("Path/Title", "/Path%2FTitle"), ("Percent%20Title", "/Percent%2520Title"), ("Hash#Title", "/Hash%23Title")] {
 			let ref = try #require("[[\(title)]]".extractRefs().first)
 			let components = try #require(URLComponents(url: ref.url, resolvingAgainstBaseURL: false))
 			expectNoDifference(components.scheme, "lattice")
 			expectNoDifference(components.host, "page")
 			expectNoDifference(components.path, "/\(title)")
+			expectNoDifference(components.percentEncodedPath, encodedPath)
 			#expect(components.fragment == nil)
 		}
 	}

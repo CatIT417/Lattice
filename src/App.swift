@@ -9,6 +9,8 @@ struct LatticeApp: App {
 	var initializationError: (any Error)?
 
 	init() {
+		guard !isTesting else { return }
+
 		#if DEBUG
 		UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
 		#elseif canImport(Sentry)
@@ -52,7 +54,7 @@ struct LatticeApp: App {
 		WindowGroup("Lattice") {
 			if let initializationError {
 				FatalErrorScreen(error: initializationError)
-			} else {
+			} else if !isTesting {
 				RootContainer()
 					.handlesExternalEvents(preferring: Set(arrayLiteral: "Lattice"), allowing: Set(arrayLiteral: "*"))
 			}

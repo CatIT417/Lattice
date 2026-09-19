@@ -8,317 +8,141 @@ import SnapshotTestingCustomDump
 
 extension Tests {
 	@Suite("Support/InlineParser")
-	struct InlineParserTest {}
+	struct InlineParserTest {
+		struct Span: Equatable, Sendable {
+			var kind: InlineSpan.Kind
+			var range: Range<Int>
+			var content: String
+			var children: [Span] = []
+
+			init(kind: InlineSpan.Kind, range: Range<Int>, content: String, children: [Span] = []) {
+				self.kind = kind
+				self.range = range
+				self.content = content
+				self.children = children
+			}
+
+			init(_ span: InlineSpan, in source: String) {
+				let range = NSRange(span.range, in: source)
+				self.init(kind: span.kind, range: range.location..<NSMaxRange(range), content: span.content,
+				          children: span.children.map { Span($0, in: span.content) })
+			}
+		}
+	}
 }
 
 extension Tests.InlineParserTest {
-	@Test("parse returns single text span for plain text")
+	@Test("Plain text preserves text and source ranges")
 	func parseReturnsTextSpanForPlainText() {
-		let spans = InlineParser.default.parse("Hello world")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<11[utf8],
-			    content: "Hello world",
-			    children: []
-			  )
-			]
-			"""
-		}
+		let text = "Hello world"
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, [.init(kind: .text, range: 0..<11, content: "Hello world")])
 	}
 
-	@Test("parse detects page links")
-	func parseDetectsPageLinks() {
-		let spans = InlineParser.default.parse("Hello [[World]]")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+	@Test("Reference tokens preserve text, structure, and source ranges", arguments: [
+		("Hello [[World]]", [.init(kind: .text, range: 0..<6, content: "Hello "), .init(kind: .pageLink, range: 6..<15, content: "World")]),
+		("Hello #tag", [.init(kind: .text, range: 0..<6, content: "Hello "), .init(kind: .tag, range: 6..<10, content: "tag")]),
+		(
+			"Hello #[[tag with spaces]]",
+			[.init(kind: .text, range: 0..<6, content: "Hello "), .init(kind: .tag, range: 6..<26, content: "tag with spaces")]
+		),
+		(
+			"See ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))",
 			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .pageLink,
-			    range: 6[utf8]..<15[utf8],
-			    content: "World",
-			    children: []
-			  )
+				.init(kind: .text, range: 0..<4, content: "See "),
+				.init(kind: .blockRef, range: 4..<44, content: "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E")
 			]
-			"""
-		}
+		),
+	] as [(String, [Span])])
+	func parseReference(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("parse detects tags")
-	func parseDetectsTags() {
-		let spans = InlineParser.default.parse("Hello #tag")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+	@Test("Formatting tokens preserve text, structure, and source ranges", arguments: [
+		(
+			"Hello **world**!",
 			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .tag,
-			    range: 6[utf8]..<10[utf8],
-			    content: "tag",
-			    children: []
-			  )
+				.init(kind: .text, range: 0..<6, content: "Hello "),
+				.init(kind: .bold, range: 6..<15, content: "world", children: [.init(kind: .text, range: 0..<5, content: "world")]),
+				.init(kind: .text, range: 15..<16, content: "!")
 			]
-			"""
-		}
+		),
+		(
+			"Hello *world*!",
+			[
+				.init(kind: .text, range: 0..<6, content: "Hello "),
+				.init(kind: .italic, range: 6..<13, content: "world", children: [.init(kind: .text, range: 0..<5, content: "world")]),
+				.init(kind: .text, range: 13..<14, content: "!")
+			]
+		),
+		(
+			"Use `code` here",
+			[
+				.init(kind: .text, range: 0..<4, content: "Use "),
+				.init(kind: .code, range: 4..<10, content: "code"),
+				.init(kind: .text, range: 10..<15, content: " here")
+			]
+		),
+		(
+			"This is ==highlighted== text",
+			[
+				.init(kind: .text, range: 0..<8, content: "This is "),
+				.init(
+					kind: .highlight,
+					range: 8..<23,
+					content: "highlighted",
+					children: [.init(kind: .text, range: 0..<11, content: "highlighted")]
+				),
+				.init(kind: .text, range: 23..<28, content: " text")
+			]
+		),
+	] as [(String, [Span])])
+	func parseFormat(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("parse detects bracketed tags")
-	func parseDetectsBracketedTags() {
-		let spans = InlineParser.default.parse("Hello #[[tag with spaces]]")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+	@Test("Combined bold and italic preserve text and source ranges")
+	func parseDetectsBoldItalicText() {
+		let text = "Hello ***world***!"
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(
+			spans.map { Span($0, in: text) },
 			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .tag,
-			    range: 6[utf8]..<26[utf8],
-			    content: "tag with spaces",
-			    children: []
-			  )
+				.init(kind: .text, range: 0..<6, content: "Hello "),
+				.init(
+					kind: .bold,
+					range: 6..<17,
+					content: "*world*",
+					children: [.init(
+						kind: .italic,
+						range: 0..<7,
+						content: "world",
+						children: [.init(kind: .text, range: 0..<5, content: "world")]
+					)]
+				),
+				.init(kind: .text, range: 17..<18, content: "!")
 			]
-			"""
-		}
+		)
 	}
 
-	@Test("parse detects bold text")
-	func parseDetectsBoldText() {
-		let spans = InlineParser.default.parse("Hello **world**!")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .bold,
-			    range: 6[utf8]..<15[utf8],
-			    content: "world",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<5[utf8],
-			        content: "world",
-			        children: []
-			      )
-			    ]
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 15[utf8]..<16[utf8],
-			    content: "!",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects italic text")
-	func parseDetectsItalicText() {
-		let spans = InlineParser.default.parse("Hello *world*!")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .italic,
-			    range: 6[utf8]..<13[utf8],
-			    content: "world",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<5[utf8],
-			        content: "world",
-			        children: []
-			      )
-			    ]
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 13[utf8]..<14[utf8],
-			    content: "!",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects bold italic text as nested bold > italic")
-	func parseDetectsBoldItalicText() throws {
-		let spans = InlineParser.default.parse("Hello ***world***!")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Hello ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .bold,
-			    range: 6[utf8]..<17[utf8],
-			    content: "*world*",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .italic,
-			        range: 0[any]..<7[utf8],
-			        content: "world",
-			        children: [
-			          [0]: InlineSpan(
-			            kind: .text,
-			            range: 0[any]..<5[utf8],
-			            content: "world",
-			            children: []
-			          )
-			        ]
-			      )
-			    ]
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 17[utf8]..<18[utf8],
-			    content: "!",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects inline code")
-	func parseDetectsInlineCode() {
-		let spans = InlineParser.default.parse("Use `code` here")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<4[utf8],
-			    content: "Use ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .code,
-			    range: 4[utf8]..<10[utf8],
-			    content: "code",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 10[utf8]..<15[utf8],
-			    content: " here",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects highlight")
-	func parseDetectsHighlight() {
-		let spans = InlineParser.default.parse("This is ==highlighted== text")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<8[utf8],
-			    content: "This is ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .highlight,
-			    range: 8[utf8]..<23[utf8],
-			    content: "highlighted",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<11[utf8],
-			        content: "highlighted",
-			        children: []
-			      )
-			    ]
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 23[utf8]..<28[utf8],
-			    content: " text",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects links")
+	@Test("Markdown links preserve text and source ranges")
 	func parseDetectsLinks() {
-		let spans = InlineParser.default.parse("Visit [my site](https://example.com)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+		let text = "Visit [my site](https://example.com)"
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(
+			spans.map { Span($0, in: text) },
 			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Visit ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<36[utf8],
-			    content: "my site",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<7[utf8],
-			        content: "my site",
-			        children: []
-			      )
-			    ]
-			  )
+				.init(kind: .text, range: 0..<6, content: "Visit "),
+				.init(
+					kind: .link(url: URL(string: "https://example.com")!),
+					range: 6..<36,
+					content: "my site",
+					children: [.init(kind: .text, range: 0..<7, content: "my site")]
+				)
 			]
-			"""
-		}
+		)
 	}
 
 	@Test("code spans have highest priority")
@@ -351,90 +175,40 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("bold can contain page links as children")
-	func boldCanContainPageLinksAsChildren() {
-		let spans = InlineParser.default.parse("**[[Page]]**")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .bold,
-			    range: 0[any]..<12[utf8],
-			    content: "[[Page]]",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .pageLink,
-			        range: 0[any]..<8[utf8],
-			        content: "Page",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
+	@Test("Nested references preserve text, structure, and source ranges", arguments: [
+		(
+			"**[[Page]]**",
+			[.init(kind: .bold, range: 0..<12, content: "[[Page]]", children: [.init(kind: .pageLink, range: 0..<8, content: "Page")])]
+		),
+		(
+			"*hello #tag world*",
+			[.init(
+				kind: .italic,
+				range: 0..<18,
+				content: "hello #tag world",
+				children: [
+					.init(kind: .text, range: 0..<6, content: "hello "),
+					.init(kind: .tag, range: 6..<10, content: "tag"),
+					.init(kind: .text, range: 10..<16, content: " world")
+				]
+			)]
+		),
+	] as [(String, [Span])])
+	func parseNestedRef(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("italic can contain tags as children")
-	func italicCanContainTagsAsChildren() {
-		let spans = InlineParser.default.parse("*hello #tag world*")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .italic,
-			    range: 0[any]..<18[utf8],
-			    content: "hello #tag world",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<6[utf8],
-			        content: "hello ",
-			        children: []
-			      ),
-			      [1]: InlineSpan(
-			        kind: .tag,
-			        range: 6[utf8]..<10[utf8],
-			        content: "tag",
-			        children: []
-			      ),
-			      [2]: InlineSpan(
-			        kind: .text,
-			        range: 10[utf8]..<16[utf8],
-			        content: " world",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("extractReferences returns refs from nested formatting")
-	func extractReferencesReturnsRefsFromNestedFormatting() {
-		let refs = InlineParser.default.extractReferences(from: "**[[Page]]** and *#tag*")
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 2[utf8]..<10[utf8],
-			    content: "Page",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .tag,
-			    range: 18[utf8]..<22[utf8],
-			    content: "tag",
-			    children: []
-			  )
-			]
-			"""
-		}
+	@Test("Both parser modes extract references inside formatting", arguments: [false, true])
+	func nestedReferenceExtraction(referencesOnly: Bool) {
+		let text = "**[[Page]]** and *#tag*"
+		let parser = referencesOnly ? InlineParser.referencesOnly : .default
+		let refs = parser.extractReferences(from: text)
+		expectNoDifference(refs.map { Span($0, in: text) }, [
+			.init(kind: .pageLink, range: 2..<10, content: "Page"),
+			.init(kind: .tag, range: 18..<22, content: "tag"),
+		])
+		expectNoDifference(refs.map { String(text[$0.range]) }, ["[[Page]]", "#tag"])
 	}
 
 	@Test("Reference extraction ignores code in both parser modes", arguments: [false, true])
@@ -449,48 +223,6 @@ extension Tests.InlineParserTest {
 			    kind: .pageLink,
 			    range: 16[utf8]..<28[utf8],
 			    content: "Real ref",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("Reference extraction finds page links inside formatting markers")
-	func referencesOnlyExtractsRefsWithinFormatting() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "**[[Page]]** text")
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 2[utf8]..<10[utf8],
-			    content: "Page",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("block refs are detected")
-	func blockRefsAreDetected() {
-		let spans = InlineParser.default.parse("See ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<4[utf8],
-			    content: "See ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .blockRef,
-			    range: 4[utf8]..<44[utf8],
-			    content: "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E",
 			    children: []
 			  )
 			]
@@ -557,43 +289,35 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("parse handles bold with nested italic closing at same boundary")
-	func parseHandlesBoldWithNestedItalicClosingAtSameBoundary() throws {
-		// **foo *bar*** — bold containing italic "bar" where italic's * and bold's ** are adjacent
-		let spans = InlineParser.default.parse("**foo *bar***")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .bold,
-			    range: 0[any]..<13[utf8],
-			    content: "foo *bar*",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<4[utf8],
-			        content: "foo ",
-			        children: []
-			      ),
-			      [1]: InlineSpan(
-			        kind: .italic,
-			        range: 4[utf8]..<9[utf8],
-			        content: "bar",
-			        children: [
-			          [0]: InlineSpan(
-			            kind: .text,
-			            range: 0[any]..<3[utf8],
-			            content: "bar",
-			            children: []
-			          )
-			        ]
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
+	@Test("Adjacent closing delimiters preserve text, structure, and source ranges", arguments: [
+		(
+			"**foo *bar***",
+			[.init(
+				kind: .bold,
+				range: 0..<13,
+				content: "foo *bar*",
+				children: [
+					.init(kind: .text, range: 0..<4, content: "foo "),
+					.init(kind: .italic, range: 4..<9, content: "bar", children: [.init(kind: .text, range: 0..<3, content: "bar")])
+				]
+			)]
+		),
+		(
+			"*foo **bar***",
+			[.init(
+				kind: .italic,
+				range: 0..<13,
+				content: "foo **bar**",
+				children: [
+					.init(kind: .text, range: 0..<4, content: "foo "),
+					.init(kind: .bold, range: 4..<11, content: "bar", children: [.init(kind: .text, range: 0..<3, content: "bar")])
+				]
+			)]
+		),
+	] as [(String, [Span])])
+	func parseAdjacentClose(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
 	@Test("markdown link takes priority over page link in ambiguous [[ sequences")
@@ -631,542 +355,141 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("parse handles italic with nested bold closing at same boundary")
-	func parseHandlesItalicWithNestedBoldClosingAtSameBoundary() throws {
-		// *foo **bar*** — italic containing bold "bar" where bold's ** and italic's * are adjacent
-		let spans = InlineParser.default.parse("*foo **bar***")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .italic,
-			    range: 0[any]..<13[utf8],
-			    content: "foo **bar**",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<4[utf8],
-			        content: "foo ",
-			        children: []
-			      ),
-			      [1]: InlineSpan(
-			        kind: .bold,
-			        range: 4[utf8]..<11[utf8],
-			        content: "bar",
-			        children: [
-			          [0]: InlineSpan(
-			            kind: .text,
-			            range: 0[any]..<3[utf8],
-			            content: "bar",
-			            children: []
-			          )
-			        ]
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
+	@Test("Markdown labels keep reference syntax literal", arguments: [
+		"go #tag", "see ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))", "go [[Page]]", "go #[[tag]]",
+	])
+	func literalReferenceLabels(label: String) throws {
+		let text = "[\(label)](https://example.com)"
+		let url = try #require(URL(string: "https://example.com"))
+		expectNoDifference(InlineParser.default.parse(text).map { Span($0, in: text) }, [
+			.init(kind: .link(url: url), range: 0..<text.utf16.count, content: label, children: [
+				.init(kind: .text, range: 0..<label.utf16.count, content: label),
+			]),
+		])
+		#expect(InlineParser.referencesOnly.extractReferences(from: text).isEmpty)
 	}
 
-	@Test("referencesOnly parser ignores refs inside markdown link labels")
-	func referencesOnlyParserIgnoresRefsInsideMarkdownLinkLabels() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "[go #tag](https://example.com)")
-
-		#expect(refs.isEmpty)
+	@Test("Invalid Markdown destinations preserve page references", arguments: ["todo", "todo:urgent"])
+	func invalidDestinations(destination: String) {
+		let text = "[[Page]](\(destination))"
+		let reference = Span(kind: .pageLink, range: 0..<8, content: "Page")
+		expectNoDifference(InlineParser.default.parse(text).map { Span($0, in: text) }, [
+			reference, .init(kind: .text, range: 8..<text.utf16.count, content: "(\(destination))"),
+		])
+		expectNoDifference(InlineParser.referencesOnly.extractReferences(from: text).map { Span($0, in: text) }, [reference])
 	}
 
-	@Test("referencesOnly parser ignores block refs inside markdown link labels")
-	func referencesOnlyParserIgnoresBlockRefsInsideMarkdownLinkLabels() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "[see ((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))](https://example.com)")
-
-		#expect(refs.isEmpty)
+	@Test("Underscores inside words preserve text, structure, and source ranges", arguments: [
+		("__init__value", [.init(kind: .text, range: 0..<13, content: "__init__value")]),
+		("___foo___bar", [.init(kind: .text, range: 0..<12, content: "___foo___bar")]),
+	] as [(String, [Span])])
+	func parseUnderscore(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("markdown link label can contain page link syntax")
-	func markdownLinkLabelCanContainPageLinkSyntax() throws {
-		let spans = InlineParser.default.parse("[go [[Page]]](https://example.com)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 0[any]..<34[utf8],
-			    content: "go [[Page]]",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<11[utf8],
-			        content: "go [[Page]]",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-		do {
-			let refs = InlineParser.referencesOnly.extractReferences(from: "[go [[Page]]](https://example.com)")
-
-			#expect(refs.isEmpty)
-		}
-	}
-
-	@Test("markdown link label can contain bracketed tag syntax")
-	func markdownLinkLabelCanContainBracketedTagSyntax() throws {
-		let spans = InlineParser.default.parse("[go #[[tag]]](https://example.com)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 0[any]..<34[utf8],
-			    content: "go #[[tag]]",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<11[utf8],
-			        content: "go #[[tag]]",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-		do {
-			let refs = InlineParser.referencesOnly.extractReferences(from: "[go #[[tag]]](https://example.com)")
-
-			#expect(refs.isEmpty)
-		}
-	}
-
-	@Test("markdown link rejects bare word URLs so wiki links are preserved")
-	func markdownLinkRejectsBareWordURLs() {
-		// [[Page]](todo) should be parsed as a page link, not a markdown link with URL "todo"
-		let spans = InlineParser.default.parse("[[Page]](todo)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 0[any]..<8[utf8],
-			    content: "Page",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .text,
-			    range: 8[utf8]..<14[utf8],
-			    content: "(todo)",
-			    children: []
-			  )
-			]
-			"""
-		}
-		do {
-			let refs = InlineParser.referencesOnly.extractReferences(from: "[[Page]](todo)")
-
-			assertInlineSnapshot(of: refs, as: .customDump) {
-				"""
-				[
-				  [0]: InlineSpan(
-				    kind: .pageLink,
-				    range: 0[any]..<8[utf8],
-				    content: "Page",
-				    children: []
-				  )
+	@Test("Repeated nested styles preserve text, structure, and source ranges", arguments: [
+		(
+			"***foo *bar* baz***",
+			[.init(
+				kind: .bold,
+				range: 0..<19,
+				content: "*foo *bar* baz*",
+				children: [.init(
+					kind: .italic,
+					range: 0..<15,
+					content: "foo *bar* baz",
+					children: [
+						.init(kind: .text, range: 0..<4, content: "foo "),
+						.init(kind: .italic, range: 4..<9, content: "bar", children: [.init(kind: .text, range: 0..<3, content: "bar")]),
+						.init(kind: .text, range: 9..<13, content: " baz")
+					]
+				)]
+			)]
+		),
+		(
+			"*foo *bar* baz*",
+			[.init(
+				kind: .italic,
+				range: 0..<15,
+				content: "foo *bar* baz",
+				children: [
+					.init(kind: .text, range: 0..<4, content: "foo "),
+					.init(kind: .italic, range: 4..<9, content: "bar", children: [.init(kind: .text, range: 0..<3, content: "bar")]),
+					.init(kind: .text, range: 9..<13, content: " baz")
 				]
-				"""
-			}
-		}
+			)]
+		),
+	] as [(String, [Span])])
+	func parseSameStyleNesting(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("markdown link rejects schemeless colon URLs so wiki links are preserved")
-	func markdownLinkRejectsSchemelessColonURLs() throws {
-		// [[Page]](todo:urgent) should be parsed as page link + text, not a markdown link
-		let spans = InlineParser.default.parse("[[Page]](todo:urgent)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 0[any]..<8[utf8],
-			    content: "Page",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .text,
-			    range: 8[utf8]..<21[utf8],
-			    content: "(todo:urgent)",
-			    children: []
-			  )
-			]
-			"""
-		}
+	@Test("Internal Markdown destinations preserve text, structure, and source ranges", arguments: [
+		(
+			"[custom text]([[My Page]])",
+			[.init(
+				kind: .link(url: URL(string: "lattice://page/My%20Page")!),
+				range: 0..<26,
+				content: "custom text",
+				children: [.init(kind: .text, range: 0..<11, content: "custom text")]
+			)]
+		),
+		(
+			"[see this](((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)))",
+			[.init(
+				kind: .link(url: URL(string: "lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E")!),
+				range: 0..<52,
+				content: "see this",
+				children: [.init(kind: .text, range: 0..<8, content: "see this")]
+			)]
+		),
+		(
+			"[click here](#mytag)",
+			[.init(
+				kind: .link(url: URL(string: "lattice://tag/mytag")!),
+				range: 0..<20,
+				content: "click here",
+				children: [.init(kind: .text, range: 0..<10, content: "click here")]
+			)]
+		),
+		(
+			"[click here](#[[tag with spaces]])",
+			[.init(
+				kind: .link(url: URL(string: "lattice://tag/tag%20with%20spaces")!),
+				range: 0..<34,
+				content: "click here",
+				children: [.init(kind: .text, range: 0..<10, content: "click here")]
+			)]
+		),
+	] as [(String, [Span])])
+	func parseInternalLink(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("underscore bold does not match when closing delimiter is intraword")
-	func underscoreBoldDoesNotMatchIntrawordClosing() {
-		// __init__value should not be parsed as bold "init"
-		let spans = InlineParser.default.parse("__init__value")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<13[utf8],
-			    content: "__init__value",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("underscore emphasis does not match when closing delimiter is intraword")
-	func underscoreEmphasisDoesNotMatchIntrawordClosing() {
-		// ___foo___bar should not be parsed as emphasis
-		let spans = InlineParser.default.parse("___foo___bar")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<12[utf8],
-			    content: "___foo___bar",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("extractReferences rebases nested reference ranges to original text")
-	func extractReferencesRebasesNestedReferenceRanges() {
-		let text = "**hello [[Page]]**"
-		let refs = InlineParser.default.extractReferences(from: text)
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 8[utf8]..<16[utf8],
-			    content: "Page",
-			    children: []
-			  )
-			]
-			"""
-		}
-
-		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
-
-		// The range should be valid for slicing the original text
-		expectNoDifference(String(text[ref.range]), "[[Page]]")
-	}
-
-	@Test("bold-italic correctly nests inner italic with same-char content")
-	func boldItalicCorrectlyNestsInnerItalic() throws {
-		let spans = InlineParser.default.parse("***foo *bar* baz***")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .bold,
-			    range: 0[any]..<19[utf8],
-			    content: "*foo *bar* baz*",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .italic,
-			        range: 0[any]..<15[utf8],
-			        content: "foo *bar* baz",
-			        children: [
-			          [0]: InlineSpan(
-			            kind: .text,
-			            range: 0[any]..<4[utf8],
-			            content: "foo ",
-			            children: []
-			          ),
-			          [1]: InlineSpan(
-			            kind: .italic,
-			            range: 4[utf8]..<9[utf8],
-			            content: "bar",
-			            children: [
-			              [0]: InlineSpan(
-			                kind: .text,
-			                range: 0[any]..<3[utf8],
-			                content: "bar",
-			                children: []
-			              )
-			            ]
-			          ),
-			          [2]: InlineSpan(
-			            kind: .text,
-			            range: 9[utf8]..<13[utf8],
-			            content: " baz",
-			            children: []
-			          )
-			        ]
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("italic with same-char nested italic produces correct nesting")
-	func italicWithNestedSameCharItalic() throws {
-		// *foo *bar* baz* — inner *bar* should nest inside outer italic
-		let spans = InlineParser.default.parse("*foo *bar* baz*")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .italic,
-			    range: 0[any]..<15[utf8],
-			    content: "foo *bar* baz",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<4[utf8],
-			        content: "foo ",
-			        children: []
-			      ),
-			      [1]: InlineSpan(
-			        kind: .italic,
-			        range: 4[utf8]..<9[utf8],
-			        content: "bar",
-			        children: [
-			          [0]: InlineSpan(
-			            kind: .text,
-			            range: 0[any]..<3[utf8],
-			            content: "bar",
-			            children: []
-			          )
-			        ]
-			      ),
-			      [2]: InlineSpan(
-			        kind: .text,
-			        range: 9[utf8]..<13[utf8],
-			        content: " baz",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects markdown link with page link destination")
-	func parseDetectsMarkdownLinkWithPageLinkDestination() {
-		let spans = InlineParser.default.parse("[custom text]([[My Page]])")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(lattice://page/My%20Page),
-			      embed: nil
-			    ),
-			    range: 0[any]..<26[utf8],
-			    content: "custom text",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<11[utf8],
-			        content: "custom text",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects markdown link with block ref destination")
-	func parseDetectsMarkdownLinkWithBlockRefDestination() {
-		let spans = InlineParser.default.parse("[see this](((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)))")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(lattice://block/A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E),
-			      embed: nil
-			    ),
-			    range: 0[any]..<52[utf8],
-			    content: "see this",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<8[utf8],
-			        content: "see this",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects markdown link with tag destination")
-	func parseDetectsMarkdownLinkWithTagDestination() {
-		let spans = InlineParser.default.parse("[click here](#mytag)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(lattice://tag/mytag),
-			      embed: nil
-			    ),
-			    range: 0[any]..<20[utf8],
-			    content: "click here",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<10[utf8],
-			        content: "click here",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects markdown link with bracketed tag destination")
-	func parseDetectsMarkdownLinkWithBracketedTagDestination() {
-		let spans = InlineParser.default.parse("[click here](#[[tag with spaces]])")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(lattice://tag/tag%20with%20spaces),
-			      embed: nil
-			    ),
-			    range: 0[any]..<34[utf8],
-			    content: "click here",
-			    children: [
-			      [0]: InlineSpan(
-			        kind: .text,
-			        range: 0[any]..<10[utf8],
-			        content: "click here",
-			        children: []
-			      )
-			    ]
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("extractReferences returns page link ref from internal-destination markdown link")
-	func extractReferencesReturnsPageLinkRefFromInternalLink() {
-		let text = "[custom text]([[My Page]])"
+	@Test("Internal destinations expose their reference range", arguments: [
+		("[[My Page]]", InlineSpan.Kind.pageLink, "My Page"),
+		("#mytag", .tag, "mytag"),
+		("#[[tag with spaces]]", .tag, "tag with spaces"),
+		("((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))", .blockRef, "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E"),
+	])
+	func internalReferenceRanges(destination: String, kind: InlineSpan.Kind, target: String) {
+		let text = "[label](\(destination))"
 		let refs = InlineParser.referencesOnly.extractReferences(from: text)
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 14[utf8]..<25[utf8],
-			    content: "My Page",
-			    children: []
-			  )
-			]
-			"""
-		}
-
-		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
-		expectNoDifference(String(text[ref.range]), "[[My Page]]")
+		expectNoDifference(refs.map { Span($0, in: text) }, [
+			.init(kind: kind, range: 8..<(8 + destination.utf16.count), content: target),
+		])
+		expectNoDifference(refs.map { String(text[$0.range]) }, [destination])
 	}
 
-	@Test("extractReferences returns tag ref from internal-destination markdown link")
-	func extractReferencesReturnsTagRefFromInternalLink() {
-		let text = "[click](#mytag)"
-		let refs = InlineParser.referencesOnly.extractReferences(from: text)
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .tag,
-			    range: 8[utf8]..<14[utf8],
-			    content: "mytag",
-			    children: []
-			  )
-			]
-			"""
-		}
-
-		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
-		expectNoDifference(String(text[ref.range]), "#mytag")
-	}
-
-	@Test("extractReferences returns block ref from internal-destination markdown link")
-	func extractReferencesReturnsBlockRefFromInternalLink() {
-		let text = "[see](((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E)))"
-		let refs = InlineParser.referencesOnly.extractReferences(from: text)
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .blockRef,
-			    range: 6[utf8]..<46[utf8],
-			    content: "A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E",
-			    children: []
-			  )
-			]
-			"""
-		}
-
-		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
-		expectNoDifference(String(text[ref.range]), "((A3D1F3BA-1F3A-4E4B-8F3C-3F6A8B9C0D1E))")
-	}
-
-	@Test("internal-destination link rejects whitespace-only page title")
-	func internalDestinationLinkRejectsWhitespaceOnlyPageTitle() {
-		let spans = InlineParser.default.parse("[label]([[   ]])")
-
-		// Should not parse as a link — whitespace-only page titles are invalid
-		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
-		#expect(!hasLink)
-	}
-
-	@Test("internal-destination link rejects whitespace-only bracketed tag")
-	func internalDestinationLinkRejectsWhitespaceOnlyBracketedTag() {
-		let spans = InlineParser.default.parse("[label](#[[   ]])")
-
-		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
-		#expect(!hasLink)
+	@Test("Empty internal destinations remain literal text", arguments: ["[label]([[   ]])", "[label](#[[   ]])"])
+	func emptyInternalDestinations(text: String) {
+		expectNoDifference(InlineParser.default.parse(text).map { Span($0, in: text) }, [
+			.init(kind: .text, range: 0..<text.utf16.count, content: text),
+		])
+		#expect(InlineParser.referencesOnly.extractReferences(from: text).isEmpty)
 	}
 
 	@Test("extractReferences preserves percent-literal page title from internal-destination link")
@@ -1182,351 +505,129 @@ extension Tests.InlineParserTest {
 
 	// MARK: - URL Detection
 
-	@Test("parse detects plain https URL")
-	func parseDetectsPlainHttpsURL() {
-		let spans = InlineParser.default.parse("Visit https://example.com today")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+	@Test("Bare URLs preserve text, structure, and source ranges", arguments: [
+		(
+			"Visit https://example.com today",
 			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Visit ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<25[utf8],
-			    content: "https://example.com",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 25[utf8]..<31[utf8],
-			    content: " today",
-			    children: []
-			  )
+				.init(kind: .text, range: 0..<6, content: "Visit "),
+				.init(kind: .link(url: URL(string: "https://example.com")!), range: 6..<25, content: "https://example.com"),
+				.init(kind: .text, range: 25..<31, content: " today")
 			]
-			"""
-		}
+		),
+		(
+			"Visit http://example.com today",
+			[
+				.init(kind: .text, range: 0..<6, content: "Visit "),
+				.init(kind: .link(url: URL(string: "http://example.com")!), range: 6..<24, content: "http://example.com"),
+				.init(kind: .text, range: 24..<30, content: " today")
+			]
+		),
+		(
+			"See https://example.com/path?q=1&r=2 for details",
+			[
+				.init(kind: .text, range: 0..<4, content: "See "),
+				.init(
+					kind: .link(url: URL(string: "https://example.com/path?q=1&r=2")!),
+					range: 4..<36,
+					content: "https://example.com/path?q=1&r=2"
+				),
+				.init(kind: .text, range: 36..<48, content: " for details")
+			]
+		),
+		(
+			"Go to https://example.com.",
+			[
+				.init(kind: .text, range: 0..<6, content: "Go to "),
+				.init(kind: .link(url: URL(string: "https://example.com")!), range: 6..<25, content: "https://example.com"),
+				.init(kind: .text, range: 25..<26, content: ".")
+			]
+		),
+		(
+			"(see https://example.com)",
+			[
+				.init(kind: .text, range: 0..<5, content: "(see "),
+				.init(kind: .link(url: URL(string: "https://example.com")!), range: 5..<24, content: "https://example.com"),
+				.init(kind: .text, range: 24..<25, content: ")")
+			]
+		),
+		(
+			"See https://en.wikipedia.org/wiki/Function_(mathematics) for info",
+			[
+				.init(kind: .text, range: 0..<4, content: "See "),
+				.init(
+					kind: .link(url: URL(string: "https://en.wikipedia.org/wiki/Function_(mathematics)")!),
+					range: 4..<56,
+					content: "https://en.wikipedia.org/wiki/Function_(mathematics)"
+				),
+				.init(kind: .text, range: 56..<65, content: " for info")
+			]
+		),
+		(
+			"(see https://en.wikipedia.org/wiki/Function_(mathematics))",
+			[
+				.init(kind: .text, range: 0..<5, content: "(see "),
+				.init(
+					kind: .link(url: URL(string: "https://en.wikipedia.org/wiki/Function_(mathematics)")!),
+					range: 5..<57,
+					content: "https://en.wikipedia.org/wiki/Function_(mathematics)"
+				),
+				.init(kind: .text, range: 57..<58, content: ")")
+			]
+		),
+		(
+			"Visit HTTPS://EXAMPLE.COM today",
+			[
+				.init(kind: .text, range: 0..<6, content: "Visit "),
+				.init(kind: .link(url: URL(string: "HTTPS://EXAMPLE.COM")!), range: 6..<25, content: "HTTPS://EXAMPLE.COM"),
+				.init(kind: .text, range: 25..<31, content: " today")
+			]
+		),
+		(
+			"Visit http://[2001:db8::1]/path today",
+			[
+				.init(kind: .text, range: 0..<6, content: "Visit "),
+				.init(kind: .link(url: URL(string: "http://[2001:db8::1]/path")!), range: 6..<31, content: "http://[2001:db8::1]/path"),
+				.init(kind: .text, range: 31..<37, content: " today")
+			]
+		),
+		(
+			"See https://example.com/search?filters[]=done end",
+			[
+				.init(kind: .text, range: 0..<4, content: "See "),
+				.init(
+					kind: .link(url: URL(string: "https://example.com/search?filters%5B%5D=done")!),
+					range: 4..<45,
+					content: "https://example.com/search?filters[]=done"
+				),
+				.init(kind: .text, range: 45..<49, content: " end")
+			]
+		),
+	] as [(String, [Span])])
+	func parseUrl(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
-	@Test("parse detects plain http URL")
-	func parseDetectsPlainHttpURL() {
-		let spans = InlineParser.default.parse("Visit http://example.com today")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Visit ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(http://example.com),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<24[utf8],
-			    content: "http://example.com",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 24[utf8]..<30[utf8],
-			    content: " today",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects URL with path and query string")
-	func parseDetectsURLWithPathAndQuery() {
-		let spans = InlineParser.default.parse("See https://example.com/path?q=1&r=2 for details")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<4[utf8],
-			    content: "See ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com/path?q=1&r=2),
-			      embed: nil
-			    ),
-			    range: 4[utf8]..<36[utf8],
-			    content: "https://example.com/path?q=1&r=2",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 36[utf8]..<48[utf8],
-			    content: " for details",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse strips trailing period from URL at end of sentence")
-	func parseStripsTrailingPeriodFromURL() {
-		let spans = InlineParser.default.parse("Go to https://example.com.")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Go to ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<25[utf8],
-			    content: "https://example.com",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 25[utf8]..<26[utf8],
-			    content: ".",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse strips trailing parenthesis from URL")
-	func parseStripsTrailingParenthesisFromURL() {
-		let spans = InlineParser.default.parse("(see https://example.com)")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<5[utf8],
-			    content: "(see ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com),
-			      embed: nil
-			    ),
-			    range: 5[utf8]..<24[utf8],
-			    content: "https://example.com",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 24[utf8]..<25[utf8],
-			    content: ")",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects multiple URLs in one block")
+	@Test("Multiple URLs preserve text and source ranges")
 	func parseDetectsMultipleURLs() {
-		let spans = InlineParser.default.parse("https://a.com and https://b.com")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
+		let text = "https://a.com and https://b.com"
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(
+			spans.map { Span($0, in: text) },
 			[
-			  [0]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://a.com),
-			      embed: nil
-			    ),
-			    range: 0[any]..<13[utf8],
-			    content: "https://a.com",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .text,
-			    range: 13[utf8]..<18[utf8],
-			    content: " and ",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://b.com),
-			      embed: nil
-			    ),
-			    range: 18[utf8]..<31[utf8],
-			    content: "https://b.com",
-			    children: []
-			  )
+				.init(kind: .link(url: URL(string: "https://a.com")!), range: 0..<13, content: "https://a.com"),
+				.init(kind: .text, range: 13..<18, content: " and "),
+				.init(kind: .link(url: URL(string: "https://b.com")!), range: 18..<31, content: "https://b.com")
 			]
-			"""
-		}
+		)
 	}
 
-	@Test("referencesOnly parser doesn't extract tags from URL fragments")
-	func referencesOnlyDoesNotExtractTagsFromURLFragments() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "Check https://example.com/#about for info")
-
-		#expect(refs.isEmpty)
-	}
-
-	@Test("parse preserves balanced parentheses in URL")
-	func parsePreservesBalancedParenthesesInURL() {
-		let spans = InlineParser.default.parse("See https://en.wikipedia.org/wiki/Function_(mathematics) for info")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<4[utf8],
-			    content: "See ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://en.wikipedia.org/wiki/Function_(mathematics)),
-			      embed: nil
-			    ),
-			    range: 4[utf8]..<56[utf8],
-			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 56[utf8]..<65[utf8],
-			    content: " for info",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse strips unbalanced trailing parenthesis from URL")
-	func parseStripsUnbalancedTrailingParenFromURL() {
-		let spans = InlineParser.default.parse("(see https://en.wikipedia.org/wiki/Function_(mathematics))")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<5[utf8],
-			    content: "(see ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://en.wikipedia.org/wiki/Function_(mathematics)),
-			      embed: nil
-			    ),
-			    range: 5[utf8]..<57[utf8],
-			    content: "https://en.wikipedia.org/wiki/Function_(mathematics)",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 57[utf8]..<58[utf8],
-			    content: ")",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("parse detects uppercase HTTPS URL")
-	func parseDetectsUppercaseHTTPSURL() {
-		let spans = InlineParser.default.parse("Visit HTTPS://EXAMPLE.COM today")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Visit ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(HTTPS://EXAMPLE.COM),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<25[utf8],
-			    content: "HTTPS://EXAMPLE.COM",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 25[utf8]..<31[utf8],
-			    content: " today",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("referencesOnly parser doesn't extract tags from uppercase URL fragments")
-	func referencesOnlyDoesNotExtractTagsFromUppercaseURLFragments() {
-		let refs = InlineParser.referencesOnly.extractReferences(from: "Check HTTPS://example.com/#about for info")
-
-		#expect(refs.isEmpty)
-	}
-
-	@Test("parse detects IPv6 URL with bracketed host")
-	func parseDetectsIPv6URL() {
-		let spans = InlineParser.default.parse("Visit http://[2001:db8::1]/path today")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<6[utf8],
-			    content: "Visit ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(http://[2001:db8::1]/path),
-			      embed: nil
-			    ),
-			    range: 6[utf8]..<31[utf8],
-			    content: "http://[2001:db8::1]/path",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 31[utf8]..<37[utf8],
-			    content: " today",
-			    children: []
-			  )
-			]
-			"""
-		}
+	@Test(
+		"URL fragments do not create tags",
+		arguments: ["Check https://example.com/#about for info", "Check HTTPS://example.com/#about for info"]
+	)
+	func urlFragments(text: String) {
+		#expect(InlineParser.referencesOnly.extractReferences(from: text).isEmpty)
 	}
 
 	@Test("parse rejects scheme-only URL")
@@ -1537,39 +638,6 @@ extension Tests.InlineParserTest {
 		let hasLink = spans.contains { if case .link = $0.kind { true } else { false } }
 		#expect(!hasLink)
 		expectNoDifference(spans.map(\.content).joined(), "Use http://, not ftp://")
-	}
-
-	@Test("parse includes bracketed query parameters in URL")
-	func parseIncludesBracketedQueryParams() {
-		let spans = InlineParser.default.parse("See https://example.com/search?filters[]=done end")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<4[utf8],
-			    content: "See ",
-			    children: []
-			  ),
-			  [1]: InlineSpan(
-			    kind: .link(
-			      url: URL(https://example.com/search?filters%5B%5D=done),
-			      embed: nil
-			    ),
-			    range: 4[utf8]..<45[utf8],
-			    content: "https://example.com/search?filters[]=done",
-			    children: []
-			  ),
-			  [2]: InlineSpan(
-			    kind: .text,
-			    range: 45[utf8]..<49[utf8],
-			    content: " end",
-			    children: []
-			  )
-			]
-			"""
-		}
 	}
 
 	@Test("parse attaches embed info to embeddable URLs")
@@ -1605,63 +673,21 @@ extension Tests.InlineParserTest {
 		}
 	}
 
-	@Test("extractReferences rebases ranges correctly through bold-italic nesting")
+	@Test("Nested reference ranges use the original UTF-16 source")
 	func extractReferencesRebasesRangesThroughBoldItalicNesting() {
-		let text = "***hello [[Page]]***"
+		let text = "🎉 ***hello [[Page]]***"
 		let refs = InlineParser.default.extractReferences(from: text)
-
-		assertInlineSnapshot(of: refs, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .pageLink,
-			    range: 9[utf8]..<17[utf8],
-			    content: "Page",
-			    children: []
-			  )
-			]
-			"""
-		}
-
-		guard let ref = refs.first else { Issue.record("Failed to extract reference"); return }
-
-		expectNoDifference(String(text[ref.range]), "[[Page]]")
+		expectNoDifference(refs.map { Span($0, in: text) }, [.init(kind: .pageLink, range: 12..<20, content: "Page")])
+		expectNoDifference(refs.map { String(text[$0.range]) }, ["[[Page]]"])
 	}
 
-	@Test("page link with whitespace-padded short target is treated as plain text")
-	func pageLinkWithPaddedShortTargetIsTreatedAsPlainText() {
-		let spans = InlineParser.default.parse("See [[AB ]] here")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<16[utf8],
-			    content: "See [[AB ]] here",
-			    children: []
-			  )
-			]
-			"""
-		}
-	}
-
-	@Test("bracketed tag with whitespace-padded short target is treated as plain text")
-	func bracketedTagWithPaddedShortTargetIsTreatedAsPlainText() {
-		let spans = InlineParser.default.parse("See #[[AB ]] here")
-
-		assertInlineSnapshot(of: spans, as: .customDump) {
-			"""
-			[
-			  [0]: InlineSpan(
-			    kind: .text,
-			    range: 0[any]..<17[utf8],
-			    content: "See #[[AB ]] here",
-			    children: []
-			  )
-			]
-			"""
-		}
+	@Test("Short references preserve text, structure, and source ranges", arguments: [
+		("See [[AB ]] here", [.init(kind: .text, range: 0..<16, content: "See [[AB ]] here")]),
+		("See #[[AB ]] here", [.init(kind: .text, range: 0..<17, content: "See #[[AB ]] here")]),
+	] as [(String, [Span])])
+	func parseShortReference(text: String, expected: [Span]) {
+		let spans = InlineParser.default.parse(text)
+		expectNoDifference(spans.map { Span($0, in: text) }, expected)
 	}
 
 	@Test("escaped delimiter inside emphasis is skipped, closer after it still matches")
@@ -1687,7 +713,7 @@ extension Tests.InlineParserTest {
 	func unclosedOpenersStayPlainText() throws {
 		let spans = InlineParser.default.parse("a *b *c *d end*")
 
-		expectNoDifference(2, spans.count)
+		try #require(spans.count == 2)
 		expectNoDifference(.text, spans[0].kind)
 		expectNoDifference("a *b *c ", spans[0].content)
 		expectNoDifference(.italic, spans[1].kind)

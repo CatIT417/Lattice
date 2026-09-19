@@ -14,6 +14,7 @@ extension Tests {
 			("alpha OR omega", "alpha alone"),
 			("alpha NOT omega", "alpha alone"),
 			("alpha:omega", "alpha alone"),
+			(" \n\t ", "Other text"),
 		])
 		func quotedSearch(input: String, other: String) throws {
 			let database = try makeDatabase()
@@ -23,8 +24,7 @@ extension Tests {
 				let match = Block(id: UUID(100), title: input)
 				try Block.insert { [match, Block(id: UUID(101), title: other)] }.execute(db)
 				try RebuildSearchIndex.populate(in: db)
-				expectNoDifference(try BlockText.where { $0.match(input.quoted()) }.select(\.blockID).fetchAll(db), [match.id])
-				expectNoDifference(try BlockText.where { $0.match(" \n\t ".quoted()) }.select(\.blockID).fetchAll(db), [])
+				expectNoDifference(try BlockText.where { $0.match(input.quoted()) }.select(\.blockID).fetchAll(db), input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? [] : [match.id])
 			}
 		}
 	}

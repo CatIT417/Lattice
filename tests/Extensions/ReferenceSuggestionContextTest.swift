@@ -41,30 +41,16 @@ extension Tests.ReferenceSuggestionContextTest {
 		expectNoDifference(context.tokenRange, NSRange(location: 13, length: 10))
 	}
 
-	@Test("detects simple tag context and stops at whitespace")
-	func detectsSimpleTagContextAndStopsAtWhitespace() throws {
-		let text = "#tag hello"
-		let contextAtTag = try #require(referenceSuggestionContext(in: text, cursorOffset: 4))
-
-		expectNoDifference(contextAtTag.kind, .tagSimple)
-		expectNoDifference(contextAtTag.query, "tag")
-		expectNoDifference(contextAtTag.queryRange, NSRange(location: 1, length: 3))
-		expectNoDifference(contextAtTag.tokenRange, NSRange(location: 0, length: 4))
-
-		#expect(referenceSuggestionContext(in: text, cursorOffset: 5) == nil)
-	}
-
-	@Test("simple tag context stops at invalid characters")
-	func simpleTagContextStopsAtInvalidCharacters() throws {
-		let text = "#todo!more"
-		let contextAtBoundary = try #require(referenceSuggestionContext(in: text, cursorOffset: 5))
-
-		expectNoDifference(contextAtBoundary.kind, .tagSimple)
-		expectNoDifference(contextAtBoundary.query, "todo")
-		expectNoDifference(contextAtBoundary.queryRange, NSRange(location: 1, length: 4))
-		expectNoDifference(contextAtBoundary.tokenRange, NSRange(location: 0, length: 5))
-
-		#expect(referenceSuggestionContext(in: text, cursorOffset: 6) == nil)
+	@Test("Simple tag context ends at whitespace or punctuation", arguments: [
+		("#tag hello", "tag", 4), ("#todo!more", "todo", 5),
+	])
+	func simpleTagBoundary(text: String, query: String, boundary: Int) throws {
+		let context = try #require(referenceSuggestionContext(in: text, cursorOffset: boundary))
+		expectNoDifference(context.kind, .tagSimple)
+		expectNoDifference(context.query, query)
+		expectNoDifference(context.queryRange, NSRange(location: 1, length: boundary - 1))
+		expectNoDifference(context.tokenRange, NSRange(location: 0, length: boundary))
+		#expect(referenceSuggestionContext(in: text, cursorOffset: boundary + 1) == nil)
 	}
 
 	@Test("Page replacement preserves surrounding text and uses a UTF-16 cursor")

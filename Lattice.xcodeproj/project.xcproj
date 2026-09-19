@@ -55,6 +55,12 @@
       },
     }, {
       "kind": "remote",
+      "repository": "https://github.com/pointfreeco/swift-debug-snapshots",
+      "version": {
+        "up-to-next-major-version": "0.5.0",
+      },
+    }, {
+      "kind": "remote",
       "repository": "https://github.com/pointfreeco/swift-snapshot-testing",
       "version": {
         "up-to-next-major-version": "1.18.9",
@@ -147,6 +153,10 @@
         }, {
           "package": "swift-dependencies",
           "product-name": "Dependencies",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-debug-snapshots",
+          "product-name": "DebugSnapshots",
           "build-phase": { "build-phase": "frameworks" },
         },
       ],
@@ -245,6 +255,10 @@
           "package": "swift-dependencies",
           "product-name": "Dependencies",
           "build-phase": { "build-phase": "frameworks" },
+        }, {
+          "package": "swift-debug-snapshots",
+          "product-name": "DebugSnapshots",
+          "build-phase": { "build-phase": "frameworks" },
         },
       ],
       "build-settings": {
@@ -299,10 +313,6 @@
       ],
       "package-product-members": [
         {
-          "package": "swift-custom-dump",
-          "product-name": "CustomDump",
-          "build-phase": { "build-phase": "frameworks" },
-        }, {
           "package": "swift-dependencies",
           "product-name": "DependenciesTestSupport",
           "build-phase": { "build-phase": "frameworks" },

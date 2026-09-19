@@ -100,8 +100,8 @@ extension Tests {
 			}
 		}
 
-		@Test("A local edit can use a child whose redirect has not been moved yet")
-		func editBeforeRedirectMaintenance() throws {
+		@Test("Breadcrumbs resolve a redirect child before maintenance")
+		func breadcrumbBeforeRedirectMaintenance() throws {
 			try database.write { db in
 				let page = Block(title: "Page")
 				let alias = Block(title: "Page", mergedInto: page.id)

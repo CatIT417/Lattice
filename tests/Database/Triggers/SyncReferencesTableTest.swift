@@ -72,9 +72,9 @@ extension Tests {
 				let source = Block(string: "👨‍👩‍👧‍👦 [[Old]] #[[Old]]suffix #Old more text [[Other]]", parentId: page.id)
 				try Block.insert { [page, source] }.execute(db)
 				let target = try #require(try Page.where { $0.canonicalTitle.eq("Old") }.fetchOne(db))
-				try Block.find(target.id).update { $0.title = #bind("New") }.execute(db)
-				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New]] #[[New]]suffix #New more text [[Other]]")
-				expectNoDifference(Set(try Reference.fetchAll(db).map(\.targetKey)), ["New", "Other"])
+				try Block.find(target.id).update { $0.title = #bind("New Project") }.execute(db)
+				expectNoDifference(try Paragraph.find(source.id).fetchOne(db)?.string, "👨‍👩‍👧‍👦 [[New Project]] #[[New Project]]suffix #[[New Project]] more text [[Other]]")
+				expectNoDifference(Set(try Reference.fetchAll(db).map(\.targetKey)), ["New Project", "Other"])
 			}
 		}
 
@@ -153,8 +153,11 @@ extension Tests {
 					throw DatabaseError(message: "Reference rewriting failed.")
 				})
 				defer { db.add(function: function) }
-				#expect(throws: DatabaseError.self) {
+				do {
 					try Block.find(UUID(renamedID)).update { $0.title = #bind("New Title") }.execute(db)
+					Issue.record("The injected failure must reject the rename.")
+				} catch let error as DatabaseError {
+					expectNoDifference(error.message, "Reference rewriting failed.")
 				}
 				expectNoDifference(try Block.order(by: \.id).fetchAll(db), blocks)
 				expectNoDifference(try Reference.fetchAll(db), references)

@@ -37,26 +37,4 @@ extension Tests.MakeParagraphsViewWritableTest {
 		}
 	}
 
-	@Test("Deleting a paragraph sets its deletion marker")
-	func canDeleteFromParagraphs() throws {
-		let paragraph = try #require(database.write { db in
-			try Paragraph.insert { Paragraph(string: "My Paragraph", parentId: page.id, pageId: page.id, order: 0) }.returning(\.self).fetchOne(db)
-		})
-
-		let blockExists = try database.read { db in
-			try Select(Block.find(paragraph.id).exists()).fetchOne(db)
-		}
-		#expect(blockExists == true)
-
-		try database.write { db in
-			try Paragraph.find(paragraph.id).delete().execute(db)
-		}
-
-		let blockExistsAfterDelete = try database.read { db in
-			try Select(Block.find(paragraph.id).exists()).fetchOne(db)
-		}
-		#expect(blockExistsAfterDelete == true)
-		#expect(try database.read { try Paragraph.find(paragraph.id).fetchOne($0) } == nil)
-		#expect(try database.read { try Block.find(paragraph.id).fetchOne($0)?.deletedAt } != nil)
-	}
 }

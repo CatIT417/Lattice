@@ -21,40 +21,13 @@ extension Tests.MarkdownExporterTest {
 		let child = Block(string: "Child", parentId: parent.id, isOpen: false)
 		let grandchild = Block(string: "Grandchild", parentId: child.id)
 		let sibling = Block(string: "Sibling", parentId: parent.id, order: 1)
+		let next = Block(string: "Next", parentId: page.id, order: 1)
 		try database.write { db in
-			try Block.insert { [page, parent, child, grandchild, sibling] }.execute(db)
+			try Block.insert { [page, parent, child, grandchild, sibling, next] }.execute(db)
 		}
 
-		#expect(try MarkdownExporter.exportPage(id: page.id) == "# Page\n\n- Parent\n\t- Child\n\t\t- Grandchild\n\t- Sibling")
+		#expect(try MarkdownExporter.exportPage(id: page.id) == "# Page\n\n- Parent\n\t- Child\n\t\t- Grandchild\n\t- Sibling\n- Next")
 		#expect(try MarkdownExporter.exportParagraph(id: parent.id) == "- Parent\n\t- Child\n\t\t- Grandchild\n\t- Sibling")
-	}
-
-	@Test("exports a page with H1 title and bullet children")
-	func pageExportBasic() throws {
-		let page = try #require(database.write { db in
-			try Page.insert { Page(title: "My Page") }.returning(\.self).fetchOne(db)
-		})
-
-		try database.write { db in
-			try Paragraph.insert {
-				Paragraph(string: "First", parentId: page.id, pageId: page.id, order: 0)
-			}.execute(db)
-
-			try Paragraph.insert {
-				Paragraph(string: "Second", parentId: page.id, pageId: page.id, order: 1)
-			}.execute(db)
-		}
-
-		let result = try MarkdownExporter.exportPage(id: page.id)
-
-		assertInlineSnapshot(of: result, as: .lines) {
-			"""
-			# My Page
-
-			- First
-			- Second
-			"""
-		}
 	}
 
 	@Test("Export preserves the paragraph style and heading", arguments: [
@@ -180,7 +153,7 @@ extension Tests.MarkdownExporterTest {
 
 		let c = try #require(database.write { db in
 			try Paragraph.insert {
-				Paragraph(string: "C", parentId: a.id, pageId: page.id, order: 1)
+				Paragraph(string: "C", parentId: a.id, pageId: page.id, order: 99)
 			}.returning(\.self).fetchOne(db)
 		})
 
@@ -190,8 +163,6 @@ extension Tests.MarkdownExporterTest {
 			}.returning(\.self).fetchOne(db)
 		})
 
-		// B(order 0) and D(order 1) would sort before C(order 1) with naive .order sort
-		// Document order should be: B, C, D
 		let result = try MarkdownExporter.exportSelection([b.id, c.id, d.id])
 
 		assertInlineSnapshot(of: result, as: .lines) {
