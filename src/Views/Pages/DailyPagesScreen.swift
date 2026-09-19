@@ -21,9 +21,12 @@ struct DailyPagesScreen: View {
 
 	@State private var pageLimit = dailyPageBatchSize
 
+	@Environment(Router.self) private var router
+	@Dependency(\.defaultDatabase) private var database
+
 	@FetchAll(Page.none) private var pages
 	var body: some View {
-		ScrollView {
+		ScrollViewWithCalendarPicker(currentDay: currentDay, onSelectDate: navigateToDailyPage) {
 			LazyVStack {
 				ForEach(pages.enumerated(), id: \.element.id) { i, page in
 					VStack(spacing: 8) {
@@ -40,7 +43,6 @@ struct DailyPagesScreen: View {
 			}
 			.scrollTargetLayout()
 		}
-		.unfocusBlockOnBackgroundTap()
 		.referenceSuggestionsOverlay()
 		.task(id: QueryID(day: currentDay, limit: pageLimit)) {
 			let _ = await withErrorReporting {
@@ -55,12 +57,16 @@ struct DailyPagesScreen: View {
 		.diagnostics()
 		.navigationTitle("Daily Notes")
 		.toolbarTitleDisplayMode(.inlineLarge)
-		.toolbar {
-			#if os(iOS)
-			ToolbarItem(placement: .primaryAction) {
-				GoToDailyPageButton()
+	}
+
+	private func navigateToDailyPage(for day: DayOfYear, dismissCalendar: () -> Void) {
+		withErrorReporting {
+			let page = try database.write { db in
+				try Page.createDailyNote(for: day, in: db)
 			}
-			#endif
+
+			dismissCalendar()
+			router.push(.page(id: page.id))
 		}
 	}
 

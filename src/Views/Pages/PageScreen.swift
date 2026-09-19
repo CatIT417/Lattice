@@ -43,13 +43,6 @@ struct PageScreen: View {
 				.unfocusBlockOnBackgroundTap()
 				#if os(iOS)
 				.doneButtonOnToolbar()
-				.toolbar {
-					if let dailyNoteDate = page.dailyNoteDate {
-						ToolbarItem {
-							GoToDailyPageButton(currentDate: dailyNoteDate.date())
-						}
-					}
-				}
 				.toolbarTitleMenu {
 					if !page.isSpecialPage {
 						if !page.isDailyNote {
