@@ -29,7 +29,7 @@ Use `(order, id)` for sibling order and `ParagraphOrder` for rank changes. Equal
 
 ## Text editing and navigation
 
-`src/Views/Components/EditableText/` contains the shared editor and separate UIKit/AppKit implementations. It displays rendered links when idle and raw syntax during editing. `AttributedStringBuilder` builds the rendered text and maps cursor positions. All editor offsets use **UTF-16 code units**, as `NSRange` does; do not use `String.count` for these offsets.
+Start with `src/ViewModels/EditableTextModel.swift` for editor state and events. `src/Views/Components/EditableText/` contains the SwiftUI wrapper and UIKit/AppKit adapters. They display rendered links when idle and raw syntax during editing. `AttributedStringBuilder` builds the rendered text and maps cursor positions. All editor offsets use **UTF-16 code units**, as `NSRange` does; do not use `String.count` for these offsets.
 
 `BlockCoordinator` manages focus requests through Dependencies. `InlineParser` and `String.extractRefs()` handle inline syntax and references. NavigationKit uses typed `Destination` values and `lattice://` deep links.
 

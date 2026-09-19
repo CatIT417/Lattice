@@ -10,11 +10,13 @@ import AppKit
 typealias PlatformFont = UIFont
 typealias PlatformColor = UIColor
 typealias PlatformImage = UIImage
+typealias PlatformTextView = UITextView
 typealias PlatformFontDescriptor = UIFontDescriptor
 #else
 typealias PlatformFont = NSFont
 typealias PlatformColor = NSColor
 typealias PlatformImage = NSImage
+typealias PlatformTextView = NSTextView
 typealias PlatformFontDescriptor = NSFontDescriptor
 #endif
 

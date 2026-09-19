@@ -89,7 +89,7 @@ struct ParagraphView: View {
 				VStack(alignment: .leading, spacing: 4) {
 					EditableText(
 						blockId: paragraph.id,
-						text: paragraph.string,
+						originalText: paragraph.string,
 						alignment: paragraph.textAlign,
 						handleAction: handleAction
 					)
@@ -150,9 +150,9 @@ struct ParagraphView: View {
 		.task(id: paragraph.string) { embeds = EmbedInfo.extract(from: paragraph.string) }
 	}
 
-	private func handleAction(_ action: EditableText.Action) -> Bool {
+	func handleAction(_ action: EditableText.Action) -> Bool {
 		switch action {
-			case let .textChanged(text): saveChanges(text)
+			case let .saveDraft(draft): saveDraft(draft)
 			case let .setHeading(level): setHeading(level)
 			case let .moveCursorDown(visualX): moveToNextBlock(visualX: visualX)
 			case let .moveCursorUp(visualX): moveToPreviousBlock(visualX: visualX)
@@ -176,11 +176,12 @@ struct ParagraphView: View {
 		}
 	}
 
-	private func saveChanges(_ newText: String) -> Bool {
+	private func saveDraft(_ draft: String) -> Bool {
 		withErrorReporting {
 			try database.write { db in
 				try Block.find(paragraph.id)
-					.update { $0.string = #bind(newText) }
+					.where { $0.string.neq(draft) }
+					.update { $0.string = #bind(draft) }
 					.execute(db)
 			}
 		}

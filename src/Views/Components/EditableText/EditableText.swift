@@ -1,15 +1,21 @@
 import SwiftUI
 import Dependencies
 
+/// Owns one editor model and connects its native view to block actions and reference suggestions.
 struct EditableText: View {
-	enum Action {
-		/// Save text changes to database
-		case textChanged(String)
+	/// Requests a block change or focus transfer from the parent.
+	enum Action: Equatable {
+		/// Request that the parent save raw text to the database. The editor ignores the result.
+		case saveDraft(String)
 
 		/// Return pressed - break block at cursor. May create new block or outdent.
+		///
+		/// Returns `true` if we should transfer focus or `false` if focus stays on this block.
 		case blockBreak(currentText: String, remainingText: String?)
 
 		/// Backspace at start - merge into previous block, appending this content
+		///
+		/// Returns `true` to end native editing or `false` to keep editing the block.
 		case mergeIntoPrevious(appendingContent: String)
 
 		/// Turn this block into a child of the previous block
@@ -19,12 +25,18 @@ struct EditableText: View {
 		case outdent(cursorPosition: Int, currentText: String)
 
 		/// Move cursor to the closest valid position in the previous line
+		///
+		/// Returns `true` if we should transfer focus or `false` to allow native arrow-key handling.
 		case moveCursorUp(visualX: CGFloat)
 
 		/// Move cursor to the closest valid position in the next line
+		///
+		/// Returns `true` if we should transfer focus or `false` to allow native arrow-key handling.
 		case moveCursorDown(visualX: CGFloat)
 
 		/// Set heading level
+		///
+		/// Returns `true` if the model should remove the shortcut prefix.
 		case setHeading(Block.HeadingLevel)
 
 		#if os(iOS)
@@ -33,11 +45,12 @@ struct EditableText: View {
 		#endif
 	}
 
-	var blockId: Block.ID? = nil
-	var text: String
+	var blockId: Block.ID?
+	var originalText: String
 	var alignment: Block.TextAlignment = .left
 	var handleAction: (Action) -> Bool
 
+	@State private var model = EditableTextModel()
 	@State private var frameInOverlaySpace: CGRect?
 
 	@Environment(\.font) private var font
@@ -49,19 +62,22 @@ struct EditableText: View {
 		let ctFont = (font ?? .body).resolve(in: fontContext).ctFont
 
 		EditableTextView(
+			model: model,
 			blockId: blockId,
-			text: text,
+			originalText: originalText,
 			alignment: alignment,
 			ctFont: ctFont,
-			onLinkClicked: openLink,
+			onLinkClicked: { [router] in Self.openLink($0, using: router) },
 			handleAction: handleAction,
-			onReferenceSuggestionCommand: { referenceSuggestions.handleCommand($0, from: blockId) },
-			onReferenceSuggestionContextChange: { context, caretRect in
+			onReferenceSuggestionCommand: { [referenceSuggestions, blockId] in referenceSuggestions.handleCommand($0, from: blockId) },
+			onReferenceSuggestionContextChange: { [referenceSuggestions, blockId, frame = $frameInOverlaySpace, handleAction] context, caretRect in
+				let currentFrame = frame.wrappedValue
+
 				referenceSuggestions.handleContextChange(
 					for: blockId,
 					context: context,
-					caretRect: caretRect.map(overlayCaretRect(from:)),
-					onTextChanged: { _ = handleAction(.textChanged($0)) }
+					caretRect: caretRect?.offsetBy(dx: currentFrame?.minX ?? 0, dy: currentFrame?.minY ?? 0),
+					onTextChanged: { _ = handleAction(.saveDraft($0)) }
 				)
 			}
 		)
@@ -78,16 +94,7 @@ struct EditableText: View {
 		.onDisappear { referenceSuggestions.endEditing(for: blockId) }
 	}
 
-	private func overlayCaretRect(from localRect: CGRect) -> CGRect {
-		let frame = frameInOverlaySpace ?? .zero
-
-		return CGRect(
-			x: frame.minX + localRect.minX, y: frame.minY + localRect.minY,
-			width: localRect.width, height: localRect.height
-		)
-	}
-
-	private func openLink(_ url: URL) {
+	private static func openLink(_ url: URL, using router: Router) {
 		if url.scheme == Destination.Deeplinks.scheme, router.handleURL(url) {
 			// Deeplink handled by app
 		} else {
@@ -100,7 +107,7 @@ struct EditableText: View {
 
 #Preview("Display Mode") {
 	EditableText(
-		text: "Hello [[World]]!",
+		originalText: "Hello [[World]]!",
 		handleAction: { _ in true }
 	)
 	.padding()
@@ -109,7 +116,7 @@ struct EditableText: View {
 
 #Preview("Long Text") {
 	EditableText(
-		text: "This is a longer piece of text that might wrap to multiple lines when displayed in the editor.",
+		originalText: "This is a longer piece of text that might wrap to multiple lines when displayed in the editor.",
 		handleAction: { _ in true }
 	)
 	.padding()
@@ -118,7 +125,7 @@ struct EditableText: View {
 
 #Preview("With Multiple Links") {
 	EditableText(
-		text: "Check out [[Page One]] and ((abc123456)) and #tag for more info.",
+		originalText: "Check out [[Page One]] and ((abc123456)) and #tag for more info.",
 		handleAction: { _ in true }
 	)
 	.padding()
